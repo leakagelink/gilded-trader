@@ -37,31 +37,31 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b border-border/40 backdrop-blur-sm bg-background/80 sticky top-0 z-50">
-        <div className="flex items-center justify-between px-4 py-4">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(!sidebarOpen)}>
-              <Menu className="h-5 w-5" />
+      <header className="border-b border-border/40 backdrop-blur-sm bg-background/95 sticky top-0 z-50 shadow-sm">
+        <div className="flex items-center justify-between px-3 sm:px-4 py-3 sm:py-4">
+          <div className="flex items-center gap-2 sm:gap-4">
+            <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-10 sm:w-10" onClick={() => setSidebarOpen(!sidebarOpen)}>
+              <Menu className="h-4 w-4 sm:h-5 sm:w-5" />
             </Button>
-            <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-                <TrendingUp className="h-5 w-5 text-primary-foreground" />
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+                <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-primary-foreground" />
               </div>
-              <span className="text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+              <span className="text-lg sm:text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
                 TradePro
               </span>
             </div>
           </div>
           
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={() => navigate("/wallet")}>
-              <Wallet className="h-5 w-5" />
+          <div className="flex items-center gap-1 sm:gap-2">
+            <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-10 sm:w-10" onClick={() => navigate("/wallet")}>
+              <Wallet className="h-4 w-4 sm:h-5 sm:w-5" />
             </Button>
-            <Button variant="ghost" size="icon" onClick={() => navigate("/profile")}>
-              <User className="h-5 w-5" />
+            <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-10 sm:w-10" onClick={() => navigate("/profile")}>
+              <User className="h-4 w-4 sm:h-5 sm:w-5" />
             </Button>
-            <Button variant="ghost" size="icon" onClick={() => navigate("/")}>
-              <LogOut className="h-5 w-5" />
+            <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-10 sm:w-10" onClick={() => navigate("/")}>
+              <LogOut className="h-4 w-4 sm:h-5 sm:w-5" />
             </Button>
           </div>
         </div>
@@ -69,7 +69,7 @@ const Dashboard = () => {
 
       <div className="flex">
         {/* Sidebar */}
-        <aside className={`${sidebarOpen ? "w-64" : "w-0"} transition-all duration-300 overflow-hidden border-r border-border/40 bg-card/50`}>
+        <aside className={`${sidebarOpen ? "w-64" : "w-0"} transition-all duration-300 overflow-hidden border-r border-border/40 bg-card/50 hidden sm:block`}>
           <nav className="p-4 space-y-2">
             <Button variant="ghost" className="w-full justify-start" onClick={() => navigate("/dashboard")}>
               <TrendingUp className="mr-2 h-4 w-4" />
@@ -95,45 +95,66 @@ const Dashboard = () => {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 p-6">
+        <main className="flex-1 p-3 sm:p-4 md:p-6">
           <div className="max-w-7xl mx-auto">
-            <div className="mb-8">
-              <h1 className="text-3xl font-bold mb-2">Trading Dashboard</h1>
-              <p className="text-muted-foreground">Monitor and trade across multiple markets</p>
+            <div className="mb-4 sm:mb-6 md:mb-8">
+              <h1 className="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2">Trading Dashboard</h1>
+              <p className="text-sm sm:text-base text-muted-foreground">Monitor and trade across multiple markets</p>
             </div>
 
             <Tabs defaultValue="crypto" className="w-full">
-              <TabsList className="grid w-full grid-cols-3 max-w-md mb-6">
-                <TabsTrigger value="crypto">Crypto</TabsTrigger>
-                <TabsTrigger value="forex">Forex</TabsTrigger>
-                <TabsTrigger value="commodities">Commodities</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-3 mb-4 sm:mb-6 h-auto p-1 bg-gradient-to-r from-card to-muted/50 backdrop-blur-sm">
+                <TabsTrigger 
+                  value="crypto" 
+                  className="text-xs sm:text-sm py-2 sm:py-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-accent data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg font-semibold"
+                >
+                  Crypto
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="forex"
+                  className="text-xs sm:text-sm py-2 sm:py-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-accent data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg font-semibold"
+                >
+                  Forex
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="commodities"
+                  className="text-xs sm:text-sm py-2 sm:py-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-accent data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg font-semibold"
+                >
+                  Commodities
+                </TabsTrigger>
               </TabsList>
 
               <TabsContent value="crypto">
-                <Card className="p-6">
-                  <h2 className="text-2xl font-semibold mb-6 flex items-center gap-2">
-                    <TrendingUp className="h-6 w-6 text-primary" />
-                    Cryptocurrency Markets
+                <Card className="p-3 sm:p-4 md:p-6 border-primary/20 shadow-lg">
+                  <h2 className="text-lg sm:text-xl md:text-2xl font-semibold mb-3 sm:mb-4 md:mb-6 flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+                    <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                      Cryptocurrency Markets
+                    </span>
                   </h2>
                   <TradingList data={cryptoData} />
                 </Card>
               </TabsContent>
 
               <TabsContent value="forex">
-                <Card className="p-6">
-                  <h2 className="text-2xl font-semibold mb-6 flex items-center gap-2">
-                    <TrendingUp className="h-6 w-6 text-primary" />
-                    Forex Markets
+                <Card className="p-3 sm:p-4 md:p-6 border-primary/20 shadow-lg">
+                  <h2 className="text-lg sm:text-xl md:text-2xl font-semibold mb-3 sm:mb-4 md:mb-6 flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+                    <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                      Forex Markets
+                    </span>
                   </h2>
                   <TradingList data={forexData} />
                 </Card>
               </TabsContent>
 
               <TabsContent value="commodities">
-                <Card className="p-6">
-                  <h2 className="text-2xl font-semibold mb-6 flex items-center gap-2">
-                    <TrendingUp className="h-6 w-6 text-primary" />
-                    Commodities Markets
+                <Card className="p-3 sm:p-4 md:p-6 border-primary/20 shadow-lg">
+                  <h2 className="text-lg sm:text-xl md:text-2xl font-semibold mb-3 sm:mb-4 md:mb-6 flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+                    <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                      Commodities Markets
+                    </span>
                   </h2>
                   <TradingList data={commoditiesData} />
                 </Card>

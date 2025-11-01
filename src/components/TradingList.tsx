@@ -1,4 +1,4 @@
-import { TrendingUp, TrendingDown } from "lucide-react";
+import { TrendingUp, TrendingDown, type LucideIcon } from "lucide-react";
 
 interface TradingItem {
   name: string;
@@ -6,6 +6,7 @@ interface TradingItem {
   price: string;
   change: string;
   isPositive: boolean;
+  icon: LucideIcon;
 }
 
 interface TradingListProps {
@@ -15,17 +16,17 @@ interface TradingListProps {
 const TradingList = ({ data }: TradingListProps) => {
   return (
     <div className="space-y-2">
-      {data.map((item, index) => (
-        <div
-          key={index}
-          className="flex items-center justify-between p-3 sm:p-4 rounded-xl border border-border/50 bg-gradient-to-r from-card/80 to-card/50 hover:from-card hover:to-card/80 transition-all duration-300 hover:shadow-lg hover:scale-[1.01]"
-        >
-          <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
-            <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-gradient-to-br from-primary/30 to-accent/30 flex items-center justify-center flex-shrink-0 ring-2 ring-primary/10">
-              <span className="text-xs sm:text-sm font-bold bg-gradient-to-br from-primary to-accent bg-clip-text text-transparent">
-                {item.symbol.slice(0, 2)}
-              </span>
-            </div>
+      {data.map((item, index) => {
+        const IconComponent = item.icon;
+        return (
+          <div
+            key={index}
+            className="flex items-center justify-between p-3 sm:p-4 rounded-xl border border-border/50 bg-gradient-to-r from-card/80 to-card/50 hover:from-card hover:to-card/80 transition-all duration-300 hover:shadow-lg hover:scale-[1.01]"
+          >
+            <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+              <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-gradient-to-br from-primary/30 to-accent/30 flex items-center justify-center flex-shrink-0 ring-2 ring-primary/10">
+                <IconComponent className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+              </div>
             <div className="min-w-0 flex-1">
               <div className="font-semibold text-sm sm:text-base truncate">{item.name}</div>
               <div className="text-xs text-muted-foreground">{item.symbol}</div>
@@ -48,7 +49,8 @@ const TradingList = ({ data }: TradingListProps) => {
             </div>
           </div>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 };

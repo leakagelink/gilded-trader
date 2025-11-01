@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { TrendingUp, Wallet, User, Settings, FileCheck, Menu, LogOut } from "lucide-react";
+import { TrendingUp, Wallet, User, Settings, FileCheck, Menu, LogOut, Bitcoin, DollarSign, Euro, PoundSterling, Coins, Gem, Droplet, Flame, type LucideIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import TradingList from "@/components/TradingList";
 
@@ -11,27 +11,27 @@ const Dashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const cryptoData = [
-    { name: "Bitcoin", symbol: "BTC", price: "$43,250.00", change: "+2.5%", isPositive: true },
-    { name: "Ethereum", symbol: "ETH", price: "$2,280.50", change: "+1.8%", isPositive: true },
-    { name: "Ripple", symbol: "XRP", price: "$0.62", change: "-0.5%", isPositive: false },
-    { name: "Cardano", symbol: "ADA", price: "$0.48", change: "+3.2%", isPositive: true },
-    { name: "Solana", symbol: "SOL", price: "$98.75", change: "+5.1%", isPositive: true },
+    { name: "Bitcoin", symbol: "BTC", price: "$43,250.00", change: "+2.5%", isPositive: true, icon: Bitcoin },
+    { name: "Ethereum", symbol: "ETH", price: "$2,280.50", change: "+1.8%", isPositive: true, icon: Coins },
+    { name: "Ripple", symbol: "XRP", price: "$0.62", change: "-0.5%", isPositive: false, icon: Coins },
+    { name: "Cardano", symbol: "ADA", price: "$0.48", change: "+3.2%", isPositive: true, icon: Coins },
+    { name: "Solana", symbol: "SOL", price: "$98.75", change: "+5.1%", isPositive: true, icon: Coins },
   ];
 
   const forexData = [
-    { name: "EUR/USD", symbol: "EUR", price: "1.0925", change: "+0.15%", isPositive: true },
-    { name: "GBP/USD", symbol: "GBP", price: "1.2750", change: "-0.08%", isPositive: false },
-    { name: "USD/JPY", symbol: "JPY", price: "148.50", change: "+0.22%", isPositive: true },
-    { name: "AUD/USD", symbol: "AUD", price: "0.6580", change: "+0.10%", isPositive: true },
-    { name: "USD/CAD", symbol: "CAD", price: "1.3420", change: "-0.12%", isPositive: false },
+    { name: "EUR/USD", symbol: "EUR", price: "1.0925", change: "+0.15%", isPositive: true, icon: Euro },
+    { name: "GBP/USD", symbol: "GBP", price: "1.2750", change: "-0.08%", isPositive: false, icon: PoundSterling },
+    { name: "USD/JPY", symbol: "JPY", price: "148.50", change: "+0.22%", isPositive: true, icon: DollarSign },
+    { name: "AUD/USD", symbol: "AUD", price: "0.6580", change: "+0.10%", isPositive: true, icon: DollarSign },
+    { name: "USD/CAD", symbol: "CAD", price: "1.3420", change: "-0.12%", isPositive: false, icon: DollarSign },
   ];
 
   const commoditiesData = [
-    { name: "Gold", symbol: "XAU", price: "$2,050.00", change: "+1.2%", isPositive: true },
-    { name: "Silver", symbol: "XAG", price: "$24.50", change: "+0.8%", isPositive: true },
-    { name: "Crude Oil", symbol: "WTI", price: "$78.50", change: "-0.5%", isPositive: false },
-    { name: "Natural Gas", symbol: "NG", price: "$2.85", change: "+2.1%", isPositive: true },
-    { name: "Copper", symbol: "HG", price: "$3.85", change: "+1.5%", isPositive: true },
+    { name: "Gold", symbol: "XAU", price: "$2,050.00", change: "+1.2%", isPositive: true, icon: Gem },
+    { name: "Silver", symbol: "XAG", price: "$24.50", change: "+0.8%", isPositive: true, icon: Gem },
+    { name: "Crude Oil", symbol: "WTI", price: "$78.50", change: "-0.5%", isPositive: false, icon: Droplet },
+    { name: "Natural Gas", symbol: "NG", price: "$2.85", change: "+2.1%", isPositive: true, icon: Flame },
+    { name: "Copper", symbol: "HG", price: "$3.85", change: "+1.5%", isPositive: true, icon: Coins },
   ];
 
   return (
@@ -47,8 +47,8 @@ const Dashboard = () => {
               <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
                 <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-primary-foreground" />
               </div>
-              <span className="text-lg sm:text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                TradePro
+              <span className="text-lg sm:text-xl font-extrabold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent tracking-tight">
+                CoinGoldFX
               </span>
             </div>
           </div>

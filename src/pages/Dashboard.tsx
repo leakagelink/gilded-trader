@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { TrendingUp, Wallet, User, Settings, FileCheck, Menu, LogOut, Bitcoin, DollarSign, Euro, PoundSterling, Coins, Gem, Droplet, Flame, type LucideIcon } from "lucide-react";
+import { TrendingUp, Wallet, User, Settings, FileCheck, Menu, LogOut, Bitcoin, DollarSign, Euro, PoundSterling, Coins, Gem, Droplet, Flame, RotateCcw, type LucideIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import TradingList from "@/components/TradingList";
 
@@ -19,26 +19,27 @@ const Dashboard = () => {
   ]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchCryptoData = async () => {
-      try {
-        const { data, error } = await supabase.functions.invoke('fetch-crypto-data');
-        
-        if (error) {
-          console.error('Error fetching crypto data:', error);
-          return;
-        }
-        
-        if (data?.cryptoData) {
-          setCryptoData(data.cryptoData);
-        }
-      } catch (error) {
-        console.error('Error:', error);
-      } finally {
-        setLoading(false);
+  const fetchCryptoData = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase.functions.invoke('fetch-crypto-data');
+      
+      if (error) {
+        console.error('Error fetching crypto data:', error);
+        return;
       }
-    };
+      
+      if (data?.cryptoData) {
+        setCryptoData(data.cryptoData);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchCryptoData();
   }, []);
 
@@ -150,12 +151,17 @@ const Dashboard = () => {
 
               <TabsContent value="crypto">
                 <Card className="p-3 sm:p-4 md:p-6 border-primary/20 shadow-lg bg-muted/50">
-                  <h2 className="text-lg sm:text-xl md:text-2xl font-semibold mb-3 sm:mb-4 md:mb-6 flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-                    <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                      Cryptocurrency Markets
-                    </span>
-                  </h2>
+                  <div className="flex items-center justify-between mb-3 sm:mb-4 md:mb-6">
+                    <h2 className="text-lg sm:text-xl md:text-2xl font-semibold flex items-center gap-2 mb-0">
+                      <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+                      <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                        Cryptocurrency Markets
+                      </span>
+                    </h2>
+                    <Button variant="ghost" size="icon" onClick={fetchCryptoData} aria-label="Refresh markets" title="Refresh markets">
+                      <RotateCcw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+                    </Button>
+                  </div>
                   <div className="max-h-[600px] overflow-y-auto pr-2">
                     <TradingList data={cryptoData} />
                   </div>

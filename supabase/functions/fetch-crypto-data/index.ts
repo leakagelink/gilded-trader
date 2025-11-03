@@ -21,7 +21,7 @@ serve(async (req) => {
 
     // Fetch latest cryptocurrency listings
     const response = await fetch(
-      'https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest?limit=10',
+      'https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest?limit=20',
       {
         headers: {
           'X-CMC_PRO_API_KEY': COINMARKETCAP_API_KEY,
@@ -40,7 +40,7 @@ serve(async (req) => {
     console.log('Successfully fetched crypto data');
 
     // Transform the data to match our app's format
-    const cryptoData = data.data.slice(0, 5).map((coin: any) => ({
+    const cryptoData = data.data.map((coin: any) => ({
       name: coin.name,
       symbol: coin.symbol,
       price: `$${coin.quote.USD.price.toFixed(2)}`,

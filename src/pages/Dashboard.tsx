@@ -156,7 +156,9 @@ const Dashboard = () => {
                       Cryptocurrency Markets
                     </span>
                   </h2>
-                  <TradingList data={cryptoData} />
+                  <div className="max-h-[600px] overflow-y-auto pr-2">
+                    <TradingList data={cryptoData} />
+                  </div>
                 </Card>
               </TabsContent>
 

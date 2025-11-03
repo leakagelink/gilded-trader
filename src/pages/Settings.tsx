@@ -5,6 +5,7 @@ import { Switch } from "@/components/ui/switch";
 import { Settings as SettingsIcon, TrendingUp, Bell, Shield, Lock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import BottomNav from "@/components/BottomNav";
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -32,7 +33,7 @@ const Settings = () => {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 max-w-2xl">
+      <main className="container mx-auto px-4 py-8 max-w-2xl pb-24">
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2 flex items-center gap-2">
             <SettingsIcon className="h-8 w-8" />
@@ -129,6 +130,9 @@ const Settings = () => {
           </Button>
         </div>
       </main>
+
+      {/* Bottom Navigation Bar */}
+      <BottomNav />
     </div>
   );
 };

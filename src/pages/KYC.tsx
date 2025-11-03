@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { FileCheck, TrendingUp, Upload, CheckCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import BottomNav from "@/components/BottomNav";
 
 const KYC = () => {
   const navigate = useNavigate();
@@ -34,7 +35,7 @@ const KYC = () => {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 max-w-3xl">
+      <main className="container mx-auto px-4 py-8 max-w-3xl pb-24">
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2 flex items-center gap-2">
             <FileCheck className="h-8 w-8" />
@@ -159,6 +160,9 @@ const KYC = () => {
           </ul>
         </Card>
       </main>
+
+      {/* Bottom Navigation Bar */}
+      <BottomNav />
     </div>
   );
 };

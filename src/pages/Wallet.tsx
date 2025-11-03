@@ -2,6 +2,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowUpRight, ArrowDownLeft, Wallet as WalletIcon, TrendingUp } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import BottomNav from "@/components/BottomNav";
 
 const Wallet = () => {
   const navigate = useNavigate();
@@ -37,7 +38,7 @@ const Wallet = () => {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 max-w-6xl">
+      <main className="container mx-auto px-4 py-8 max-w-6xl pb-24">
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2 flex items-center gap-2">
             <WalletIcon className="h-8 w-8" />
@@ -104,6 +105,9 @@ const Wallet = () => {
           </div>
         </Card>
       </main>
+
+      {/* Bottom Navigation Bar */}
+      <BottomNav />
     </div>
   );
 };

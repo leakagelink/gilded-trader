@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { TrendingUp, Wallet, User, Settings, FileCheck, Menu, LogOut, Bitcoin, DollarSign, Euro, PoundSterling, Coins, Gem, Droplet, Flame, RotateCcw, type LucideIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import TradingList from "@/components/TradingList";
+import BottomNav from "@/components/BottomNav";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -120,7 +121,7 @@ const Dashboard = () => {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 p-3 sm:p-4 md:p-6">
+        <main className="flex-1 p-3 sm:p-4 md:p-6 pb-20">
           <div className="max-w-7xl mx-auto">
             <div className="mb-4 sm:mb-6 md:mb-8">
               <h1 className="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2">Trading Dashboard</h1>
@@ -195,6 +196,9 @@ const Dashboard = () => {
           </div>
         </main>
       </div>
+
+      {/* Bottom Navigation Bar */}
+      <BottomNav />
     </div>
   );
 };

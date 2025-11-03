@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,14 +10,37 @@ import TradingList from "@/components/TradingList";
 const Dashboard = () => {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  const cryptoData = [
+  const [cryptoData, setCryptoData] = useState([
     { name: "Bitcoin", symbol: "BTC", price: "$43,250.00", change: "+2.5%", isPositive: true, icon: Bitcoin },
     { name: "Ethereum", symbol: "ETH", price: "$2,280.50", change: "+1.8%", isPositive: true, icon: Coins },
     { name: "Ripple", symbol: "XRP", price: "$0.62", change: "-0.5%", isPositive: false, icon: Coins },
     { name: "Cardano", symbol: "ADA", price: "$0.48", change: "+3.2%", isPositive: true, icon: Coins },
     { name: "Solana", symbol: "SOL", price: "$98.75", change: "+5.1%", isPositive: true, icon: Coins },
-  ];
+  ]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchCryptoData = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('fetch-crypto-data');
+        
+        if (error) {
+          console.error('Error fetching crypto data:', error);
+          return;
+        }
+        
+        if (data?.cryptoData) {
+          setCryptoData(data.cryptoData);
+        }
+      } catch (error) {
+        console.error('Error:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCryptoData();
+  }, []);
 
   const forexData = [
     { name: "EUR/USD", symbol: "EUR", price: "1.0925", change: "+0.15%", isPositive: true, icon: Euro },

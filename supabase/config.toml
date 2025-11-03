@@ -1,1 +1,4 @@
 project_id = "jslfqoxxmilfolrwvfaa"
+
+[functions.fetch-crypto-data]
+verify_jwt = false

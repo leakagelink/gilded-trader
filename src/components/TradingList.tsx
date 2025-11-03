@@ -6,7 +6,8 @@ interface TradingItem {
   price: string;
   change: string;
   isPositive: boolean;
-  icon: LucideIcon;
+  icon?: LucideIcon;
+  logo?: string;
 }
 
 interface TradingListProps {
@@ -26,7 +27,11 @@ const TradingList = ({ data }: TradingListProps) => {
             {/* Left: Icon and Name */}
             <div className="flex items-center gap-3 flex-1 min-w-0">
               <div className="h-12 w-12 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center flex-shrink-0">
-                <IconComponent className="h-6 w-6 text-primary" />
+                {item.logo ? (
+                  <img src={item.logo} alt={item.name} className="h-8 w-8" />
+                ) : IconComponent ? (
+                  <IconComponent className="h-6 w-6 text-primary" />
+                ) : null}
               </div>
               <div className="min-w-0">
                 <div className="font-bold text-base truncate">{item.name}</div>

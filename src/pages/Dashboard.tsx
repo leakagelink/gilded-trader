@@ -125,7 +125,7 @@ const Dashboard = () => {
               </TabsList>
 
               <TabsContent value="crypto">
-                <Card className="p-3 sm:p-4 md:p-6 border-primary/20 shadow-lg">
+                <Card className="p-3 sm:p-4 md:p-6 border-primary/20 shadow-lg bg-muted/50">
                   <h2 className="text-lg sm:text-xl md:text-2xl font-semibold mb-3 sm:mb-4 md:mb-6 flex items-center gap-2">
                     <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
                     <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
@@ -137,7 +137,7 @@ const Dashboard = () => {
               </TabsContent>
 
               <TabsContent value="forex">
-                <Card className="p-3 sm:p-4 md:p-6 border-primary/20 shadow-lg">
+                <Card className="p-3 sm:p-4 md:p-6 border-primary/20 shadow-lg bg-muted/50">
                   <h2 className="text-lg sm:text-xl md:text-2xl font-semibold mb-3 sm:mb-4 md:mb-6 flex items-center gap-2">
                     <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
                     <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
@@ -149,7 +149,7 @@ const Dashboard = () => {
               </TabsContent>
 
               <TabsContent value="commodities">
-                <Card className="p-3 sm:p-4 md:p-6 border-primary/20 shadow-lg">
+                <Card className="p-3 sm:p-4 md:p-6 border-primary/20 shadow-lg bg-muted/50">
                   <h2 className="text-lg sm:text-xl md:text-2xl font-semibold mb-3 sm:mb-4 md:mb-6 flex items-center gap-2">
                     <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
                     <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">

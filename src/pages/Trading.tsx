@@ -8,10 +8,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, TrendingUp, TrendingDown, RefreshCcw } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import BottomNav from "@/components/BottomNav";
 import {
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -19,9 +18,10 @@ import {
   ResponsiveContainer,
   ComposedChart,
   Bar,
+  Line,
 } from "recharts";
 
-type Timeframe = "1H" | "4H" | "1D" | "1W" | "1M";
+type Timeframe = "1m" | "5m" | "15m" | "1h" | "4h" | "1d";
 
 interface CandleData {
   time: string;
@@ -30,116 +30,124 @@ interface CandleData {
   low: number;
   close: number;
   volume: number;
+  timestamp: number;
 }
 
 const Trading = () => {
   const { symbol } = useParams<{ symbol: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [timeframe, setTimeframe] = useState<Timeframe>("1D");
+  const [timeframe, setTimeframe] = useState<Timeframe>("1h");
   const [buyAmount, setBuyAmount] = useState("");
   const [sellAmount, setSellAmount] = useState("");
   const [chartData, setChartData] = useState<CandleData[]>([]);
   const [currentPrice, setCurrentPrice] = useState<number>(0);
   const [priceChange, setPriceChange] = useState<number>(0);
   const [loading, setLoading] = useState(false);
+  const [liveCandle, setLiveCandle] = useState<CandleData | null>(null);
 
   useEffect(() => {
     if (!user) {
       navigate("/auth");
       return;
     }
-    generateChartData();
+    fetchRealTimeData();
     
-    // Simulate live updates every 3 seconds
-    const interval = setInterval(() => {
-      updateLivePrice();
-    }, 3000);
+    // Update live candle every 2 seconds
+    const liveInterval = setInterval(() => {
+      updateLiveCandle();
+    }, 2000);
 
-    return () => clearInterval(interval);
-  }, [user, timeframe, navigate]);
+    return () => clearInterval(liveInterval);
+  }, [user, timeframe, navigate, symbol]);
 
-  const generateChartData = () => {
-    const dataPoints = timeframe === "1H" ? 12 : timeframe === "4H" ? 24 : timeframe === "1D" ? 48 : timeframe === "1W" ? 28 : 30;
-    const basePrice = Math.random() * 10000 + 1000;
+  const fetchRealTimeData = async () => {
+    if (!symbol) return;
     
-    const data: CandleData[] = [];
-    let prevClose = basePrice;
-
-    for (let i = 0; i < dataPoints; i++) {
-      const volatility = prevClose * 0.02;
-      const open = prevClose;
-      const close = open + (Math.random() - 0.5) * volatility * 2;
-      const high = Math.max(open, close) + Math.random() * volatility;
-      const low = Math.min(open, close) - Math.random() * volatility;
-      const volume = Math.random() * 1000000;
-
-      data.push({
-        time: getTimeLabel(i, timeframe),
-        open,
-        high,
-        low,
-        close,
-        volume,
+    try {
+      setLoading(true);
+      const { data, error } = await supabase.functions.invoke('fetch-taapi-data', {
+        body: { 
+          symbol: symbol.toUpperCase(),
+          interval: timeframe
+        }
       });
 
-      prevClose = close;
-    }
+      if (error) {
+        console.error('Error fetching TAAPI data:', error);
+        toast.error('Failed to fetch real-time data');
+        return;
+      }
 
-    setChartData(data);
-    setCurrentPrice(data[data.length - 1].close);
-    setPriceChange(((data[data.length - 1].close - data[0].open) / data[0].open) * 100);
+      if (data?.candles && data.candles.length > 0) {
+        const formattedData: CandleData[] = data.candles.map((candle: any) => ({
+          time: new Date(candle.timestampHuman).toLocaleTimeString('en-US', { 
+            hour: '2-digit', 
+            minute: '2-digit' 
+          }),
+          open: candle.open,
+          high: candle.high,
+          low: candle.low,
+          close: candle.close,
+          volume: candle.volume || 0,
+          timestamp: candle.timestamp,
+        }));
+
+        setChartData(formattedData);
+        
+        // Set current price from latest candle or API
+        const latestPrice = data.currentPrice || formattedData[formattedData.length - 1]?.close || 0;
+        setCurrentPrice(latestPrice);
+        
+        // Calculate price change
+        const firstPrice = formattedData[0]?.open || latestPrice;
+        const change = ((latestPrice - firstPrice) / firstPrice) * 100;
+        setPriceChange(change);
+
+        // Initialize live candle
+        const lastCandle = formattedData[formattedData.length - 1];
+        if (lastCandle) {
+          setLiveCandle({ ...lastCandle });
+        }
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error('Failed to load data');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const getTimeLabel = (index: number, tf: Timeframe): string => {
-    const now = new Date();
-    let minutes = 0;
+  const updateLiveCandle = () => {
+    if (!liveCandle || chartData.length === 0) return;
 
-    switch (tf) {
-      case "1H":
-        minutes = index * 5;
-        break;
-      case "4H":
-        minutes = index * 10;
-        break;
-      case "1D":
-        minutes = index * 30;
-        break;
-      case "1W":
-        minutes = index * 360;
-        break;
-      case "1M":
-        minutes = index * 1440;
-        break;
-    }
+    // Simulate live price movement
+    const volatility = liveCandle.close * 0.0005; // 0.05% volatility
+    const newClose = liveCandle.close + (Math.random() - 0.5) * volatility * 2;
+    
+    const updatedCandle: CandleData = {
+      ...liveCandle,
+      close: newClose,
+      high: Math.max(liveCandle.high, newClose),
+      low: Math.min(liveCandle.low, newClose),
+    };
 
-    const time = new Date(now.getTime() - (dataPoints - index) * minutes * 60000);
-    return time.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
-  };
+    setLiveCandle(updatedCandle);
+    setCurrentPrice(newClose);
 
-  const dataPoints = timeframe === "1H" ? 12 : timeframe === "4H" ? 24 : timeframe === "1D" ? 48 : timeframe === "1W" ? 28 : 30;
-
-  const updateLivePrice = () => {
-    setChartData((prev) => {
-      if (prev.length === 0) return prev;
-      
-      const lastCandle = prev[prev.length - 1];
-      const volatility = lastCandle.close * 0.005;
-      const newClose = lastCandle.close + (Math.random() - 0.5) * volatility * 2;
-      
-      const updatedData = [...prev];
-      updatedData[updatedData.length - 1] = {
-        ...lastCandle,
-        close: newClose,
-        high: Math.max(lastCandle.high, newClose),
-        low: Math.min(lastCandle.low, newClose),
-      };
-
-      setCurrentPrice(newClose);
-      setPriceChange(((newClose - prev[0].open) / prev[0].open) * 100);
-      
-      return updatedData;
+    // Update chart data with live candle
+    setChartData(prev => {
+      const newData = [...prev];
+      newData[newData.length - 1] = updatedCandle;
+      return newData;
     });
+
+    // Update price change
+    if (chartData.length > 0) {
+      const firstPrice = chartData[0].open;
+      const change = ((newClose - firstPrice) / firstPrice) * 100;
+      setPriceChange(change);
+    }
   };
 
   const handleBuy = () => {
@@ -161,7 +169,6 @@ const Trading = () => {
   };
 
   const CustomCandlestick = ({ data }: { data: CandleData[] }) => {
-    // Add color based on price direction
     const dataWithColor = data.map(candle => ({
       ...candle,
       fill: candle.close >= candle.open ? "#10b981" : "#ef4444"
@@ -174,12 +181,13 @@ const Trading = () => {
           <XAxis 
             dataKey="time" 
             stroke="#888"
-            style={{ fontSize: "12px" }}
+            style={{ fontSize: "10px" }}
+            interval="preserveStartEnd"
           />
           <YAxis 
             stroke="#888"
             style={{ fontSize: "12px" }}
-            domain={['dataMin - 50', 'dataMax + 50']}
+            domain={['auto', 'auto']}
           />
           <Tooltip
             contentStyle={{
@@ -193,6 +201,7 @@ const Trading = () => {
             dataKey="close"
             fill="#10b981"
             radius={[4, 4, 0, 0]}
+            animationDuration={300}
           />
           <Line
             type="monotone"
@@ -215,9 +224,10 @@ const Trading = () => {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold">{symbol?.toUpperCase()}</h1>
+            <h1 className="text-xl font-bold">{symbol?.toUpperCase()}/USDT</h1>
+            <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" title="Live"></div>
           </div>
-          <Button variant="ghost" size="icon" onClick={generateChartData}>
+          <Button variant="ghost" size="icon" onClick={fetchRealTimeData} disabled={loading}>
             <RefreshCcw className={`h-5 w-5 ${loading ? "animate-spin" : ""}`} />
           </Button>
         </div>
@@ -228,8 +238,8 @@ const Trading = () => {
         <Card className="p-4 bg-gradient-to-br from-card to-muted/50">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-muted-foreground">Current Price</p>
-              <h2 className="text-3xl font-bold">${currentPrice.toFixed(2)}</h2>
+              <p className="text-sm text-muted-foreground">Current Price (Live)</p>
+              <h2 className="text-3xl font-bold animate-fade-in">${currentPrice.toFixed(2)}</h2>
             </div>
             <div className={`flex items-center gap-2 ${priceChange >= 0 ? "text-green-500" : "text-red-500"}`}>
               {priceChange >= 0 ? <TrendingUp className="h-6 w-6" /> : <TrendingDown className="h-6 w-6" />}
@@ -241,7 +251,7 @@ const Trading = () => {
         {/* Timeframe Filters */}
         <Card className="p-4">
           <div className="flex gap-2 overflow-x-auto">
-            {(["1H", "4H", "1D", "1W", "1M"] as Timeframe[]).map((tf) => (
+            {(["1m", "5m", "15m", "1h", "4h", "1d"] as Timeframe[]).map((tf) => (
               <Button
                 key={tf}
                 variant={timeframe === tf ? "default" : "outline"}
@@ -249,7 +259,7 @@ const Trading = () => {
                 onClick={() => setTimeframe(tf)}
                 className="min-w-[60px]"
               >
-                {tf}
+                {tf.toUpperCase()}
               </Button>
             ))}
           </div>
@@ -260,11 +270,19 @@ const Trading = () => {
           <div className="mb-4">
             <h3 className="text-lg font-semibold flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-primary" />
-              Live Candlestick Chart
+              Live Candlestick Chart - {timeframe.toUpperCase()}
             </h3>
-            <p className="text-sm text-muted-foreground">Real-time price movement</p>
+            <p className="text-sm text-muted-foreground">Real-time data from TAAPI</p>
           </div>
-          <CustomCandlestick data={chartData} />
+          {chartData.length > 0 ? (
+            <CustomCandlestick data={chartData} />
+          ) : (
+            <div className="h-[400px] flex items-center justify-center">
+              <p className="text-muted-foreground">
+                {loading ? "Loading chart data..." : "No data available"}
+              </p>
+            </div>
+          )}
         </Card>
 
         {/* Buy/Sell Section */}

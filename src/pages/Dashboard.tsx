@@ -52,6 +52,13 @@ const Dashboard = () => {
     if (user) {
       fetchCryptoData();
       checkAdminStatus();
+      
+      // Auto-refresh every 30 seconds for live data
+      const refreshInterval = setInterval(() => {
+        fetchCryptoData();
+      }, 30000);
+
+      return () => clearInterval(refreshInterval);
     }
   }, [user, authLoading, navigate]);
 

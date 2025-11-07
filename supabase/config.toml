@@ -2,3 +2,6 @@ project_id = "jslfqoxxmilfolrwvfaa"
 
 [functions.fetch-crypto-data]
 verify_jwt = false
+
+[functions.fetch-taapi-data]
+verify_jwt = false

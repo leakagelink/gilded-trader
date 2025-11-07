@@ -1,18 +1,98 @@
+import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { User, Mail, Phone, TrendingUp } from "lucide-react";
+import { User, Mail, TrendingUp } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import BottomNav from "@/components/BottomNav";
+
+interface Profile {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+  created_at: string;
+}
 
 const Profile = () => {
   const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [fullName, setFullName] = useState("");
 
-  const handleSave = () => {
-    toast.success("Profile updated successfully!");
+  useEffect(() => {
+    if (!authLoading && !user) {
+      navigate("/auth");
+      return;
+    }
+
+    if (user) {
+      fetchProfile();
+    }
+  }, [user, authLoading, navigate]);
+
+  const fetchProfile = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user?.id)
+        .single();
+
+      if (error) throw error;
+
+      setProfile(data);
+      setFullName(data.full_name || "");
+    } catch (error: any) {
+      console.error("Error fetching profile:", error);
+      toast.error("Failed to load profile");
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const handleSave = async () => {
+    if (!user) return;
+
+    try {
+      setSaving(true);
+      const { error } = await supabase
+        .from("profiles")
+        .update({ full_name: fullName })
+        .eq("id", user.id);
+
+      if (error) throw error;
+
+      toast.success("Profile updated successfully!");
+      fetchProfile();
+    } catch (error: any) {
+      console.error("Error updating profile:", error);
+      toast.error("Failed to update profile");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+    });
+  };
+
+  if (authLoading || loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p>Loading profile...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -48,12 +128,14 @@ const Profile = () => {
               <User className="h-10 w-10 text-primary-foreground" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold">John Doe</h2>
-              <p className="text-muted-foreground">Member since Jan 2024</p>
+              <h2 className="text-2xl font-bold">{profile?.full_name || "User"}</h2>
+              <p className="text-muted-foreground">
+                Member since {profile?.created_at ? formatDate(profile.created_at) : "Unknown"}
+              </p>
             </div>
           </div>
 
-          <form className="space-y-4">
+          <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
             <div className="space-y-2">
               <Label htmlFor="name">Full Name</Label>
               <div className="relative">
@@ -61,7 +143,8 @@ const Profile = () => {
                 <Input
                   id="name"
                   type="text"
-                  defaultValue="John Doe"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
                   className="pl-10"
                 />
               </div>
@@ -74,45 +157,34 @@ const Profile = () => {
                 <Input
                   id="email"
                   type="email"
-                  defaultValue="john@example.com"
+                  value={profile?.email || user?.email || ""}
                   className="pl-10"
+                  disabled
                 />
               </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number</Label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="phone"
-                  type="tel"
-                  defaultValue="+1 234 567 8900"
-                  className="pl-10"
-                />
-              </div>
+              <p className="text-xs text-muted-foreground">Email cannot be changed</p>
             </div>
 
             <Button
-              type="button"
-              onClick={handleSave}
+              type="submit"
               className="w-full bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary"
+              disabled={saving}
             >
-              Save Changes
+              {saving ? "Saving..." : "Save Changes"}
             </Button>
           </form>
         </Card>
 
         <Card className="p-6">
-          <h3 className="text-xl font-semibold mb-4">Account Statistics</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="p-4 border border-border/50 rounded-lg">
-              <div className="text-2xl font-bold text-primary">52</div>
-              <div className="text-sm text-muted-foreground">Total Trades</div>
+          <h3 className="text-xl font-semibold mb-4">Account Information</h3>
+          <div className="space-y-3">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Account ID:</span>
+              <span className="font-mono text-sm">{user?.id.slice(0, 8)}...</span>
             </div>
-            <div className="p-4 border border-border/50 rounded-lg">
-              <div className="text-2xl font-bold text-accent">$12,500</div>
-              <div className="text-sm text-muted-foreground">Total Volume</div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Email Verified:</span>
+              <span>{user?.email_confirmed_at ? "Yes" : "No"}</span>
             </div>
           </div>
         </Card>

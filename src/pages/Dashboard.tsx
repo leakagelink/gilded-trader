@@ -3,13 +3,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { TrendingUp, Wallet, User, Settings, FileCheck, Menu, LogOut, Bitcoin, DollarSign, Euro, PoundSterling, Coins, Gem, Droplet, Flame, RotateCcw, type LucideIcon } from "lucide-react";
+import { TrendingUp, Wallet, User, Settings, FileCheck, Menu, LogOut, Bitcoin, DollarSign, Euro, PoundSterling, Coins, Gem, Droplet, Flame, RotateCcw, Shield, type LucideIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import TradingList from "@/components/TradingList";
 import BottomNav from "@/components/BottomNav";
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { user, loading: authLoading, signOut } = useAuth();
+  const [isAdmin, setIsAdmin] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [cryptoData, setCryptoData] = useState([
     { name: "Bitcoin", symbol: "BTC", price: "$43,250.00", change: "+2.5%", isPositive: true, icon: Bitcoin },
@@ -41,8 +44,31 @@ const Dashboard = () => {
   };
 
   useEffect(() => {
-    fetchCryptoData();
-  }, []);
+    if (!authLoading && !user) {
+      navigate("/auth");
+      return;
+    }
+
+    if (user) {
+      fetchCryptoData();
+      checkAdminStatus();
+    }
+  }, [user, authLoading, navigate]);
+
+  const checkAdminStatus = async () => {
+    try {
+      const { data } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user?.id)
+        .eq("role", "admin")
+        .maybeSingle();
+
+      setIsAdmin(!!data);
+    } catch (error) {
+      console.error("Error checking admin status:", error);
+    }
+  };
 
   const forexData = [
     { name: "EUR/USD", symbol: "EUR", price: "1.0925", change: "+0.15%", isPositive: true, icon: Euro },
@@ -80,13 +106,18 @@ const Dashboard = () => {
           </div>
           
           <div className="flex items-center gap-1 sm:gap-2">
+            {isAdmin && (
+              <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-10 sm:w-10" onClick={() => navigate("/admin")} title="Admin Dashboard">
+                <Shield className="h-4 w-4 sm:h-5 sm:w-5" />
+              </Button>
+            )}
             <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-10 sm:w-10" onClick={() => navigate("/wallet")}>
               <Wallet className="h-4 w-4 sm:h-5 sm:w-5" />
             </Button>
             <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-10 sm:w-10" onClick={() => navigate("/profile")}>
               <User className="h-4 w-4 sm:h-5 sm:w-5" />
             </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-10 sm:w-10" onClick={() => navigate("/")}>
+            <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-10 sm:w-10" onClick={signOut} title="Sign Out">
               <LogOut className="h-4 w-4 sm:h-5 sm:w-5" />
             </Button>
           </div>

@@ -308,11 +308,15 @@ const Trading = () => {
             }}
             content={({ active, payload }) => {
               if (active && payload && payload.length) {
-                const data = payload[0].payload;
-                const isGreen = data.close >= data.open;
+                const data = payload[0]?.payload ?? {};
+                const o = Number(data?.open ?? 0);
+                const h = Number(data?.high ?? 0);
+                const l = Number(data?.low ?? 0);
+                const c = Number(data?.close ?? 0);
+                const isGreen = c >= o;
                 return (
                   <div className="bg-card border border-border p-3 rounded-lg">
-                    {data.isLive && (
+                    {data?.isLive && (
                       <div className="flex items-center gap-2 mb-2 pb-2 border-b border-border">
                         <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></div>
                         <span className="text-xs text-green-500 font-semibold">LIVE</span>
@@ -321,24 +325,24 @@ const Trading = () => {
                     <div className="space-y-1 text-xs">
                       <div className="flex justify-between gap-4">
                         <span className="text-muted-foreground">Time:</span>
-                        <span className="font-medium">{data.time}</span>
+                        <span className="font-medium">{data?.time ?? 'N/A'}</span>
                       </div>
                       <div className="flex justify-between gap-4">
                         <span className="text-muted-foreground">Open:</span>
-                        <span className="font-medium">${data.open.toFixed(2)}</span>
+                        <span className="font-medium">${o.toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between gap-4">
                         <span className="text-muted-foreground">High:</span>
-                        <span className="font-medium text-green-500">${data.high.toFixed(2)}</span>
+                        <span className="font-medium text-green-500">${h.toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between gap-4">
                         <span className="text-muted-foreground">Low:</span>
-                        <span className="font-medium text-red-500">${data.low.toFixed(2)}</span>
+                        <span className="font-medium text-red-500">${l.toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between gap-4">
                         <span className="text-muted-foreground">Close:</span>
                         <span className={`font-medium ${isGreen ? 'text-green-500' : 'text-red-500'}`}>
-                          ${data.close.toFixed(2)}
+                          ${c.toFixed(2)}
                         </span>
                       </div>
                     </div>

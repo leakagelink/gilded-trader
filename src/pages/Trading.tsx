@@ -74,15 +74,21 @@ const Trading = () => {
       });
 
       if (error) {
-        console.error('Error fetching TAAPI data:', error);
-        const errorMessage = error.message || 'Failed to fetch real-time data';
-        toast.error(errorMessage);
+        console.error('Error fetching data:', error);
+        toast.error('Failed to fetch data. Please try again.');
         return;
       }
 
       if (data?.candles && data.candles.length > 0) {
+        // Show data source to user
+        if (data.source === 'fallback') {
+          toast.info('Using simulated data - TAAPI rate limit reached', {
+            duration: 3000
+          });
+        }
+
         const formattedData: CandleData[] = data.candles.map((candle: any) => ({
-          time: new Date(candle.timestampHuman).toLocaleTimeString('en-US', { 
+          time: new Date(candle.timestampHuman || candle.timestamp * 1000).toLocaleTimeString('en-US', { 
             hour: '2-digit', 
             minute: '2-digit' 
           }),

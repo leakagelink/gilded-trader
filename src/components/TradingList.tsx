@@ -1,4 +1,5 @@
 import { TrendingUp, TrendingDown, type LucideIcon } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 interface TradingItem {
   name: string;
@@ -15,6 +16,12 @@ interface TradingListProps {
 }
 
 const TradingList = ({ data }: TradingListProps) => {
+  const navigate = useNavigate();
+
+  const handleClick = (symbol: string) => {
+    navigate(`/trading/${symbol.toLowerCase()}`);
+  };
+
   return (
     <div className="space-y-3">
       {data.map((item, index) => {
@@ -22,7 +29,8 @@ const TradingList = ({ data }: TradingListProps) => {
         return (
           <div
             key={index}
-            className="flex items-center justify-between p-4 rounded-2xl bg-card border border-border/50 hover:border-primary/30 transition-all duration-300 hover:shadow-md"
+            onClick={() => handleClick(item.symbol)}
+            className="flex items-center justify-between p-4 rounded-2xl bg-card border border-border/50 hover:border-primary/30 transition-all duration-300 hover:shadow-md cursor-pointer active:scale-[0.98]"
           >
             {/* Left: Icon and Name */}
             <div className="flex items-center gap-3 flex-1 min-w-0">

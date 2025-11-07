@@ -12,6 +12,7 @@ import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import KYC from "./pages/KYC";
 import Admin from "./pages/Admin";
+import Trading from "./pages/Trading";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -89,6 +90,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Admin />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/trading/:symbol"
+              element={
+                <ProtectedRoute>
+                  <Trading />
                 </ProtectedRoute>
               }
             />

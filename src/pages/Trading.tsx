@@ -397,9 +397,6 @@ const Trading = () => {
             content={({ active, payload }) => {
               if (active && payload && payload.length) {
                 const data = payload[0].payload;
-                if (!data || typeof data.open === 'undefined' || typeof data.close === 'undefined') {
-                  return null;
-                }
                 const isGreen = data.close >= data.open;
                 return (
                   <div className="bg-card border border-border p-3 rounded-lg">
@@ -412,24 +409,24 @@ const Trading = () => {
                     <div className="space-y-1 text-xs">
                       <div className="flex justify-between gap-4">
                         <span className="text-muted-foreground">Time:</span>
-                        <span className="font-medium">{data.time || 'N/A'}</span>
+                        <span className="font-medium">{data.time}</span>
                       </div>
                       <div className="flex justify-between gap-4">
                         <span className="text-muted-foreground">Open:</span>
-                        <span className="font-medium">${(data.open || 0).toFixed(2)}</span>
+                        <span className="font-medium">${data.open.toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between gap-4">
                         <span className="text-muted-foreground">High:</span>
-                        <span className="font-medium text-green-500">${(data.high || 0).toFixed(2)}</span>
+                        <span className="font-medium text-green-500">${data.high.toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between gap-4">
                         <span className="text-muted-foreground">Low:</span>
-                        <span className="font-medium text-red-500">${(data.low || 0).toFixed(2)}</span>
+                        <span className="font-medium text-red-500">${data.low.toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between gap-4">
                         <span className="text-muted-foreground">Close:</span>
                         <span className={`font-medium ${isGreen ? 'text-green-500' : 'text-red-500'}`}>
-                          ${(data.close || 0).toFixed(2)}
+                          ${data.close.toFixed(2)}
                         </span>
                       </div>
                     </div>

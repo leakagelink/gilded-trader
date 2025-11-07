@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,13 +23,46 @@ const DepositModal = ({ open, onOpenChange, onSuccess }: DepositModalProps) => {
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
 
-  // Demo payment details
-  const upiId = "tradepro@upi";
-  const bankDetails = {
+  // Payment details from database
+  const [upiId, setUpiId] = useState("tradepro@upi");
+  const [bankDetails, setBankDetails] = useState({
     accountName: "TradePro Account",
     accountNumber: "1234567890",
     ifsc: "BANK0001234",
     bankName: "Demo Bank",
+  });
+
+  useEffect(() => {
+    if (open) {
+      fetchPaymentSettings();
+    }
+  }, [open]);
+
+  const fetchPaymentSettings = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("payment_settings")
+        .select("*");
+
+      if (error) throw error;
+
+      if (data) {
+        const settings: any = {};
+        data.forEach((setting) => {
+          settings[setting.setting_key] = setting.setting_value;
+        });
+
+        setUpiId(settings.upi_id || "tradepro@upi");
+        setBankDetails({
+          accountName: settings.account_name || "TradePro Account",
+          accountNumber: settings.account_number || "1234567890",
+          ifsc: settings.ifsc_code || "BANK0001234",
+          bankName: settings.bank_name || "Demo Bank",
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching payment settings:", error);
+    }
   };
 
   const handleCopy = (text: string) => {

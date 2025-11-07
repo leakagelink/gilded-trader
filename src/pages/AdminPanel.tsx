@@ -147,6 +147,29 @@ const AdminPanel = () => {
 
       if (depositsError) throw depositsError;
       setDepositRequests(depositsData || []);
+
+      // Fetch payment settings
+      const { data: settingsData, error: settingsError } = await supabase
+        .from("payment_settings")
+        .select("*");
+
+      if (settingsError) throw settingsError;
+
+      // Convert settings array to object
+      if (settingsData) {
+        const settings: any = {};
+        settingsData.forEach((setting) => {
+          const key = setting.setting_key.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
+          settings[key] = setting.setting_value;
+        });
+        setPaymentSettings({
+          upiId: settings.upiId || "tradepro@upi",
+          accountName: settings.accountName || "TradePro Account",
+          accountNumber: settings.accountNumber || "1234567890",
+          ifsc: settings.ifscCode || "BANK0001234",
+          bankName: settings.bankName || "Demo Bank",
+        });
+      }
     } catch (error: any) {
       toast({
         title: "Error",
@@ -276,12 +299,45 @@ const AdminPanel = () => {
     }
   };
 
-  const handleSavePaymentSettings = () => {
-    toast({
-      title: "Settings Saved",
-      description: "Payment details updated successfully",
-    });
-    setSettingsOpen(false);
+  const handleSavePaymentSettings = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      // Update payment settings in database
+      const settingsToUpdate = [
+        { setting_key: "upi_id", setting_value: paymentSettings.upiId },
+        { setting_key: "account_name", setting_value: paymentSettings.accountName },
+        { setting_key: "account_number", setting_value: paymentSettings.accountNumber },
+        { setting_key: "ifsc_code", setting_value: paymentSettings.ifsc },
+        { setting_key: "bank_name", setting_value: paymentSettings.bankName },
+      ];
+
+      for (const setting of settingsToUpdate) {
+        const { error } = await supabase
+          .from("payment_settings")
+          .update({
+            setting_value: setting.setting_value,
+            updated_by: user.id,
+          })
+          .eq("setting_key", setting.setting_key);
+
+        if (error) throw error;
+      }
+
+      toast({
+        title: "Settings Saved",
+        description: "Payment details updated successfully",
+      });
+
+      setSettingsOpen(false);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
 
   if (!isAdmin) {

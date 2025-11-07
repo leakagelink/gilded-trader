@@ -1,23 +1,80 @@
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowUpRight, ArrowDownLeft, Wallet as WalletIcon, TrendingUp } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import BottomNav from "@/components/BottomNav";
+import DepositModal from "@/components/DepositModal";
 
 const Wallet = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(true);
+  const [depositModalOpen, setDepositModalOpen] = useState(false);
+  const [walletData, setWalletData] = useState<any[]>([]);
+  const [transactions, setTransactions] = useState<any[]>([]);
 
-  const walletData = [
-    { currency: "USD", balance: "10,500.00", icon: "$" },
-    { currency: "BTC", balance: "0.523", icon: "₿" },
-    { currency: "ETH", balance: "2.156", icon: "Ξ" },
-  ];
+  const fetchWalletData = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-  const transactions = [
-    { type: "Deposit", amount: "+$1,000", date: "2024-01-15", status: "Completed" },
-    { type: "Withdrawal", amount: "-$500", date: "2024-01-14", status: "Completed" },
-    { type: "Trade", amount: "+0.1 BTC", date: "2024-01-13", status: "Completed" },
-  ];
+      // Fetch wallet balances
+      const { data: wallets, error: walletsError } = await supabase
+        .from("user_wallets")
+        .select("*")
+        .eq("user_id", user.id);
+
+      if (walletsError) throw walletsError;
+
+      // Format wallet data
+      const formattedWallets = wallets?.map((wallet) => ({
+        currency: wallet.currency,
+        balance: Number(wallet.balance).toFixed(2),
+        icon: wallet.currency === "USD" ? "$" : wallet.currency === "BTC" ? "₿" : "Ξ",
+      })) || [];
+
+      // If no wallets exist, show default
+      if (formattedWallets.length === 0) {
+        setWalletData([{ currency: "USD", balance: "0.00", icon: "$" }]);
+      } else {
+        setWalletData(formattedWallets);
+      }
+
+      // Fetch transactions
+      const { data: txs, error: txsError } = await supabase
+        .from("wallet_transactions")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(10);
+
+      if (txsError) throw txsError;
+
+      const formattedTxs = txs?.map((tx) => ({
+        type: tx.type.charAt(0).toUpperCase() + tx.type.slice(1),
+        amount: `${tx.type === "deposit" ? "+" : "-"}$${Number(tx.amount).toFixed(2)}`,
+        date: new Date(tx.created_at).toLocaleDateString(),
+        status: tx.status,
+      })) || [];
+
+      setTransactions(formattedTxs);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchWalletData();
+  }, []);
 
   return (
     <div className="min-h-screen bg-background">
@@ -62,7 +119,10 @@ const Wallet = () => {
 
         {/* Quick Actions */}
         <div className="grid md:grid-cols-2 gap-4 mb-8">
-          <Card className="p-6 hover:shadow-lg transition-shadow cursor-pointer">
+          <Card 
+            className="p-6 hover:shadow-lg transition-shadow cursor-pointer"
+            onClick={() => setDepositModalOpen(true)}
+          >
             <div className="flex items-center gap-4">
               <div className="h-12 w-12 rounded-lg bg-green-600/10 flex items-center justify-center">
                 <ArrowDownLeft className="h-6 w-6 text-green-600" />
@@ -89,8 +149,13 @@ const Wallet = () => {
         {/* Recent Transactions */}
         <Card className="p-6">
           <h2 className="text-2xl font-semibold mb-6">Recent Transactions</h2>
-          <div className="space-y-4">
-            {transactions.map((transaction, index) => (
+          {loading ? (
+            <p className="text-muted-foreground text-center py-8">Loading transactions...</p>
+          ) : transactions.length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">No transactions yet</p>
+          ) : (
+            <div className="space-y-4">
+              {transactions.map((transaction, index) => (
               <div key={index} className="flex items-center justify-between p-4 border border-border/50 rounded-lg">
                 <div>
                   <div className="font-semibold">{transaction.type}</div>
@@ -101,10 +166,18 @@ const Wallet = () => {
                   <div className="text-sm text-green-600">{transaction.status}</div>
                 </div>
               </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </Card>
       </main>
+
+      {/* Deposit Modal */}
+      <DepositModal
+        open={depositModalOpen}
+        onOpenChange={setDepositModalOpen}
+        onSuccess={fetchWalletData}
+      />
 
       {/* Bottom Navigation Bar */}
       <BottomNav />

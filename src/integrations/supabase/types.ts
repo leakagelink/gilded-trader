@@ -14,6 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
+      deposit_requests: {
+        Row: {
+          amount: number
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          currency: string
+          id: string
+          payment_method: Database["public"]["Enums"]["payment_method"]
+          rejection_reason: string | null
+          status: Database["public"]["Enums"]["deposit_status"]
+          transaction_id: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          payment_method: Database["public"]["Enums"]["payment_method"]
+          rejection_reason?: string | null
+          status?: Database["public"]["Enums"]["deposit_status"]
+          transaction_id: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          payment_method?: Database["public"]["Enums"]["payment_method"]
+          rejection_reason?: string | null
+          status?: Database["public"]["Enums"]["deposit_status"]
+          transaction_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deposit_requests_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "admin_users_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deposit_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "admin_users_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -78,6 +135,82 @@ export type Database = {
           },
         ]
       }
+      user_wallets: {
+        Row: {
+          balance: number
+          created_at: string
+          currency: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          balance?: number
+          created_at?: string
+          currency?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          balance?: number
+          created_at?: string
+          currency?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_wallets_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "admin_users_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wallet_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          currency: string
+          id: string
+          reference_id: string | null
+          status: string
+          type: Database["public"]["Enums"]["transaction_type"]
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          currency?: string
+          id?: string
+          reference_id?: string | null
+          status: string
+          type: Database["public"]["Enums"]["transaction_type"]
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          id?: string
+          reference_id?: string | null
+          status?: string
+          type?: Database["public"]["Enums"]["transaction_type"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_transactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "admin_users_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       admin_users_view: {
@@ -95,6 +228,7 @@ export type Database = {
       }
     }
     Functions: {
+      approve_deposit: { Args: { deposit_id: string }; Returns: undefined }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -105,6 +239,9 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
+      deposit_status: "pending" | "approved" | "rejected"
+      payment_method: "upi" | "netbanking"
+      transaction_type: "deposit" | "withdrawal" | "trade"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -233,6 +370,9 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "moderator", "user"],
+      deposit_status: ["pending", "approved", "rejected"],
+      payment_method: ["upi", "netbanking"],
+      transaction_type: ["deposit", "withdrawal", "trade"],
     },
   },
 } as const

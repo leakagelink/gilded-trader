@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { 
   TrendingUp, Shield, Users, Wallet, Settings as SettingsIcon, 
-  Check, X, RefreshCw, Edit, Trash2, DollarSign, FileText 
+  Check, X, RefreshCw, Edit, Trash2, DollarSign, FileText, ArrowUpRight 
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -58,6 +58,14 @@ const AdminPanel = () => {
 
   // Deposits state
   const [depositRequests, setDepositRequests] = useState<any[]>([]);
+
+  // Withdrawals state
+  const [withdrawalRequests, setWithdrawalRequests] = useState<any[]>([]);
+  const [selectedWithdrawal, setSelectedWithdrawal] = useState<any>(null);
+  const [approveWithdrawalOpen, setApproveWithdrawalOpen] = useState(false);
+  const [transactionRef, setTransactionRef] = useState("");
+  const [rejectWithdrawalOpen, setRejectWithdrawalOpen] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState("");
 
   // Payment settings state
   const [paymentSettings, setPaymentSettings] = useState({
@@ -147,6 +155,18 @@ const AdminPanel = () => {
 
       if (depositsError) throw depositsError;
       setDepositRequests(depositsData || []);
+
+      // Fetch withdrawal requests
+      const { data: withdrawalsData, error: withdrawalsError } = await supabase
+        .from("withdrawal_requests")
+        .select(`
+          *,
+          profiles:user_id (full_name, email)
+        `)
+        .order("created_at", { ascending: false });
+
+      if (withdrawalsError) throw withdrawalsError;
+      setWithdrawalRequests(withdrawalsData || []);
 
       // Fetch payment settings
       const { data: settingsData, error: settingsError } = await supabase
@@ -299,6 +319,64 @@ const AdminPanel = () => {
     }
   };
 
+  const handleApproveWithdrawal = async () => {
+    if (!selectedWithdrawal) return;
+
+    try {
+      const { error } = await supabase.rpc("approve_withdrawal", {
+        withdrawal_id: selectedWithdrawal.id,
+        transaction_ref: transactionRef || null,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Withdrawal approved and wallet updated",
+      });
+
+      setApproveWithdrawalOpen(false);
+      setSelectedWithdrawal(null);
+      setTransactionRef("");
+      fetchAllData();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleRejectWithdrawal = async () => {
+    if (!selectedWithdrawal) return;
+
+    try {
+      const { error } = await supabase.rpc("reject_withdrawal", {
+        withdrawal_id: selectedWithdrawal.id,
+        reason: rejectionReason || null,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Withdrawal request rejected",
+      });
+
+      setRejectWithdrawalOpen(false);
+      setSelectedWithdrawal(null);
+      setRejectionReason("");
+      fetchAllData();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleSavePaymentSettings = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -369,7 +447,7 @@ const AdminPanel = () => {
 
       <main className="container mx-auto px-4 py-8 max-w-7xl">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-6">
+          <TabsList className="grid w-full grid-cols-4 mb-6">
             <TabsTrigger value="users" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
               Users
@@ -377,6 +455,10 @@ const AdminPanel = () => {
             <TabsTrigger value="deposits" className="flex items-center gap-2">
               <Wallet className="h-4 w-4" />
               Deposits
+            </TabsTrigger>
+            <TabsTrigger value="withdrawals" className="flex items-center gap-2">
+              <ArrowUpRight className="h-4 w-4" />
+              Withdrawals
             </TabsTrigger>
             <TabsTrigger value="settings" className="flex items-center gap-2">
               <SettingsIcon className="h-4 w-4" />
@@ -570,6 +652,132 @@ const AdminPanel = () => {
             </Card>
           </TabsContent>
 
+          {/* Withdrawals Tab */}
+          <TabsContent value="withdrawals">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <ArrowUpRight className="h-5 w-5" />
+                      Withdrawal Management
+                    </CardTitle>
+                    <CardDescription>Review and approve withdrawal requests</CardDescription>
+                  </div>
+                  <Button onClick={fetchAllData} variant="outline" size="icon">
+                    <RefreshCw className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <p className="text-center py-8 text-muted-foreground">Loading withdrawals...</p>
+                ) : withdrawalRequests.length === 0 ? (
+                  <p className="text-center py-8 text-muted-foreground">No withdrawal requests</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>User</TableHead>
+                        <TableHead>Amount</TableHead>
+                        <TableHead>Method</TableHead>
+                        <TableHead>Account Details</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {withdrawalRequests.map((request) => (
+                        <TableRow key={request.id}>
+                          <TableCell>
+                            <div>
+                              <div className="font-medium">
+                                {request.profiles?.full_name || "Unknown"}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {request.profiles?.email}
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="font-semibold">
+                            ${Number(request.amount).toFixed(2)}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="capitalize">
+                              {request.withdrawal_method}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-xs space-y-1">
+                              {request.withdrawal_method === "bank" ? (
+                                <>
+                                  <div><strong>Name:</strong> {request.account_details.accountName}</div>
+                                  <div><strong>Acc:</strong> {request.account_details.accountNumber}</div>
+                                  <div><strong>IFSC:</strong> {request.account_details.ifscCode}</div>
+                                  <div><strong>Bank:</strong> {request.account_details.bankName}</div>
+                                </>
+                              ) : (
+                                <div><strong>UPI:</strong> {request.account_details.upiId}</div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={
+                                request.status === "approved"
+                                  ? "default"
+                                  : request.status === "rejected"
+                                  ? "destructive"
+                                  : request.status === "processing"
+                                  ? "secondary"
+                                  : "secondary"
+                              }
+                              className="capitalize"
+                            >
+                              {request.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {new Date(request.created_at).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell>
+                            {request.status === "pending" && (
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedWithdrawal(request);
+                                    setApproveWithdrawalOpen(true);
+                                  }}
+                                  className="bg-green-600 hover:bg-green-700"
+                                >
+                                  <Check className="h-4 w-4 mr-1" />
+                                  Approve
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => {
+                                    setSelectedWithdrawal(request);
+                                    setRejectWithdrawalOpen(true);
+                                  }}
+                                >
+                                  <X className="h-4 w-4 mr-1" />
+                                  Reject
+                                </Button>
+                              </div>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           {/* Payment Settings Tab */}
           <TabsContent value="settings">
             <Card>
@@ -706,6 +914,84 @@ const AdminPanel = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Approve Withdrawal Dialog */}
+      <Dialog open={approveWithdrawalOpen} onOpenChange={setApproveWithdrawalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Approve Withdrawal</DialogTitle>
+            <DialogDescription>
+              Approve withdrawal request for {selectedWithdrawal?.profiles?.full_name || selectedWithdrawal?.profiles?.email}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Withdrawal Amount</Label>
+              <div className="font-semibold text-lg">
+                ${Number(selectedWithdrawal?.amount || 0).toFixed(2)}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="transactionRef">Transaction Reference (Optional)</Label>
+              <Input
+                id="transactionRef"
+                placeholder="Enter transaction reference number"
+                value={transactionRef}
+                onChange={(e) => setTransactionRef(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Add a reference number for tracking purposes
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setApproveWithdrawalOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleApproveWithdrawal} className="bg-green-600 hover:bg-green-700">
+              Approve Withdrawal
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reject Withdrawal Dialog */}
+      <Dialog open={rejectWithdrawalOpen} onOpenChange={setRejectWithdrawalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reject Withdrawal</DialogTitle>
+            <DialogDescription>
+              Provide a reason for rejecting this withdrawal request
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Withdrawal Amount</Label>
+              <div className="font-semibold text-lg">
+                ${Number(selectedWithdrawal?.amount || 0).toFixed(2)}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="rejectionReason">Rejection Reason</Label>
+              <Textarea
+                id="rejectionReason"
+                placeholder="Enter reason for rejection"
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRejectWithdrawalOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleRejectWithdrawal} variant="destructive">
+              Reject Withdrawal
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

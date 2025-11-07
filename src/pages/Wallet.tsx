@@ -7,12 +7,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import BottomNav from "@/components/BottomNav";
 import DepositModal from "@/components/DepositModal";
+import WithdrawalModal from "@/components/WithdrawalModal";
 
 const Wallet = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [depositModalOpen, setDepositModalOpen] = useState(false);
+  const [withdrawalModalOpen, setWithdrawalModalOpen] = useState(false);
   const [walletData, setWalletData] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
 
@@ -133,7 +135,10 @@ const Wallet = () => {
               </div>
             </div>
           </Card>
-          <Card className="p-6 hover:shadow-lg transition-shadow cursor-pointer">
+          <Card 
+            className="p-6 hover:shadow-lg transition-shadow cursor-pointer"
+            onClick={() => setWithdrawalModalOpen(true)}
+          >
             <div className="flex items-center gap-4">
               <div className="h-12 w-12 rounded-lg bg-blue-600/10 flex items-center justify-center">
                 <ArrowUpRight className="h-6 w-6 text-blue-600" />
@@ -177,6 +182,14 @@ const Wallet = () => {
         open={depositModalOpen}
         onOpenChange={setDepositModalOpen}
         onSuccess={fetchWalletData}
+      />
+
+      {/* Withdrawal Modal */}
+      <WithdrawalModal
+        open={withdrawalModalOpen}
+        onOpenChange={setWithdrawalModalOpen}
+        onSuccess={fetchWalletData}
+        availableBalance={walletData.find(w => w.currency === "USD")?.balance || "0.00"}
       />
 
       {/* Bottom Navigation Bar */}

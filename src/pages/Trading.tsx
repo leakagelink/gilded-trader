@@ -217,16 +217,76 @@ const Trading = () => {
   };
 
   const CustomCandlestick = ({ data }: { data: CandleData[] }) => {
+    const CandleShape = (props: any) => {
+      const { x, y, width, height, payload } = props;
+      const { open, close, high, low, isLive } = payload;
+      
+      const isGreen = close >= open;
+      const color = isLive ? "#10b981" : (isGreen ? "#10b981" : "#ef4444");
+      
+      // Calculate positions
+      const wickX = x + width / 2;
+      const bodyTop = Math.min(open, close);
+      const bodyBottom = Math.max(open, close);
+      const bodyHeight = Math.abs(close - open);
+      
+      // Scale for price to Y coordinate
+      const getY = (price: number) => {
+        const chartHeight = 400;
+        const minPrice = Math.min(...data.map(d => d.low));
+        const maxPrice = Math.max(...data.map(d => d.high));
+        const priceRange = maxPrice - minPrice;
+        return chartHeight - ((price - minPrice) / priceRange) * (chartHeight - 40) - 20;
+      };
+      
+      return (
+        <g className={isLive ? "animate-pulse" : ""}>
+          {/* Wick (high to low) */}
+          <line
+            x1={wickX}
+            y1={getY(high)}
+            x2={wickX}
+            y2={getY(low)}
+            stroke={color}
+            strokeWidth={1.5}
+          />
+          {/* Body (open to close) */}
+          <rect
+            x={x + width * 0.2}
+            y={getY(bodyBottom)}
+            width={width * 0.6}
+            height={Math.max(getY(bodyTop) - getY(bodyBottom), 1)}
+            fill={color}
+            stroke={color}
+            strokeWidth={1}
+            opacity={isLive ? 0.9 : 0.8}
+          />
+          {isLive && (
+            <rect
+              x={x + width * 0.2}
+              y={getY(bodyBottom)}
+              width={width * 0.6}
+              height={Math.max(getY(bodyTop) - getY(bodyBottom), 1)}
+              fill="none"
+              stroke="#10b981"
+              strokeWidth={2}
+              opacity={0.6}
+            />
+          )}
+        </g>
+      );
+    };
+
     return (
       <ResponsiveContainer width="100%" height={400}>
-        <ComposedChart data={data}>
+        <ComposedChart data={data} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
           <defs>
             <linearGradient id="liveGlow" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="#10b981" stopOpacity={0.8} />
               <stop offset="100%" stopColor="#10b981" stopOpacity={0.3} />
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+          <CartesianGrid strokeDasharray="3 3" stroke="#333" opacity={0.3} />
           <XAxis 
             dataKey="time" 
             stroke="#888"
@@ -236,35 +296,61 @@ const Trading = () => {
           <YAxis 
             stroke="#888"
             style={{ fontSize: "12px" }}
-            domain={['auto', 'auto']}
+            domain={['dataMin - 100', 'dataMax + 100']}
+            tickFormatter={(value) => `$${value.toFixed(0)}`}
           />
           <Tooltip
             contentStyle={{
               backgroundColor: "#1a1a1a",
               border: "1px solid #333",
               borderRadius: "8px",
+              padding: "12px"
             }}
-            formatter={(value: number) => `$${value.toFixed(2)}`}
+            content={({ active, payload }) => {
+              if (active && payload && payload.length) {
+                const data = payload[0].payload;
+                const isGreen = data.close >= data.open;
+                return (
+                  <div className="bg-card border border-border p-3 rounded-lg">
+                    {data.isLive && (
+                      <div className="flex items-center gap-2 mb-2 pb-2 border-b border-border">
+                        <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></div>
+                        <span className="text-xs text-green-500 font-semibold">LIVE</span>
+                      </div>
+                    )}
+                    <div className="space-y-1 text-xs">
+                      <div className="flex justify-between gap-4">
+                        <span className="text-muted-foreground">Time:</span>
+                        <span className="font-medium">{data.time}</span>
+                      </div>
+                      <div className="flex justify-between gap-4">
+                        <span className="text-muted-foreground">Open:</span>
+                        <span className="font-medium">${data.open.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between gap-4">
+                        <span className="text-muted-foreground">High:</span>
+                        <span className="font-medium text-green-500">${data.high.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between gap-4">
+                        <span className="text-muted-foreground">Low:</span>
+                        <span className="font-medium text-red-500">${data.low.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between gap-4">
+                        <span className="text-muted-foreground">Close:</span>
+                        <span className={`font-medium ${isGreen ? 'text-green-500' : 'text-red-500'}`}>
+                          ${data.close.toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+              return null;
+            }}
           />
           <Bar
             dataKey="close"
-            radius={[4, 4, 0, 0]}
-            animationDuration={300}
-          >
-            {data.map((entry, index) => (
-              <Cell 
-                key={`cell-${index}`}
-                fill={entry.isLive ? "url(#liveGlow)" : (entry.close >= entry.open ? "#10b981" : "#ef4444")}
-                className={entry.isLive ? "animate-pulse" : ""}
-              />
-            ))}
-          </Bar>
-          <Line
-            type="monotone"
-            dataKey="high"
-            stroke="#888"
-            strokeWidth={1}
-            dot={false}
+            shape={<CandleShape />}
             animationDuration={300}
           />
         </ComposedChart>

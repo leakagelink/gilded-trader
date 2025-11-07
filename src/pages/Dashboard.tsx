@@ -201,7 +201,7 @@ const Dashboard = () => {
                       <RotateCcw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
                     </Button>
                   </div>
-                  <div className="max-h-[600px] overflow-y-auto pr-2">
+                  <div className="max-h-[600px] overflow-y-auto scrollbar-hide">
                     <TradingList data={cryptoData} />
                   </div>
                 </Card>

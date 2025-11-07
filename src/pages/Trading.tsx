@@ -415,15 +415,15 @@ const Trading = () => {
         </Card>
 
         {/* Timeframe Filters */}
-        <Card className="p-4">
-          <div className="flex gap-2 overflow-x-auto">
+        <Card className="p-3 sm:p-4">
+          <div className="flex gap-1.5 sm:gap-2 overflow-x-auto scrollbar-hide pb-1">
             {(["1m", "5m", "15m", "1h", "4h", "1d"] as Timeframe[]).map((tf) => (
               <Button
                 key={tf}
                 variant={timeframe === tf ? "default" : "outline"}
                 size="sm"
                 onClick={() => setTimeframe(tf)}
-                className="min-w-[60px]"
+                className="min-w-[50px] sm:min-w-[60px] text-xs sm:text-sm flex-shrink-0"
               >
                 {tf.toUpperCase()}
               </Button>

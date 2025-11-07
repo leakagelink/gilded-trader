@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useSwipeable } from "react-swipeable";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, TrendingUp, TrendingDown, RefreshCcw, Activity } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, RefreshCcw, Activity, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,6 +24,8 @@ import {
 } from "recharts";
 
 type Timeframe = "1m" | "5m" | "15m" | "1h" | "4h" | "1d";
+
+const TIMEFRAMES: Timeframe[] = ["1m", "5m", "15m", "1h", "4h", "1d"];
 
 interface CandleData {
   time: string;
@@ -48,8 +51,43 @@ const Trading = () => {
   const [loading, setLoading] = useState(false);
   const [liveCandle, setLiveCandle] = useState<CandleData | null>(null);
   const [priceDirection, setPriceDirection] = useState<'up' | 'down' | 'neutral'>('neutral');
+  const [swipeIndicator, setSwipeIndicator] = useState<'left' | 'right' | null>(null);
   const prevPriceRef = useRef<number>(0);
   const liveUpdateIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Swipe gesture handlers
+  const navigateTimeframe = (direction: 'left' | 'right') => {
+    const currentIndex = TIMEFRAMES.indexOf(timeframe);
+    let newIndex: number;
+    
+    if (direction === 'left') {
+      // Swipe left = next timeframe
+      newIndex = currentIndex < TIMEFRAMES.length - 1 ? currentIndex + 1 : currentIndex;
+    } else {
+      // Swipe right = previous timeframe
+      newIndex = currentIndex > 0 ? currentIndex - 1 : currentIndex;
+    }
+
+    if (newIndex !== currentIndex) {
+      setTimeframe(TIMEFRAMES[newIndex]);
+      setSwipeIndicator(direction);
+      toast.success(`Switched to ${TIMEFRAMES[newIndex].toUpperCase()} timeframe`, {
+        duration: 1500,
+      });
+      
+      // Clear indicator after animation
+      setTimeout(() => setSwipeIndicator(null), 500);
+    }
+  };
+
+  const swipeHandlers = useSwipeable({
+    onSwipedLeft: () => navigateTimeframe('left'),
+    onSwipedRight: () => navigateTimeframe('right'),
+    trackMouse: false, // Only track touch, not mouse
+    trackTouch: true,
+    delta: 50, // Minimum swipe distance
+    preventScrollOnSwipe: false,
+  });
 
   useEffect(() => {
     if (!user) {
@@ -415,15 +453,43 @@ const Trading = () => {
         </Card>
 
         {/* Timeframe Filters */}
-        <Card className="p-3 sm:p-4">
-          <div className="flex gap-1.5 sm:gap-2 overflow-x-auto scrollbar-hide pb-1">
-            {(["1m", "5m", "15m", "1h", "4h", "1d"] as Timeframe[]).map((tf) => (
+        <Card className="p-3 sm:p-4 relative overflow-hidden">
+          {/* Swipe Indicators */}
+          {swipeIndicator && (
+            <div
+              className={`absolute top-1/2 -translate-y-1/2 z-10 transition-all duration-300 ${
+                swipeIndicator === 'left' 
+                  ? 'right-4 animate-fade-in' 
+                  : 'left-4 animate-fade-in'
+              }`}
+            >
+              <div className="bg-primary/20 rounded-full p-2 backdrop-blur-sm">
+                {swipeIndicator === 'left' ? (
+                  <ChevronRight className="h-6 w-6 text-primary" />
+                ) : (
+                  <ChevronLeft className="h-6 w-6 text-primary" />
+                )}
+              </div>
+            </div>
+          )}
+          
+          <div className="text-center mb-2 text-xs text-muted-foreground sm:hidden">
+            👉 Swipe left/right to change timeframe
+          </div>
+          
+          <div 
+            {...swipeHandlers}
+            className="flex gap-1.5 sm:gap-2 overflow-x-auto scrollbar-hide pb-1 touch-pan-x"
+          >
+            {TIMEFRAMES.map((tf) => (
               <Button
                 key={tf}
                 variant={timeframe === tf ? "default" : "outline"}
                 size="sm"
                 onClick={() => setTimeframe(tf)}
-                className="min-w-[50px] sm:min-w-[60px] text-xs sm:text-sm flex-shrink-0"
+                className={`min-w-[50px] sm:min-w-[60px] text-xs sm:text-sm flex-shrink-0 transition-all duration-300 ${
+                  timeframe === tf ? 'scale-110 shadow-lg' : ''
+                }`}
               >
                 {tf.toUpperCase()}
               </Button>

@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Switch } from "@/components/ui/switch";
 import { ArrowLeft, TrendingUp, TrendingDown, RefreshCcw, Activity } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -21,7 +20,6 @@ import {
   Bar,
   Line,
   Cell,
-  ReferenceLine,
 } from "recharts";
 
 type Timeframe = "1m" | "5m" | "15m" | "1h" | "4h" | "1d";
@@ -52,13 +50,6 @@ const Trading = () => {
   const [priceDirection, setPriceDirection] = useState<'up' | 'down' | 'neutral'>('neutral');
   const prevPriceRef = useRef<number>(0);
   const liveUpdateIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  
-  // Technical indicators state
-  const [showMA7, setShowMA7] = useState(true);
-  const [showMA25, setShowMA25] = useState(true);
-  const [showMA99, setShowMA99] = useState(false);
-  const [showRSI, setShowRSI] = useState(false);
-  const [showMACD, setShowMACD] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -207,85 +198,6 @@ const Trading = () => {
     setTimeout(() => setPriceDirection('neutral'), 500);
   };
 
-  // Calculate Simple Moving Average
-  const calculateSMA = (data: CandleData[], period: number) => {
-    return data.map((item, index) => {
-      if (index < period - 1) return null;
-      const sum = data.slice(index - period + 1, index + 1).reduce((acc, d) => acc + d.close, 0);
-      return sum / period;
-    });
-  };
-
-  // Calculate RSI
-  const calculateRSI = (data: CandleData[], period: number = 14) => {
-    const rsi: (number | null)[] = [];
-    for (let i = 0; i < data.length; i++) {
-      if (i < period) {
-        rsi.push(null);
-        continue;
-      }
-      let gains = 0;
-      let losses = 0;
-      for (let j = i - period + 1; j <= i; j++) {
-        const change = data[j].close - data[j - 1].close;
-        if (change > 0) gains += change;
-        else losses -= change;
-      }
-      const avgGain = gains / period;
-      const avgLoss = losses / period;
-      const rs = avgGain / (avgLoss || 1);
-      rsi.push(100 - (100 / (1 + rs)));
-    }
-    return rsi;
-  };
-
-  // Calculate MACD
-  const calculateMACD = (data: CandleData[]) => {
-    const ema12 = calculateEMA(data.map(d => d.close), 12);
-    const ema26 = calculateEMA(data.map(d => d.close), 26);
-    const macdLine = ema12.map((val, i) => val !== null && ema26[i] !== null ? val - ema26[i] : null);
-    const signalLine = calculateEMA(macdLine.filter(v => v !== null) as number[], 9);
-    return { macdLine, signalLine };
-  };
-
-  const calculateEMA = (data: number[], period: number) => {
-    const ema: (number | null)[] = [];
-    const multiplier = 2 / (period + 1);
-    let sum = 0;
-    for (let i = 0; i < data.length; i++) {
-      if (i < period - 1) {
-        sum += data[i];
-        ema.push(null);
-      } else if (i === period - 1) {
-        sum += data[i];
-        ema.push(sum / period);
-      } else {
-        const prevEma = ema[i - 1] as number;
-        ema.push((data[i] - prevEma) * multiplier + prevEma);
-      }
-    }
-    return ema;
-  };
-
-  // Add indicators to chart data
-  const enrichDataWithIndicators = (data: CandleData[]) => {
-    const ma7 = calculateSMA(data, 7);
-    const ma25 = calculateSMA(data, 25);
-    const ma99 = calculateSMA(data, 99);
-    const rsi = calculateRSI(data);
-    const { macdLine, signalLine } = calculateMACD(data);
-
-    return data.map((item, index) => ({
-      ...item,
-      ma7: ma7[index],
-      ma25: ma25[index],
-      ma99: ma99[index],
-      rsi: rsi[index],
-      macd: macdLine[index],
-      signal: signalLine[index],
-    }));
-  };
-
   const handleBuy = () => {
     if (!buyAmount || parseFloat(buyAmount) <= 0) {
       toast.error("Please enter a valid amount");
@@ -304,7 +216,7 @@ const Trading = () => {
     setSellAmount("");
   };
 
-  const CustomCandlestick = ({ data }: { data: any[] }) => {
+  const CustomCandlestick = ({ data }: { data: CandleData[] }) => {
     const CandleShape = (props: any) => {
       const { x, y, width, height, payload } = props;
       const { open, close, high, low, isLive } = payload;
@@ -441,100 +353,10 @@ const Trading = () => {
             shape={<CandleShape />}
             animationDuration={300}
           />
-          {showMA7 && (
-            <Line
-              type="monotone"
-              dataKey="ma7"
-              stroke="#3b82f6"
-              strokeWidth={2}
-              dot={false}
-              name="MA(7)"
-            />
-          )}
-          {showMA25 && (
-            <Line
-              type="monotone"
-              dataKey="ma25"
-              stroke="#f59e0b"
-              strokeWidth={2}
-              dot={false}
-              name="MA(25)"
-            />
-          )}
-          {showMA99 && (
-            <Line
-              type="monotone"
-              dataKey="ma99"
-              stroke="#8b5cf6"
-              strokeWidth={2}
-              dot={false}
-              name="MA(99)"
-            />
-          )}
         </ComposedChart>
       </ResponsiveContainer>
     );
   };
-
-  const RSIChart = ({ data }: { data: any[] }) => (
-    <ResponsiveContainer width="100%" height={150}>
-      <ComposedChart data={data} margin={{ top: 10, right: 20, bottom: 10, left: 20 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#333" opacity={0.3} />
-        <XAxis dataKey="time" stroke="#888" style={{ fontSize: "10px" }} hide />
-        <YAxis stroke="#888" style={{ fontSize: "10px" }} domain={[0, 100]} />
-        <Tooltip
-          contentStyle={{
-            backgroundColor: "#1a1a1a",
-            border: "1px solid #333",
-            borderRadius: "8px",
-          }}
-        />
-        <ReferenceLine y={70} stroke="#ef4444" strokeDasharray="3 3" />
-        <ReferenceLine y={30} stroke="#10b981" strokeDasharray="3 3" />
-        <Line
-          type="monotone"
-          dataKey="rsi"
-          stroke="#a855f7"
-          strokeWidth={2}
-          dot={false}
-          name="RSI(14)"
-        />
-      </ComposedChart>
-    </ResponsiveContainer>
-  );
-
-  const MACDChart = ({ data }: { data: any[] }) => (
-    <ResponsiveContainer width="100%" height={150}>
-      <ComposedChart data={data} margin={{ top: 10, right: 20, bottom: 10, left: 20 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#333" opacity={0.3} />
-        <XAxis dataKey="time" stroke="#888" style={{ fontSize: "10px" }} hide />
-        <YAxis stroke="#888" style={{ fontSize: "10px" }} />
-        <Tooltip
-          contentStyle={{
-            backgroundColor: "#1a1a1a",
-            border: "1px solid #333",
-            borderRadius: "8px",
-          }}
-        />
-        <Line
-          type="monotone"
-          dataKey="macd"
-          stroke="#3b82f6"
-          strokeWidth={2}
-          dot={false}
-          name="MACD"
-        />
-        <Line
-          type="monotone"
-          dataKey="signal"
-          stroke="#f59e0b"
-          strokeWidth={2}
-          dot={false}
-          name="Signal"
-        />
-      </ComposedChart>
-    </ResponsiveContainer>
-  );
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -605,45 +427,6 @@ const Trading = () => {
           </div>
         </Card>
 
-        {/* Technical Indicators Controls */}
-        <Card className="p-4">
-          <h3 className="text-sm font-semibold mb-3">Technical Indicators</h3>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="ma7" className="text-xs flex items-center gap-1">
-                <span className="w-3 h-0.5 bg-blue-500"></span>
-                MA(7)
-              </Label>
-              <Switch id="ma7" checked={showMA7} onCheckedChange={setShowMA7} />
-            </div>
-            <div className="flex items-center justify-between">
-              <Label htmlFor="ma25" className="text-xs flex items-center gap-1">
-                <span className="w-3 h-0.5 bg-amber-500"></span>
-                MA(25)
-              </Label>
-              <Switch id="ma25" checked={showMA25} onCheckedChange={setShowMA25} />
-            </div>
-            <div className="flex items-center justify-between">
-              <Label htmlFor="ma99" className="text-xs flex items-center gap-1">
-                <span className="w-3 h-0.5 bg-violet-500"></span>
-                MA(99)
-              </Label>
-              <Switch id="ma99" checked={showMA99} onCheckedChange={setShowMA99} />
-            </div>
-            <div className="flex items-center justify-between">
-              <Label htmlFor="rsi" className="text-xs flex items-center gap-1">
-                <span className="w-3 h-0.5 bg-purple-500"></span>
-                RSI(14)
-              </Label>
-              <Switch id="rsi" checked={showRSI} onCheckedChange={setShowRSI} />
-            </div>
-            <div className="flex items-center justify-between">
-              <Label htmlFor="macd" className="text-xs">MACD</Label>
-              <Switch id="macd" checked={showMACD} onCheckedChange={setShowMACD} />
-            </div>
-          </div>
-        </Card>
-
         {/* Chart */}
         <Card className="p-4">
           <div className="mb-4">
@@ -664,21 +447,7 @@ const Trading = () => {
             </div>
           </div>
           {chartData.length > 0 ? (
-            <>
-              <CustomCandlestick data={enrichDataWithIndicators(chartData)} />
-              {showRSI && (
-                <div className="mt-4">
-                  <h4 className="text-sm font-semibold mb-2">RSI (Relative Strength Index)</h4>
-                  <RSIChart data={enrichDataWithIndicators(chartData)} />
-                </div>
-              )}
-              {showMACD && (
-                <div className="mt-4">
-                  <h4 className="text-sm font-semibold mb-2">MACD</h4>
-                  <MACDChart data={enrichDataWithIndicators(chartData)} />
-                </div>
-              )}
-            </>
+            <CustomCandlestick data={chartData} />
           ) : (
             <div className="h-[400px] flex items-center justify-center">
               <p className="text-muted-foreground">

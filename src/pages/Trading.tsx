@@ -75,7 +75,8 @@ const Trading = () => {
 
       if (error) {
         console.error('Error fetching TAAPI data:', error);
-        toast.error('Failed to fetch real-time data');
+        const errorMessage = error.message || 'Failed to fetch real-time data';
+        toast.error(errorMessage);
         return;
       }
 

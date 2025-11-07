@@ -20,15 +20,23 @@ serve(async (req) => {
 
     console.log(`Fetching TAAPI data for ${symbol} with interval ${interval}`);
 
-    // Fetch candle data from TAAPI
+    // Fetch candle data from TAAPI (reduced to 20 candles to avoid rate limits)
     const candleResponse = await fetch(
-      `https://api.taapi.io/candles?secret=${TAAPI_API_KEY}&exchange=binance&symbol=${symbol}/USDT&interval=${interval}&backtracks=50`
+      `https://api.taapi.io/candles?secret=${TAAPI_API_KEY}&exchange=binance&symbol=${symbol}/USDT&interval=${interval}&backtracks=20`
     );
 
     if (!candleResponse.ok) {
       const errorText = await candleResponse.text();
       console.error('TAAPI Error:', errorText);
-      throw new Error(`TAAPI API error: ${candleResponse.status}`);
+      
+      // Provide user-friendly error messages
+      if (candleResponse.status === 429) {
+        throw new Error('Rate limit exceeded. Please wait a moment and try again.');
+      } else if (candleResponse.status === 401) {
+        throw new Error('Invalid TAAPI API key. Please check your configuration.');
+      } else {
+        throw new Error(`TAAPI API error: ${candleResponse.status}`);
+      }
     }
 
     const candles = await candleResponse.json();

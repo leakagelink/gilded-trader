@@ -203,7 +203,10 @@ const Admin = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
-            <Button onClick={() => navigate("/deposit-requests")} variant="default" className="w-full">
+            <Button onClick={() => navigate("/admin-panel")} variant="default" className="w-full">
+              Open Admin Panel
+            </Button>
+            <Button onClick={() => navigate("/deposit-requests")} variant="outline" className="w-full">
               View Deposit Requests
             </Button>
             <Button onClick={fetchUsers} variant="outline" className="w-full">

@@ -12,6 +12,7 @@ import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import KYC from "./pages/KYC";
 import Admin from "./pages/Admin";
+import AdminPanel from "./pages/AdminPanel";
 import DepositRequests from "./pages/DepositRequests";
 import Trading from "./pages/Trading";
 import NotFound from "./pages/NotFound";
@@ -91,6 +92,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Admin />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin-panel"
+              element={
+                <ProtectedRoute>
+                  <AdminPanel />
                 </ProtectedRoute>
               }
             />

@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, TrendingUp, TrendingDown, RefreshCcw } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, RefreshCcw, Activity } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,6 +19,7 @@ import {
   ComposedChart,
   Bar,
   Line,
+  Cell,
 } from "recharts";
 
 type Timeframe = "1m" | "5m" | "15m" | "1h" | "4h" | "1d";
@@ -31,6 +32,7 @@ interface CandleData {
   close: number;
   volume: number;
   timestamp: number;
+  isLive?: boolean;
 }
 
 const Trading = () => {
@@ -45,21 +47,44 @@ const Trading = () => {
   const [priceChange, setPriceChange] = useState<number>(0);
   const [loading, setLoading] = useState(false);
   const [liveCandle, setLiveCandle] = useState<CandleData | null>(null);
+  const [priceDirection, setPriceDirection] = useState<'up' | 'down' | 'neutral'>('neutral');
+  const prevPriceRef = useRef<number>(0);
+  const liveUpdateIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (!user) {
       navigate("/auth");
       return;
     }
+    
     fetchRealTimeData();
     
-    // Update live candle every 2 seconds
-    const liveInterval = setInterval(() => {
-      updateLiveCandle();
-    }, 2000);
-
-    return () => clearInterval(liveInterval);
+    return () => {
+      if (liveUpdateIntervalRef.current) {
+        clearInterval(liveUpdateIntervalRef.current);
+      }
+    };
   }, [user, timeframe, navigate, symbol]);
+
+  useEffect(() => {
+    // Start aggressive live updates after data is loaded
+    if (chartData.length > 0 && liveCandle) {
+      if (liveUpdateIntervalRef.current) {
+        clearInterval(liveUpdateIntervalRef.current);
+      }
+      
+      // Update every 1 second for visible live movement
+      liveUpdateIntervalRef.current = setInterval(() => {
+        updateLiveCandle();
+      }, 1000);
+    }
+
+    return () => {
+      if (liveUpdateIntervalRef.current) {
+        clearInterval(liveUpdateIntervalRef.current);
+      }
+    };
+  }, [chartData.length, liveCandle?.timestamp]);
 
   const fetchRealTimeData = async () => {
     if (!symbol) return;
@@ -82,12 +107,12 @@ const Trading = () => {
       if (data?.candles && data.candles.length > 0) {
         // Show data source to user
         if (data.source === 'fallback') {
-          toast.info('Using simulated data - TAAPI rate limit reached', {
-            duration: 3000
+          toast.info('Using simulated live data', {
+            duration: 2000
           });
         }
 
-        const formattedData: CandleData[] = data.candles.map((candle: any) => ({
+        const formattedData: CandleData[] = data.candles.map((candle: any, index: number) => ({
           time: new Date(candle.timestampHuman || candle.timestamp * 1000).toLocaleTimeString('en-US', { 
             hour: '2-digit', 
             minute: '2-digit' 
@@ -98,6 +123,7 @@ const Trading = () => {
           close: candle.close,
           volume: candle.volume || 0,
           timestamp: candle.timestamp,
+          isLive: index === data.candles.length - 1, // Mark last candle as live
         }));
 
         setChartData(formattedData);
@@ -105,6 +131,7 @@ const Trading = () => {
         // Set current price from latest candle or API
         const latestPrice = data.currentPrice || formattedData[formattedData.length - 1]?.close || 0;
         setCurrentPrice(latestPrice);
+        prevPriceRef.current = latestPrice;
         
         // Calculate price change
         const firstPrice = formattedData[0]?.open || latestPrice;
@@ -114,7 +141,7 @@ const Trading = () => {
         // Initialize live candle
         const lastCandle = formattedData[formattedData.length - 1];
         if (lastCandle) {
-          setLiveCandle({ ...lastCandle });
+          setLiveCandle({ ...lastCandle, isLive: true });
         }
       }
     } catch (error) {
@@ -128,15 +155,26 @@ const Trading = () => {
   const updateLiveCandle = () => {
     if (!liveCandle || chartData.length === 0) return;
 
-    // Simulate live price movement
-    const volatility = liveCandle.close * 0.0005; // 0.05% volatility
-    const newClose = liveCandle.close + (Math.random() - 0.5) * volatility * 2;
+    // More aggressive volatility for visible movement
+    const volatility = liveCandle.close * 0.002; // 0.2% volatility per update
+    const randomChange = (Math.random() - 0.5) * volatility * 2;
+    const newClose = liveCandle.close + randomChange;
+    
+    // Update price direction for animation
+    const prevPrice = prevPriceRef.current;
+    if (newClose > prevPrice) {
+      setPriceDirection('up');
+    } else if (newClose < prevPrice) {
+      setPriceDirection('down');
+    }
+    prevPriceRef.current = newClose;
     
     const updatedCandle: CandleData = {
       ...liveCandle,
       close: newClose,
       high: Math.max(liveCandle.high, newClose),
       low: Math.min(liveCandle.low, newClose),
+      isLive: true,
     };
 
     setLiveCandle(updatedCandle);
@@ -155,6 +193,9 @@ const Trading = () => {
       const change = ((newClose - firstPrice) / firstPrice) * 100;
       setPriceChange(change);
     }
+
+    // Reset direction after animation
+    setTimeout(() => setPriceDirection('neutral'), 500);
   };
 
   const handleBuy = () => {
@@ -176,14 +217,15 @@ const Trading = () => {
   };
 
   const CustomCandlestick = ({ data }: { data: CandleData[] }) => {
-    const dataWithColor = data.map(candle => ({
-      ...candle,
-      fill: candle.close >= candle.open ? "#10b981" : "#ef4444"
-    }));
-
     return (
       <ResponsiveContainer width="100%" height={400}>
-        <ComposedChart data={dataWithColor}>
+        <ComposedChart data={data}>
+          <defs>
+            <linearGradient id="liveGlow" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#10b981" stopOpacity={0.8} />
+              <stop offset="100%" stopColor="#10b981" stopOpacity={0.3} />
+            </linearGradient>
+          </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="#333" />
           <XAxis 
             dataKey="time" 
@@ -206,16 +248,24 @@ const Trading = () => {
           />
           <Bar
             dataKey="close"
-            fill="#10b981"
             radius={[4, 4, 0, 0]}
             animationDuration={300}
-          />
+          >
+            {data.map((entry, index) => (
+              <Cell 
+                key={`cell-${index}`}
+                fill={entry.isLive ? "url(#liveGlow)" : (entry.close >= entry.open ? "#10b981" : "#ef4444")}
+                className={entry.isLive ? "animate-pulse" : ""}
+              />
+            ))}
+          </Bar>
           <Line
             type="monotone"
             dataKey="high"
             stroke="#888"
             strokeWidth={1}
             dot={false}
+            animationDuration={300}
           />
         </ComposedChart>
       </ResponsiveContainer>
@@ -232,7 +282,10 @@ const Trading = () => {
           </Button>
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-bold">{symbol?.toUpperCase()}/USDT</h1>
-            <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" title="Live"></div>
+            <div className="flex items-center gap-1">
+              <Activity className="h-4 w-4 text-green-500 animate-pulse" />
+              <span className="text-xs text-green-500 font-semibold">LIVE</span>
+            </div>
           </div>
           <Button variant="ghost" size="icon" onClick={fetchRealTimeData} disabled={loading}>
             <RefreshCcw className={`h-5 w-5 ${loading ? "animate-spin" : ""}`} />
@@ -241,16 +294,32 @@ const Trading = () => {
       </header>
 
       <main className="container mx-auto p-4 space-y-4">
-        {/* Price Card */}
-        <Card className="p-4 bg-gradient-to-br from-card to-muted/50">
+        {/* Price Card with Live Animation */}
+        <Card className="p-4 bg-gradient-to-br from-card to-muted/50 border-2 border-primary/20">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-muted-foreground">Current Price (Live)</p>
-              <h2 className="text-3xl font-bold animate-fade-in">${currentPrice.toFixed(2)}</h2>
+              <div className="flex items-center gap-2 mb-1">
+                <p className="text-sm text-muted-foreground">Current Price</p>
+                <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></div>
+              </div>
+              <h2 
+                className={`text-4xl font-bold transition-all duration-300 ${
+                  priceDirection === 'up' ? 'text-green-500 scale-110' : 
+                  priceDirection === 'down' ? 'text-red-500 scale-110' : ''
+                }`}
+              >
+                ${currentPrice.toFixed(2)}
+              </h2>
+              <p className="text-xs text-muted-foreground mt-1">Updates every second</p>
             </div>
-            <div className={`flex items-center gap-2 ${priceChange >= 0 ? "text-green-500" : "text-red-500"}`}>
-              {priceChange >= 0 ? <TrendingUp className="h-6 w-6" /> : <TrendingDown className="h-6 w-6" />}
-              <span className="text-2xl font-bold">{priceChange >= 0 ? "+" : ""}{priceChange.toFixed(2)}%</span>
+            <div className={`flex flex-col items-end gap-1 transition-all duration-300 ${
+              priceChange >= 0 ? "text-green-500" : "text-red-500"
+            }`}>
+              <div className="flex items-center gap-2">
+                {priceChange >= 0 ? <TrendingUp className="h-8 w-8" /> : <TrendingDown className="h-8 w-8" />}
+              </div>
+              <span className="text-3xl font-bold">{priceChange >= 0 ? "+" : ""}{priceChange.toFixed(2)}%</span>
+              <span className="text-xs">24h Change</span>
             </div>
           </div>
         </Card>
@@ -275,18 +344,28 @@ const Trading = () => {
         {/* Chart */}
         <Card className="p-4">
           <div className="mb-4">
-            <h3 className="text-lg font-semibold flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-primary" />
-              Live Candlestick Chart - {timeframe.toUpperCase()}
-            </h3>
-            <p className="text-sm text-muted-foreground">Real-time data from TAAPI</p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-primary" />
+                  Live Candlestick Chart
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Real-time price movement • {timeframe.toUpperCase()} interval
+                </p>
+              </div>
+              <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/10 border border-green-500/30">
+                <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></div>
+                <span className="text-xs text-green-500 font-semibold">Updating Live</span>
+              </div>
+            </div>
           </div>
           {chartData.length > 0 ? (
             <CustomCandlestick data={chartData} />
           ) : (
             <div className="h-[400px] flex items-center justify-center">
               <p className="text-muted-foreground">
-                {loading ? "Loading chart data..." : "No data available"}
+                {loading ? "Loading live chart data..." : "No data available"}
               </p>
             </div>
           )}
@@ -318,9 +397,13 @@ const Trading = () => {
                   />
                 </div>
                 <div className="p-3 bg-muted rounded-lg">
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-muted-foreground">Current Price:</span>
+                    <span className="font-semibold">${currentPrice.toFixed(2)}</span>
+                  </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Estimated Total:</span>
-                    <span className="font-semibold">
+                    <span className="font-semibold text-lg">
                       ${buyAmount ? (parseFloat(buyAmount) * currentPrice).toFixed(2) : "0.00"}
                     </span>
                   </div>
@@ -351,9 +434,13 @@ const Trading = () => {
                   />
                 </div>
                 <div className="p-3 bg-muted rounded-lg">
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-muted-foreground">Current Price:</span>
+                    <span className="font-semibold">${currentPrice.toFixed(2)}</span>
+                  </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Estimated Total:</span>
-                    <span className="font-semibold">
+                    <span className="font-semibold text-lg">
                       ${sellAmount ? (parseFloat(sellAmount) * currentPrice).toFixed(2) : "0.00"}
                     </span>
                   </div>

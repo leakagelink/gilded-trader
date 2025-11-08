@@ -3,7 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { TrendingUp, Wallet, User, Settings, FileCheck, Menu, LogOut, Bitcoin, DollarSign, Euro, PoundSterling, Coins, Gem, Droplet, Flame, RotateCcw, Shield, type LucideIcon } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { TrendingUp, Wallet, User, Settings, FileCheck, Menu, LogOut, Bitcoin, DollarSign, Euro, PoundSterling, Coins, Gem, Droplet, Flame, RotateCcw, Shield, Search, type LucideIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import TradingList from "@/components/TradingList";
@@ -22,6 +23,7 @@ const Dashboard = () => {
     { name: "Solana", symbol: "SOL", price: "$98.75", change: "+5.1%", isPositive: true, icon: Coins },
   ]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const fetchCryptoData = async () => {
     try {
@@ -92,6 +94,21 @@ const Dashboard = () => {
     { name: "Natural Gas", symbol: "NG", price: "$2.85", change: "+2.1%", isPositive: true, icon: Flame },
     { name: "Copper", symbol: "HG", price: "$3.85", change: "+1.5%", isPositive: true, icon: Coins },
   ];
+
+  const filterData = (data: typeof cryptoData) => {
+    if (!searchQuery.trim()) return data;
+    
+    const query = searchQuery.toLowerCase().trim();
+    return data.filter(
+      item =>
+        item.name.toLowerCase().includes(query) ||
+        item.symbol.toLowerCase().includes(query)
+    );
+  };
+
+  const filteredCryptoData = filterData(cryptoData);
+  const filteredForexData = filterData(forexData);
+  const filteredCommoditiesData = filterData(commoditiesData);
 
   return (
     <div className="min-h-screen bg-muted/30">
@@ -166,6 +183,20 @@ const Dashboard = () => {
               <p className="text-sm sm:text-base text-muted-foreground">Monitor and trade across multiple markets</p>
             </div>
 
+            {/* Search Bar */}
+            <div className="mb-4 sm:mb-6">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Search by name or symbol..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 sm:pl-12 h-10 sm:h-12 text-sm sm:text-base"
+                />
+              </div>
+            </div>
+
             <Tabs defaultValue="crypto" className="w-full">
               <TabsList className="grid w-full grid-cols-3 mb-4 sm:mb-6 h-auto p-1 bg-gradient-to-r from-card to-muted/50 backdrop-blur-sm">
                 <TabsTrigger 
@@ -201,7 +232,13 @@ const Dashboard = () => {
                   </Button>
                 </div>
                 <div className="max-h-[600px] overflow-y-auto scrollbar-hide">
-                  <TradingList data={cryptoData} />
+                  {filteredCryptoData.length > 0 ? (
+                    <TradingList data={filteredCryptoData} />
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      No cryptocurrencies found matching "{searchQuery}"
+                    </div>
+                  )}
                 </div>
               </TabsContent>
 
@@ -212,7 +249,13 @@ const Dashboard = () => {
                     Forex Markets
                   </span>
                 </h2>
-                <TradingList data={forexData} />
+                {filteredForexData.length > 0 ? (
+                  <TradingList data={filteredForexData} />
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No forex pairs found matching "{searchQuery}"
+                  </div>
+                )}
               </TabsContent>
 
               <TabsContent value="commodities">
@@ -222,7 +265,13 @@ const Dashboard = () => {
                     Commodities Markets
                   </span>
                 </h2>
-                <TradingList data={commoditiesData} />
+                {filteredCommoditiesData.length > 0 ? (
+                  <TradingList data={filteredCommoditiesData} />
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No commodities found matching "{searchQuery}"
+                  </div>
+                )}
               </TabsContent>
             </Tabs>
           </div>

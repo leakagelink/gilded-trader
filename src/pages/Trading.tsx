@@ -6,11 +6,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, TrendingUp, TrendingDown, RefreshCcw, Activity, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, RefreshCcw, Activity, ChevronLeft, ChevronRight, ShoppingCart, DollarSign } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import BottomNav from "@/components/BottomNav";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   XAxis,
   YAxis,
@@ -43,8 +49,6 @@ const Trading = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [timeframe, setTimeframe] = useState<Timeframe>("1h");
-  const [buyAmount, setBuyAmount] = useState("");
-  const [sellAmount, setSellAmount] = useState("");
   const [chartData, setChartData] = useState<CandleData[]>([]);
   const [currentPrice, setCurrentPrice] = useState<number>(0);
   const [priceChange, setPriceChange] = useState<number>(0);
@@ -54,6 +58,13 @@ const Trading = () => {
   const [swipeIndicator, setSwipeIndicator] = useState<'left' | 'right' | null>(null);
   const prevPriceRef = useRef<number>(0);
   const liveUpdateIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [showBuyDialog, setShowBuyDialog] = useState(false);
+  const [showSellDialog, setShowSellDialog] = useState(false);
+  const [quickBuyAmount, setQuickBuyAmount] = useState("");
+  const [quickSellAmount, setQuickSellAmount] = useState("");
+  const [chartScale, setChartScale] = useState(1);
+  const chartContainerRef = useRef<HTMLDivElement>(null);
+  const touchStartDistance = useRef<number>(0);
 
   // Swipe gesture handlers
   const navigateTimeframe = (direction: 'left' | 'right') => {
@@ -88,6 +99,36 @@ const Trading = () => {
     delta: 50, // Minimum swipe distance
     preventScrollOnSwipe: false,
   });
+
+  // Pinch to zoom handlers
+  const getTouchDistance = (touches: React.TouchList) => {
+    if (touches.length < 2) return 0;
+    const touch1 = touches[0];
+    const touch2 = touches[1];
+    const dx = touch1.clientX - touch2.clientX;
+    const dy = touch1.clientY - touch2.clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      touchStartDistance.current = getTouchDistance(e.touches);
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 2 && touchStartDistance.current > 0) {
+      const currentDistance = getTouchDistance(e.touches);
+      const scaleChange = currentDistance / touchStartDistance.current;
+      const newScale = Math.min(Math.max(chartScale * scaleChange, 0.5), 3);
+      setChartScale(newScale);
+      touchStartDistance.current = currentDistance;
+    }
+  };
+
+  const handleTouchEnd = () => {
+    touchStartDistance.current = 0;
+  };
 
   useEffect(() => {
     if (!user) {
@@ -236,22 +277,24 @@ const Trading = () => {
     setTimeout(() => setPriceDirection('neutral'), 500);
   };
 
-  const handleBuy = () => {
-    if (!buyAmount || parseFloat(buyAmount) <= 0) {
+  const handleQuickBuy = () => {
+    if (!quickBuyAmount || parseFloat(quickBuyAmount) <= 0) {
       toast.error("Please enter a valid amount");
       return;
     }
-    toast.success(`Buy order placed for ${buyAmount} ${symbol?.toUpperCase()}`);
-    setBuyAmount("");
+    toast.success(`Buy order placed for ${quickBuyAmount} ${symbol?.toUpperCase()}`);
+    setQuickBuyAmount("");
+    setShowBuyDialog(false);
   };
 
-  const handleSell = () => {
-    if (!sellAmount || parseFloat(sellAmount) <= 0) {
+  const handleQuickSell = () => {
+    if (!quickSellAmount || parseFloat(quickSellAmount) <= 0) {
       toast.error("Please enter a valid amount");
       return;
     }
-    toast.success(`Sell order placed for ${sellAmount} ${symbol?.toUpperCase()}`);
-    setSellAmount("");
+    toast.success(`Sell order placed for ${quickSellAmount} ${symbol?.toUpperCase()}`);
+    setQuickSellAmount("");
+    setShowSellDialog(false);
   };
 
   const CustomCandlestick = ({ data }: { data: CandleData[] }) => {
@@ -401,7 +444,7 @@ const Trading = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div className="min-h-screen bg-background pb-32">
       {/* Header */}
       <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-16 items-center justify-between px-4">
@@ -507,7 +550,7 @@ const Trading = () => {
                   Live Candlestick Chart
                 </h3>
                 <p className="text-sm text-muted-foreground">
-                  Real-time price movement • {timeframe.toUpperCase()} interval
+                  Real-time price movement • {timeframe.toUpperCase()} interval • Pinch to zoom
                 </p>
               </div>
               <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/10 border border-green-500/30">
@@ -516,105 +559,135 @@ const Trading = () => {
               </div>
             </div>
           </div>
-          {chartData.length > 0 ? (
-            <CustomCandlestick data={chartData} />
-          ) : (
-            <div className="h-[400px] flex items-center justify-center">
-              <p className="text-muted-foreground">
-                {loading ? "Loading live chart data..." : "No data available"}
-              </p>
-            </div>
-          )}
+          <div 
+            ref={chartContainerRef}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            style={{ transform: `scale(${chartScale})`, transformOrigin: 'center', transition: 'transform 0.1s' }}
+          >
+            {chartData.length > 0 ? (
+              <CustomCandlestick data={chartData} />
+            ) : (
+              <div className="h-[400px] flex items-center justify-center">
+                <p className="text-muted-foreground">
+                  {loading ? "Loading live chart data..." : "No data available"}
+                </p>
+              </div>
+            )}
+          </div>
         </Card>
-
-        {/* Buy/Sell Section */}
-        <Tabs defaultValue="buy" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="buy" className="data-[state=active]:bg-green-500 data-[state=active]:text-white">
-              Buy
-            </TabsTrigger>
-            <TabsTrigger value="sell" className="data-[state=active]:bg-red-500 data-[state=active]:text-white">
-              Sell
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="buy">
-            <Card className="p-6">
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="buy-amount">Amount ({symbol?.toUpperCase()})</Label>
-                  <Input
-                    id="buy-amount"
-                    type="number"
-                    placeholder="0.00"
-                    value={buyAmount}
-                    onChange={(e) => setBuyAmount(e.target.value)}
-                    className="mt-2"
-                  />
-                </div>
-                <div className="p-3 bg-muted rounded-lg">
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="text-muted-foreground">Current Price:</span>
-                    <span className="font-semibold">${currentPrice.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Estimated Total:</span>
-                    <span className="font-semibold text-lg">
-                      ${buyAmount ? (parseFloat(buyAmount) * currentPrice).toFixed(2) : "0.00"}
-                    </span>
-                  </div>
-                </div>
-                <Button
-                  onClick={handleBuy}
-                  className="w-full bg-green-500 hover:bg-green-600 text-white"
-                  size="lg"
-                >
-                  Buy {symbol?.toUpperCase()}
-                </Button>
-              </div>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="sell">
-            <Card className="p-6">
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="sell-amount">Amount ({symbol?.toUpperCase()})</Label>
-                  <Input
-                    id="sell-amount"
-                    type="number"
-                    placeholder="0.00"
-                    value={sellAmount}
-                    onChange={(e) => setSellAmount(e.target.value)}
-                    className="mt-2"
-                  />
-                </div>
-                <div className="p-3 bg-muted rounded-lg">
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="text-muted-foreground">Current Price:</span>
-                    <span className="font-semibold">${currentPrice.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Estimated Total:</span>
-                    <span className="font-semibold text-lg">
-                      ${sellAmount ? (parseFloat(sellAmount) * currentPrice).toFixed(2) : "0.00"}
-                    </span>
-                  </div>
-                </div>
-                <Button
-                  onClick={handleSell}
-                  className="w-full bg-red-500 hover:bg-red-600 text-white"
-                  size="lg"
-                >
-                  Sell {symbol?.toUpperCase()}
-                </Button>
-              </div>
-            </Card>
-          </TabsContent>
-        </Tabs>
       </main>
 
-      <BottomNav />
+      {/* Sticky Bottom Buy/Sell Bar */}
+      <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-background via-background to-background/95 backdrop-blur-lg border-t border-border/40 p-4 z-40 shadow-lg">
+        <div className="container mx-auto flex gap-3">
+          <Button
+            onClick={() => setShowBuyDialog(true)}
+            className="flex-1 h-14 bg-green-500 hover:bg-green-600 text-white font-bold text-lg shadow-lg"
+            size="lg"
+          >
+            <ShoppingCart className="mr-2 h-5 w-5" />
+            Buy {symbol?.toUpperCase()}
+          </Button>
+          <Button
+            onClick={() => setShowSellDialog(true)}
+            className="flex-1 h-14 bg-red-500 hover:bg-red-600 text-white font-bold text-lg shadow-lg"
+            size="lg"
+          >
+            <DollarSign className="mr-2 h-5 w-5" />
+            Sell {symbol?.toUpperCase()}
+          </Button>
+        </div>
+      </div>
+
+      {/* Quick Buy Dialog */}
+      <Dialog open={showBuyDialog} onOpenChange={setShowBuyDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Quick Buy {symbol?.toUpperCase()}</DialogTitle>
+            <DialogDescription>
+              Enter the amount you want to buy
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div>
+              <Label htmlFor="quick-buy-amount">Amount ({symbol?.toUpperCase()})</Label>
+              <Input
+                id="quick-buy-amount"
+                type="number"
+                placeholder="0.00"
+                value={quickBuyAmount}
+                onChange={(e) => setQuickBuyAmount(e.target.value)}
+                className="mt-2"
+              />
+            </div>
+            <div className="p-3 bg-muted rounded-lg">
+              <div className="flex justify-between text-sm mb-1">
+                <span className="text-muted-foreground">Current Price:</span>
+                <span className="font-semibold">${currentPrice.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Estimated Total:</span>
+                <span className="font-semibold text-lg">
+                  ${quickBuyAmount ? (parseFloat(quickBuyAmount) * currentPrice).toFixed(2) : "0.00"}
+                </span>
+              </div>
+            </div>
+            <Button
+              onClick={handleQuickBuy}
+              className="w-full bg-green-500 hover:bg-green-600 text-white"
+              size="lg"
+            >
+              Confirm Buy
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Quick Sell Dialog */}
+      <Dialog open={showSellDialog} onOpenChange={setShowSellDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Quick Sell {symbol?.toUpperCase()}</DialogTitle>
+            <DialogDescription>
+              Enter the amount you want to sell
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div>
+              <Label htmlFor="quick-sell-amount">Amount ({symbol?.toUpperCase()})</Label>
+              <Input
+                id="quick-sell-amount"
+                type="number"
+                placeholder="0.00"
+                value={quickSellAmount}
+                onChange={(e) => setQuickSellAmount(e.target.value)}
+                className="mt-2"
+              />
+            </div>
+            <div className="p-3 bg-muted rounded-lg">
+              <div className="flex justify-between text-sm mb-1">
+                <span className="text-muted-foreground">Current Price:</span>
+                <span className="font-semibold">${currentPrice.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Estimated Total:</span>
+                <span className="font-semibold text-lg">
+                  ${quickSellAmount ? (parseFloat(quickSellAmount) * currentPrice).toFixed(2) : "0.00"}
+                </span>
+              </div>
+            </div>
+            <Button
+              onClick={handleQuickSell}
+              className="w-full bg-red-500 hover:bg-red-600 text-white"
+              size="lg"
+            >
+              Confirm Sell
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

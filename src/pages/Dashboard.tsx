@@ -189,46 +189,40 @@ const Dashboard = () => {
               </TabsList>
 
               <TabsContent value="crypto">
-                <Card className="p-3 sm:p-4 md:p-6 border-primary/20 shadow-lg bg-muted/50">
-                  <div className="flex items-center justify-between mb-3 sm:mb-4 md:mb-6">
-                    <h2 className="text-lg sm:text-xl md:text-2xl font-semibold flex items-center gap-2 mb-0">
-                      <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-                      <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                        Cryptocurrency Markets
-                      </span>
-                    </h2>
-                    <Button variant="ghost" size="icon" onClick={fetchCryptoData} aria-label="Refresh markets" title="Refresh markets">
-                      <RotateCcw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-                    </Button>
-                  </div>
-                  <div className="max-h-[600px] overflow-y-auto scrollbar-hide">
-                    <TradingList data={cryptoData} />
-                  </div>
-                </Card>
+                <div className="flex items-center justify-between mb-3 sm:mb-4 md:mb-6">
+                  <h2 className="text-lg sm:text-xl md:text-2xl font-semibold flex items-center gap-2 mb-0">
+                    <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+                    <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                      Cryptocurrency Markets
+                    </span>
+                  </h2>
+                  <Button variant="ghost" size="icon" onClick={fetchCryptoData} aria-label="Refresh markets" title="Refresh markets">
+                    <RotateCcw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+                  </Button>
+                </div>
+                <div className="max-h-[600px] overflow-y-auto scrollbar-hide">
+                  <TradingList data={cryptoData} />
+                </div>
               </TabsContent>
 
               <TabsContent value="forex">
-                <Card className="p-3 sm:p-4 md:p-6 border-primary/20 shadow-lg bg-muted/50">
-                  <h2 className="text-lg sm:text-xl md:text-2xl font-semibold mb-3 sm:mb-4 md:mb-6 flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-                    <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                      Forex Markets
-                    </span>
-                  </h2>
-                  <TradingList data={forexData} />
-                </Card>
+                <h2 className="text-lg sm:text-xl md:text-2xl font-semibold mb-3 sm:mb-4 md:mb-6 flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+                  <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                    Forex Markets
+                  </span>
+                </h2>
+                <TradingList data={forexData} />
               </TabsContent>
 
               <TabsContent value="commodities">
-                <Card className="p-3 sm:p-4 md:p-6 border-primary/20 shadow-lg bg-muted/50">
-                  <h2 className="text-lg sm:text-xl md:text-2xl font-semibold mb-3 sm:mb-4 md:mb-6 flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-                    <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                      Commodities Markets
-                    </span>
-                  </h2>
-                  <TradingList data={commoditiesData} />
-                </Card>
+                <h2 className="text-lg sm:text-xl md:text-2xl font-semibold mb-3 sm:mb-4 md:mb-6 flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+                  <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                    Commodities Markets
+                  </span>
+                </h2>
+                <TradingList data={commoditiesData} />
               </TabsContent>
             </Tabs>
           </div>

@@ -209,6 +209,9 @@ const Admin = () => {
             <Button onClick={() => navigate("/deposit-requests")} variant="outline" className="w-full">
               View Deposit Requests
             </Button>
+            <Button onClick={() => navigate("/admin/positions")} variant="outline" className="w-full">
+              View All User Positions
+            </Button>
             <Button onClick={fetchUsers} variant="outline" className="w-full">
               Refresh User List
             </Button>

@@ -58,10 +58,10 @@ const Trading = () => {
   const [swipeIndicator, setSwipeIndicator] = useState<'left' | 'right' | null>(null);
   const prevPriceRef = useRef<number>(0);
   const liveUpdateIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const [showBuyDialog, setShowBuyDialog] = useState(false);
-  const [showSellDialog, setShowSellDialog] = useState(false);
-  const [quickBuyAmount, setQuickBuyAmount] = useState("");
-  const [quickSellAmount, setQuickSellAmount] = useState("");
+  const [showLongDialog, setShowLongDialog] = useState(false);
+  const [showShortDialog, setShowShortDialog] = useState(false);
+  const [tradeAmount, setTradeAmount] = useState("");
+  const [leverage, setLeverage] = useState(1);
   const [chartScale, setChartScale] = useState(1);
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const touchStartDistance = useRef<number>(0);
@@ -277,24 +277,38 @@ const Trading = () => {
     setTimeout(() => setPriceDirection('neutral'), 500);
   };
 
-  const handleQuickBuy = () => {
-    if (!quickBuyAmount || parseFloat(quickBuyAmount) <= 0) {
+  const handleOpenPosition = async (type: 'long' | 'short') => {
+    if (!tradeAmount || parseFloat(tradeAmount) <= 0) {
       toast.error("Please enter a valid amount");
       return;
     }
-    toast.success(`Buy order placed for ${quickBuyAmount} ${symbol?.toUpperCase()}`);
-    setQuickBuyAmount("");
-    setShowBuyDialog(false);
-  };
 
-  const handleQuickSell = () => {
-    if (!quickSellAmount || parseFloat(quickSellAmount) <= 0) {
-      toast.error("Please enter a valid amount");
-      return;
+    try {
+      const amount = parseFloat(tradeAmount);
+      const margin = (amount * currentPrice) / leverage;
+
+      const { error } = await supabase.from('positions').insert({
+        user_id: user?.id,
+        symbol: symbol?.toUpperCase(),
+        position_type: type,
+        amount: amount,
+        entry_price: currentPrice,
+        current_price: currentPrice,
+        leverage: leverage,
+        margin: margin,
+        status: 'open'
+      });
+
+      if (error) throw error;
+
+      toast.success(`${type.toUpperCase()} position opened: ${tradeAmount} ${symbol?.toUpperCase()} @ ${leverage}x leverage`);
+      setTradeAmount("");
+      setShowLongDialog(false);
+      setShowShortDialog(false);
+    } catch (error) {
+      console.error('Error opening position:', error);
+      toast.error('Failed to open position');
     }
-    toast.success(`Sell order placed for ${quickSellAmount} ${symbol?.toUpperCase()}`);
-    setQuickSellAmount("");
-    setShowSellDialog(false);
   };
 
   const CustomCandlestick = ({ data }: { data: CandleData[] }) => {
@@ -579,111 +593,169 @@ const Trading = () => {
         </Card>
       </main>
 
-      {/* Sticky Bottom Buy/Sell Bar */}
+      {/* Sticky Bottom Long/Short Bar */}
       <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-background via-background to-background/95 backdrop-blur-lg border-t border-border/40 p-3 sm:p-4 z-40 shadow-lg">
         <div className="container mx-auto flex gap-2 sm:gap-3 max-w-screen-lg">
           <Button
-            onClick={() => setShowBuyDialog(true)}
+            onClick={() => setShowLongDialog(true)}
             className="flex-1 h-12 sm:h-14 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white font-bold text-sm sm:text-base md:text-lg shadow-lg touch-manipulation active:scale-95 transition-transform"
             size="lg"
           >
-            <ShoppingCart className="mr-1 sm:mr-2 h-4 w-4 sm:h-5 sm:w-5" />
-            <span className="hidden xs:inline">Buy </span>{symbol?.toUpperCase()}
+            <TrendingUp className="mr-1 sm:mr-2 h-4 w-4 sm:h-5 sm:w-5" />
+            LONG
           </Button>
           <Button
-            onClick={() => setShowSellDialog(true)}
+            onClick={() => setShowShortDialog(true)}
             className="flex-1 h-12 sm:h-14 bg-red-500 hover:bg-red-600 active:bg-red-700 text-white font-bold text-sm sm:text-base md:text-lg shadow-lg touch-manipulation active:scale-95 transition-transform"
             size="lg"
           >
-            <DollarSign className="mr-1 sm:mr-2 h-4 w-4 sm:h-5 sm:w-5" />
-            <span className="hidden xs:inline">Sell </span>{symbol?.toUpperCase()}
+            <TrendingDown className="mr-1 sm:mr-2 h-4 w-4 sm:h-5 sm:w-5" />
+            SHORT
           </Button>
         </div>
       </div>
 
-      {/* Quick Buy Dialog */}
-      <Dialog open={showBuyDialog} onOpenChange={setShowBuyDialog}>
-        <DialogContent>
+      {/* Long Position Dialog */}
+      <Dialog open={showLongDialog} onOpenChange={setShowLongDialog}>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Quick Buy {symbol?.toUpperCase()}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2 text-green-500">
+              <TrendingUp className="h-5 w-5" />
+              Open LONG Position
+            </DialogTitle>
             <DialogDescription>
-              Enter the amount you want to buy
+              Buy {symbol?.toUpperCase()} with leverage
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 mt-4">
             <div>
-              <Label htmlFor="quick-buy-amount">Amount ({symbol?.toUpperCase()})</Label>
+              <Label htmlFor="long-amount">Amount ({symbol?.toUpperCase()})</Label>
               <Input
-                id="quick-buy-amount"
+                id="long-amount"
                 type="number"
                 placeholder="0.00"
-                value={quickBuyAmount}
-                onChange={(e) => setQuickBuyAmount(e.target.value)}
+                value={tradeAmount}
+                onChange={(e) => setTradeAmount(e.target.value)}
                 className="mt-2"
               />
             </div>
-            <div className="p-3 bg-muted rounded-lg">
-              <div className="flex justify-between text-sm mb-1">
-                <span className="text-muted-foreground">Current Price:</span>
+            <div>
+              <Label htmlFor="leverage">Leverage: {leverage}x</Label>
+              <div className="flex items-center gap-4 mt-2">
+                <Input
+                  id="leverage"
+                  type="range"
+                  min="1"
+                  max="100"
+                  value={leverage}
+                  onChange={(e) => setLeverage(parseInt(e.target.value))}
+                  className="flex-1"
+                />
+                <span className="font-bold text-lg w-12 text-right">{leverage}x</span>
+              </div>
+              <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                <span>1x</span>
+                <span>100x</span>
+              </div>
+            </div>
+            <div className="p-3 bg-muted rounded-lg space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Entry Price:</span>
                 <span className="font-semibold">${currentPrice.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Estimated Total:</span>
+                <span className="text-muted-foreground">Margin Required:</span>
+                <span className="font-semibold">
+                  ${tradeAmount ? ((parseFloat(tradeAmount) * currentPrice) / leverage).toFixed(2) : "0.00"}
+                </span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Position Value:</span>
                 <span className="font-semibold text-lg">
-                  ${quickBuyAmount ? (parseFloat(quickBuyAmount) * currentPrice).toFixed(2) : "0.00"}
+                  ${tradeAmount ? (parseFloat(tradeAmount) * currentPrice).toFixed(2) : "0.00"}
                 </span>
               </div>
             </div>
             <Button
-              onClick={handleQuickBuy}
-              className="w-full bg-green-500 hover:bg-green-600 text-white"
+              onClick={() => handleOpenPosition('long')}
+              className="w-full bg-green-500 hover:bg-green-600 text-white h-12"
               size="lg"
             >
-              Confirm Buy
+              <TrendingUp className="mr-2 h-5 w-5" />
+              Open LONG Position
             </Button>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Quick Sell Dialog */}
-      <Dialog open={showSellDialog} onOpenChange={setShowSellDialog}>
-        <DialogContent>
+      {/* Short Position Dialog */}
+      <Dialog open={showShortDialog} onOpenChange={setShowShortDialog}>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Quick Sell {symbol?.toUpperCase()}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2 text-red-500">
+              <TrendingDown className="h-5 w-5" />
+              Open SHORT Position
+            </DialogTitle>
             <DialogDescription>
-              Enter the amount you want to sell
+              Sell {symbol?.toUpperCase()} with leverage
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 mt-4">
             <div>
-              <Label htmlFor="quick-sell-amount">Amount ({symbol?.toUpperCase()})</Label>
+              <Label htmlFor="short-amount">Amount ({symbol?.toUpperCase()})</Label>
               <Input
-                id="quick-sell-amount"
+                id="short-amount"
                 type="number"
                 placeholder="0.00"
-                value={quickSellAmount}
-                onChange={(e) => setQuickSellAmount(e.target.value)}
+                value={tradeAmount}
+                onChange={(e) => setTradeAmount(e.target.value)}
                 className="mt-2"
               />
             </div>
-            <div className="p-3 bg-muted rounded-lg">
-              <div className="flex justify-between text-sm mb-1">
-                <span className="text-muted-foreground">Current Price:</span>
+            <div>
+              <Label htmlFor="leverage-short">Leverage: {leverage}x</Label>
+              <div className="flex items-center gap-4 mt-2">
+                <Input
+                  id="leverage-short"
+                  type="range"
+                  min="1"
+                  max="100"
+                  value={leverage}
+                  onChange={(e) => setLeverage(parseInt(e.target.value))}
+                  className="flex-1"
+                />
+                <span className="font-bold text-lg w-12 text-right">{leverage}x</span>
+              </div>
+              <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                <span>1x</span>
+                <span>100x</span>
+              </div>
+            </div>
+            <div className="p-3 bg-muted rounded-lg space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Entry Price:</span>
                 <span className="font-semibold">${currentPrice.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Estimated Total:</span>
+                <span className="text-muted-foreground">Margin Required:</span>
+                <span className="font-semibold">
+                  ${tradeAmount ? ((parseFloat(tradeAmount) * currentPrice) / leverage).toFixed(2) : "0.00"}
+                </span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Position Value:</span>
                 <span className="font-semibold text-lg">
-                  ${quickSellAmount ? (parseFloat(quickSellAmount) * currentPrice).toFixed(2) : "0.00"}
+                  ${tradeAmount ? (parseFloat(tradeAmount) * currentPrice).toFixed(2) : "0.00"}
                 </span>
               </div>
             </div>
             <Button
-              onClick={handleQuickSell}
-              className="w-full bg-red-500 hover:bg-red-600 text-white"
+              onClick={() => handleOpenPosition('short')}
+              className="w-full bg-red-500 hover:bg-red-600 text-white h-12"
               size="lg"
             >
-              Confirm Sell
+              <TrendingDown className="mr-2 h-5 w-5" />
+              Open SHORT Position
             </Button>
           </div>
         </DialogContent>

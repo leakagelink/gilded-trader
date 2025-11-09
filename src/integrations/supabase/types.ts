@@ -103,6 +103,66 @@ export type Database = {
           },
         ]
       }
+      positions: {
+        Row: {
+          amount: number
+          close_price: number | null
+          closed_at: string | null
+          closed_by: string | null
+          created_at: string
+          current_price: number
+          entry_price: number
+          id: string
+          leverage: number
+          margin: number
+          opened_at: string
+          pnl: number | null
+          position_type: Database["public"]["Enums"]["position_type"]
+          status: Database["public"]["Enums"]["position_status"]
+          symbol: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          close_price?: number | null
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          current_price: number
+          entry_price: number
+          id?: string
+          leverage?: number
+          margin: number
+          opened_at?: string
+          pnl?: number | null
+          position_type: Database["public"]["Enums"]["position_type"]
+          status?: Database["public"]["Enums"]["position_status"]
+          symbol: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          close_price?: number | null
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          current_price?: number
+          entry_price?: number
+          id?: string
+          leverage?: number
+          margin?: number
+          opened_at?: string
+          pnl?: number | null
+          position_type?: Database["public"]["Enums"]["position_type"]
+          status?: Database["public"]["Enums"]["position_status"]
+          symbol?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -344,6 +404,8 @@ export type Database = {
       app_role: "admin" | "moderator" | "user"
       deposit_status: "pending" | "approved" | "rejected"
       payment_method: "upi" | "netbanking"
+      position_status: "open" | "closed"
+      position_type: "long" | "short"
       transaction_type: "deposit" | "withdrawal" | "trade"
       withdrawal_status: "pending" | "approved" | "rejected" | "processing"
     }
@@ -476,6 +538,8 @@ export const Constants = {
       app_role: ["admin", "moderator", "user"],
       deposit_status: ["pending", "approved", "rejected"],
       payment_method: ["upi", "netbanking"],
+      position_status: ["open", "closed"],
+      position_type: ["long", "short"],
       transaction_type: ["deposit", "withdrawal", "trade"],
       withdrawal_status: ["pending", "approved", "rejected", "processing"],
     },

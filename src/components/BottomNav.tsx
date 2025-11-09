@@ -1,4 +1,4 @@
-import { TrendingUp, Wallet, User, Settings, FileCheck } from "lucide-react";
+import { TrendingUp, Wallet, User, Settings, Layers } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 
 const BottomNav = () => {
@@ -7,10 +7,10 @@ const BottomNav = () => {
 
   const navItems = [
     { icon: TrendingUp, label: "Trading", path: "/dashboard" },
+    { icon: Layers, label: "Positions", path: "/positions" },
     { icon: Wallet, label: "Wallet", path: "/wallet" },
     { icon: User, label: "Profile", path: "/profile" },
     { icon: Settings, label: "Settings", path: "/settings" },
-    { icon: FileCheck, label: "KYC", path: "/kyc" },
   ];
 
   const isActive = (path: string) => location.pathname === path;

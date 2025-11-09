@@ -15,6 +15,8 @@ import Admin from "./pages/Admin";
 import AdminPanel from "./pages/AdminPanel";
 import DepositRequests from "./pages/DepositRequests";
 import Trading from "./pages/Trading";
+import Positions from "./pages/Positions";
+import AdminPositions from "./pages/AdminPositions";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -116,6 +118,22 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Trading />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/positions"
+              element={
+                <ProtectedRoute>
+                  <Positions />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/positions"
+              element={
+                <ProtectedRoute>
+                  <AdminPositions />
                 </ProtectedRoute>
               }
             />

@@ -474,7 +474,7 @@ const Trading = () => {
                 <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></div>
               </div>
               <h2 
-                className={`text-4xl font-bold transition-all duration-300 ${
+                className={`text-2xl sm:text-3xl md:text-4xl font-bold transition-all duration-300 ${
                   priceDirection === 'up' ? 'text-green-500 scale-110' : 
                   priceDirection === 'down' ? 'text-red-500 scale-110' : ''
                 }`}
@@ -580,23 +580,23 @@ const Trading = () => {
       </main>
 
       {/* Sticky Bottom Buy/Sell Bar */}
-      <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-background via-background to-background/95 backdrop-blur-lg border-t border-border/40 p-4 z-40 shadow-lg">
-        <div className="container mx-auto flex gap-3">
+      <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-background via-background to-background/95 backdrop-blur-lg border-t border-border/40 p-3 sm:p-4 z-40 shadow-lg">
+        <div className="container mx-auto flex gap-2 sm:gap-3 max-w-screen-lg">
           <Button
             onClick={() => setShowBuyDialog(true)}
-            className="flex-1 h-14 bg-green-500 hover:bg-green-600 text-white font-bold text-lg shadow-lg"
+            className="flex-1 h-12 sm:h-14 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white font-bold text-sm sm:text-base md:text-lg shadow-lg touch-manipulation active:scale-95 transition-transform"
             size="lg"
           >
-            <ShoppingCart className="mr-2 h-5 w-5" />
-            Buy {symbol?.toUpperCase()}
+            <ShoppingCart className="mr-1 sm:mr-2 h-4 w-4 sm:h-5 sm:w-5" />
+            <span className="hidden xs:inline">Buy </span>{symbol?.toUpperCase()}
           </Button>
           <Button
             onClick={() => setShowSellDialog(true)}
-            className="flex-1 h-14 bg-red-500 hover:bg-red-600 text-white font-bold text-lg shadow-lg"
+            className="flex-1 h-12 sm:h-14 bg-red-500 hover:bg-red-600 active:bg-red-700 text-white font-bold text-sm sm:text-base md:text-lg shadow-lg touch-manipulation active:scale-95 transition-transform"
             size="lg"
           >
-            <DollarSign className="mr-2 h-5 w-5" />
-            Sell {symbol?.toUpperCase()}
+            <DollarSign className="mr-1 sm:mr-2 h-4 w-4 sm:h-5 sm:w-5" />
+            <span className="hidden xs:inline">Sell </span>{symbol?.toUpperCase()}
           </Button>
         </div>
       </div>

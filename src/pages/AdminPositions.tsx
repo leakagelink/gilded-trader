@@ -58,6 +58,55 @@ const AdminPositions = () => {
     checkAdminAndFetch();
   }, [user, navigate]);
 
+  // Real-time price updates for open positions
+  useEffect(() => {
+    if (!isAdmin || openPositions.length === 0) return;
+
+    const updatePrices = async () => {
+      try {
+        const symbols = [...new Set(openPositions.map(p => p.symbol))];
+        
+        for (const symbol of symbols) {
+          const { data, error } = await supabase.functions.invoke('fetch-crypto-data', {
+            body: { symbol }
+          });
+
+          if (error) throw error;
+          if (!data?.price) continue;
+
+          const currentPrice = data.price;
+
+          // Update positions with this symbol
+          const positionsToUpdate = openPositions.filter(p => p.symbol === symbol);
+          
+          for (const position of positionsToUpdate) {
+            const { error: updateError } = await supabase
+              .from('positions')
+              .update({ 
+                current_price: currentPrice,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', position.id)
+              .eq('status', 'open');
+
+            if (updateError) console.error('Error updating position price:', updateError);
+          }
+        }
+
+        // Refresh positions to show updated prices
+        fetchPositions();
+      } catch (error) {
+        console.error('Error updating prices:', error);
+      }
+    };
+
+    // Update prices immediately and then every 5 seconds
+    updatePrices();
+    const interval = setInterval(updatePrices, 5000);
+
+    return () => clearInterval(interval);
+  }, [isAdmin, openPositions.length]);
+
   const checkAdminAndFetch = async () => {
     try {
       const { data } = await supabase

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useSwipeable } from "react-swipeable";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -47,10 +47,12 @@ interface CandleData {
 const Trading = () => {
   const { symbol } = useParams<{ symbol: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const [timeframe, setTimeframe] = useState<Timeframe>("1h");
   const [chartData, setChartData] = useState<CandleData[]>([]);
-  const [currentPrice, setCurrentPrice] = useState<number>(0);
+  const initialPrice = location.state?.price ? parseFloat(location.state.price.replace(/[$,]/g, '')) : 0;
+  const [currentPrice, setCurrentPrice] = useState<number>(initialPrice);
   const [priceChange, setPriceChange] = useState<number>(0);
   const [loading, setLoading] = useState(false);
   const [liveCandle, setLiveCandle] = useState<CandleData | null>(null);

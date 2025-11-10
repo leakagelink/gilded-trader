@@ -45,8 +45,14 @@ const TradingList = ({ data }: TradingListProps) => {
     };
   }, [data.length]);
 
-  const handleClick = (symbol: string) => {
-    navigate(`/trading/${symbol.toLowerCase()}`);
+  const handleClick = (item: TradingItem) => {
+    navigate(`/trading/${item.symbol.toLowerCase()}`, {
+      state: { 
+        price: item.price,
+        name: item.name,
+        logo: item.logo 
+      }
+    });
   };
 
   return (
@@ -56,7 +62,7 @@ const TradingList = ({ data }: TradingListProps) => {
         return (
           <div
             key={index}
-            onClick={() => handleClick(item.symbol)}
+            onClick={() => handleClick(item)}
             className="flex items-center justify-between p-4 rounded-2xl bg-card border border-border/50 hover:border-primary/30 transition-all duration-300 hover:shadow-md cursor-pointer active:scale-[0.98]"
           >
             {/* Left: Icon and Name */}

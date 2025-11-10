@@ -28,15 +28,42 @@ const Dashboard = () => {
   const fetchCryptoData = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase.functions.invoke('fetch-crypto-data');
+      const symbols = ['BTC', 'ETH', 'XRP', 'ADA', 'SOL'];
+      const updatedData = [];
       
-      if (error) {
-        console.error('Error fetching crypto data:', error);
-        return;
+      for (const symbol of symbols) {
+        const { data, error } = await supabase.functions.invoke('fetch-taapi-data', {
+          body: { symbol, interval: '1h' }
+        });
+        
+        if (error) {
+          console.error(`Error fetching ${symbol} data:`, error);
+          continue;
+        }
+        
+        if (data?.currentPrice) {
+          const iconMap: Record<string, any> = { BTC: Bitcoin, ETH: Coins, XRP: Coins, ADA: Coins, SOL: Coins };
+          const nameMap: Record<string, string> = { BTC: 'Bitcoin', ETH: 'Ethereum', XRP: 'Ripple', ADA: 'Cardano', SOL: 'Solana' };
+          
+          // Calculate 24h change from candles
+          const candles = data.candles || [];
+          const oldPrice = candles[0]?.close || data.currentPrice;
+          const changePercent = ((data.currentPrice - oldPrice) / oldPrice * 100).toFixed(2);
+          const isPositive = parseFloat(changePercent) >= 0;
+          
+          updatedData.push({
+            name: nameMap[symbol] || symbol,
+            symbol,
+            price: `$${data.currentPrice.toLocaleString()}`,
+            change: `${isPositive ? '+' : ''}${changePercent}%`,
+            isPositive,
+            icon: iconMap[symbol]
+          });
+        }
       }
       
-      if (data?.cryptoData) {
-        setCryptoData(data.cryptoData);
+      if (updatedData.length > 0) {
+        setCryptoData(updatedData);
       }
     } catch (error) {
       console.error('Error:', error);

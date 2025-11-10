@@ -67,14 +67,14 @@ const AdminPositions = () => {
         const symbols = [...new Set(openPositions.map(p => p.symbol))];
         
         for (const symbol of symbols) {
-          const { data, error } = await supabase.functions.invoke('fetch-crypto-data', {
-            body: { symbol }
+          const { data, error } = await supabase.functions.invoke('fetch-taapi-data', {
+            body: { symbol, interval: '1m' }
           });
 
           if (error) throw error;
-          if (!data?.price) continue;
+          if (!data?.currentPrice) continue;
 
-          const currentPrice = data.price;
+          const currentPrice = data.currentPrice;
 
           // Update positions with this symbol
           const positionsToUpdate = openPositions.filter(p => p.symbol === symbol);

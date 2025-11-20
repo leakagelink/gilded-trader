@@ -209,6 +209,13 @@ const Trading = () => {
       }
 
       if (data?.candles && data.candles.length > 0) {
+        console.log('Forex chart data received:', {
+          candleCount: data.candles.length,
+          currentPrice: data.currentPrice,
+          firstCandle: data.candles[0],
+          lastCandle: data.candles[data.candles.length - 1]
+        });
+        
         // Show data source to user
         if (data.source === 'fallback') {
           toast.info('Using simulated live data', {
@@ -216,38 +223,61 @@ const Trading = () => {
           });
         }
 
-        const formattedData: CandleData[] = data.candles.map((candle: any, index: number) => ({
-          time: new Date(candle.timestampHuman || candle.timestamp * 1000).toLocaleTimeString('en-US', { 
-            hour: '2-digit', 
-            minute: '2-digit' 
-          }),
-          open: candle.open,
-          high: candle.high,
-          low: candle.low,
-          close: candle.close,
-          volume: candle.volume || 0,
-          timestamp: candle.timestamp,
-          isLive: index === data.candles.length - 1, // Mark last candle as live
-        }));
+        const formattedData: CandleData[] = data.candles.map((candle: any, index: number) => {
+          // Ensure all candle values are valid numbers
+          const open = typeof candle.open === 'number' ? candle.open : parseFloat(candle.open) || 0;
+          const high = typeof candle.high === 'number' ? candle.high : parseFloat(candle.high) || 0;
+          const low = typeof candle.low === 'number' ? candle.low : parseFloat(candle.low) || 0;
+          const close = typeof candle.close === 'number' ? candle.close : parseFloat(candle.close) || 0;
+          
+          return {
+            time: new Date(candle.timestampHuman || candle.timestamp * 1000).toLocaleTimeString('en-US', { 
+              hour: '2-digit', 
+              minute: '2-digit' 
+            }),
+            open,
+            high,
+            low,
+            close,
+            volume: candle.volume || 0,
+            timestamp: candle.timestamp,
+            isLive: index === data.candles.length - 1, // Mark last candle as live
+          };
+        });
 
         setChartData(formattedData);
         
         // Set current price from latest candle or API - ensure it's a valid number
         const rawPrice = data.currentPrice || formattedData[formattedData.length - 1]?.close || 0;
         const latestPrice = typeof rawPrice === 'number' ? rawPrice : parseFloat(String(rawPrice)) || 0;
-        setCurrentPrice(latestPrice);
-        prevPriceRef.current = latestPrice;
         
-        // Calculate price change
-        const firstPrice = formattedData[0]?.open || latestPrice;
-        const change = ((latestPrice - firstPrice) / firstPrice) * 100;
-        setPriceChange(change);
+        console.log('Setting current price:', {
+          rawPrice,
+          latestPrice,
+          isValid: latestPrice > 0
+        });
+        
+        if (latestPrice > 0) {
+          setCurrentPrice(latestPrice);
+          prevPriceRef.current = latestPrice;
+          
+          // Calculate price change
+          const firstPrice = formattedData[0]?.open || latestPrice;
+          const change = ((latestPrice - firstPrice) / firstPrice) * 100;
+          setPriceChange(change);
 
-        // Initialize live candle
-        const lastCandle = formattedData[formattedData.length - 1];
-        if (lastCandle) {
-          setLiveCandle({ ...lastCandle, isLive: true });
+          // Initialize live candle
+          const lastCandle = formattedData[formattedData.length - 1];
+          if (lastCandle) {
+            setLiveCandle({ ...lastCandle, isLive: true });
+          }
+        } else {
+          console.error('Invalid price received:', latestPrice);
+          toast.error('Invalid price data received');
         }
+      } else {
+        console.error('No candle data received');
+        toast.error('No data available for this symbol');
       }
     } catch (error) {
       console.error('Error:', error);
@@ -260,10 +290,21 @@ const Trading = () => {
   const updateLiveCandle = () => {
     if (!liveCandle || chartData.length === 0) return;
 
+    // Ensure liveCandle.close is a valid number
+    const currentClose = typeof liveCandle.close === 'number' && !isNaN(liveCandle.close) && liveCandle.close > 0 
+      ? liveCandle.close 
+      : currentPrice || 1;
+
     // More aggressive volatility for visible movement
-    const volatility = liveCandle.close * 0.002; // 0.2% volatility per update
+    const volatility = currentClose * 0.002; // 0.2% volatility per update
     const randomChange = (Math.random() - 0.5) * volatility * 2;
-    const newClose = liveCandle.close + randomChange;
+    const newClose = currentClose + randomChange;
+    
+    // Validate newClose is a valid number
+    if (!isFinite(newClose) || newClose <= 0) {
+      console.error('Invalid newClose value:', newClose);
+      return;
+    }
     
     // Update price direction for animation
     const prevPrice = prevPriceRef.current;
@@ -277,8 +318,8 @@ const Trading = () => {
     const updatedCandle: CandleData = {
       ...liveCandle,
       close: newClose,
-      high: Math.max(liveCandle.high, newClose),
-      low: Math.min(liveCandle.low, newClose),
+      high: Math.max(liveCandle.high || newClose, newClose),
+      low: Math.min(liveCandle.low || newClose, newClose),
       isLive: true,
     };
 

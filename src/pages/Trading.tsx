@@ -51,7 +51,16 @@ const Trading = () => {
   const { user } = useAuth();
   const [timeframe, setTimeframe] = useState<Timeframe>("1h");
   const [chartData, setChartData] = useState<CandleData[]>([]);
-  const initialPrice = location.state?.price ? parseFloat(location.state.price.replace(/[$,]/g, '')) : 0;
+  
+  // Safely parse initial price - handle both crypto ($123.45) and forex (1.5378) formats
+  const parseInitialPrice = (priceStr: string | undefined): number => {
+    if (!priceStr) return 0;
+    const cleanPrice = String(priceStr).replace(/[$,]/g, '');
+    const parsed = parseFloat(cleanPrice);
+    return isNaN(parsed) ? 0 : parsed;
+  };
+  
+  const initialPrice = parseInitialPrice(location.state?.price);
   const [currentPrice, setCurrentPrice] = useState<number>(initialPrice);
   const [priceChange, setPriceChange] = useState<number>(0);
   const [loading, setLoading] = useState(false);
@@ -220,8 +229,9 @@ const Trading = () => {
 
         setChartData(formattedData);
         
-        // Set current price from latest candle or API
-        const latestPrice = data.currentPrice || formattedData[formattedData.length - 1]?.close || 0;
+        // Set current price from latest candle or API - ensure it's a valid number
+        const rawPrice = data.currentPrice || formattedData[formattedData.length - 1]?.close || 0;
+        const latestPrice = typeof rawPrice === 'number' ? rawPrice : parseFloat(String(rawPrice)) || 0;
         setCurrentPrice(latestPrice);
         prevPriceRef.current = latestPrice;
         
@@ -506,7 +516,7 @@ const Trading = () => {
                   priceDirection === 'down' ? 'text-red-500 scale-110' : ''
                 }`}
               >
-                ${currentPrice.toFixed(2)}
+                ${typeof currentPrice === 'number' ? currentPrice.toFixed(2) : '0.00'}
               </h2>
               <p className="text-xs text-muted-foreground mt-1">Updates every second</p>
             </div>
@@ -674,7 +684,7 @@ const Trading = () => {
             <div className="p-3 bg-muted rounded-lg space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Entry Price:</span>
-                <span className="font-semibold">${currentPrice.toFixed(2)}</span>
+                <span className="font-semibold">${typeof currentPrice === 'number' ? currentPrice.toFixed(2) : '0.00'}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Margin Required:</span>
@@ -747,7 +757,7 @@ const Trading = () => {
             <div className="p-3 bg-muted rounded-lg space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Entry Price:</span>
-                <span className="font-semibold">${currentPrice.toFixed(2)}</span>
+                <span className="font-semibold">${typeof currentPrice === 'number' ? currentPrice.toFixed(2) : '0.00'}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Margin Required:</span>

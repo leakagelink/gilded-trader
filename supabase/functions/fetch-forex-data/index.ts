@@ -11,14 +11,14 @@ serve(async (req) => {
   }
 
   try {
-    const FOREX_API_KEY = 'c1933d23f0c20f054aef7810de61c676';
+    const FOREX_API_KEY = '771a6df812534a988b65f88bc25d6fea';
     const BASE_CURRENCY = 'USD';
     
     // Major forex pairs to fetch
     const currencies = 'EUR,GBP,JPY,AUD,CAD,CHF,CNY,INR,NZD,SGD';
     
     const response = await fetch(
-      `https://api.forexrateapi.com/v1/latest?api_key=${FOREX_API_KEY}&base=${BASE_CURRENCY}&currencies=${currencies}`
+      `https://api.currencyfreaks.com/v2.0/rates/latest?apikey=${FOREX_API_KEY}&base=${BASE_CURRENCY}&symbols=${currencies}`
     );
 
     if (!response.ok) {
@@ -27,7 +27,8 @@ serve(async (req) => {
 
     const data = await response.json();
     
-    if (!data.success) {
+    // CurrencyFreaks API doesn't have a success field, just check if rates exist
+    if (!data.rates) {
       throw new Error('Failed to fetch forex data');
     }
 

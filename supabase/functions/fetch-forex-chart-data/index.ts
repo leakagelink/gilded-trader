@@ -17,7 +17,7 @@ serve(async (req) => {
       throw new Error('Symbol is required');
     }
 
-    const FOREX_API_KEY = 'c1933d23f0c20f054aef7810de61c676';
+    const FOREX_API_KEY = '771a6df812534a988b65f88bc25d6fea';
     const BASE_CURRENCY = 'USD';
     
     // Map interval to appropriate date range for historical data
@@ -44,7 +44,7 @@ serve(async (req) => {
 
     // Fetch current rate
     const currentResponse = await fetch(
-      `https://api.forexrateapi.com/v1/latest?api_key=${FOREX_API_KEY}&base=${BASE_CURRENCY}&currencies=${symbol}`
+      `https://api.currencyfreaks.com/v2.0/rates/latest?apikey=${FOREX_API_KEY}&base=${BASE_CURRENCY}&symbols=${symbol}`
     );
 
     if (!currentResponse.ok) {
@@ -53,7 +53,7 @@ serve(async (req) => {
 
     const currentData = await currentResponse.json();
     
-    if (!currentData.success || !currentData.rates[symbol]) {
+    if (!currentData.rates || !currentData.rates[symbol]) {
       throw new Error('Failed to fetch current forex rate');
     }
 

@@ -50,7 +50,8 @@ const TradingList = ({ data }: TradingListProps) => {
       state: { 
         price: item.price,
         name: item.name,
-        logo: item.logo 
+        logo: item.logo,
+        icon: item.icon
       }
     });
   };

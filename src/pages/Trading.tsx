@@ -61,6 +61,9 @@ const Trading = () => {
   };
   
   const initialPrice = parseInitialPrice(location.state?.price);
+  const tradingName = location.state?.name || `${symbol?.toUpperCase()}`;
+  const tradingIcon = location.state?.icon || location.state?.logo;
+  
   const [currentPrice, setCurrentPrice] = useState<number>(initialPrice);
   const [priceChange, setPriceChange] = useState<number>(0);
   const [loading, setLoading] = useState(false);
@@ -489,7 +492,14 @@ const Trading = () => {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold">{symbol?.toUpperCase()}/USDT</h1>
+            {tradingIcon && (
+              typeof tradingIcon === 'string' && tradingIcon.startsWith('http') ? (
+                <img src={tradingIcon} alt={tradingName} className="h-6 w-6 rounded-full" />
+              ) : (
+                <span className="text-2xl">{tradingIcon}</span>
+              )
+            )}
+            <h1 className="text-xl font-bold">{tradingName}</h1>
             <div className="flex items-center gap-1">
               <Activity className="h-4 w-4 text-green-500 animate-pulse" />
               <span className="text-xs text-green-500 font-semibold">LIVE</span>

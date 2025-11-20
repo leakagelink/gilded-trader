@@ -194,6 +194,26 @@ const Trading = () => {
       
       // Determine which API to use based on symbol type
       const isForex = isForexPair(symbol);
+      
+      // For crypto, first get the real current price from CoinMarketCap
+      let realCurrentPrice = initialPrice;
+      
+      if (!isForex) {
+        try {
+          const { data: cryptoData, error: cryptoError } = await supabase.functions.invoke('fetch-crypto-data');
+          
+          if (!cryptoError && cryptoData?.cryptoData) {
+            const coin = cryptoData.cryptoData.find((c: any) => c.symbol.toUpperCase() === symbol.toUpperCase());
+            if (coin) {
+              realCurrentPrice = parseFloat(coin.price);
+              console.log('Real CoinMarketCap price for', symbol, ':', realCurrentPrice);
+            }
+          }
+        } catch (err) {
+          console.error('Error fetching real crypto price:', err);
+        }
+      }
+      
       const functionName = isForex ? 'fetch-forex-chart-data' : 'fetch-taapi-data';
       
       const { data, error } = await supabase.functions.invoke(functionName, {
@@ -248,13 +268,15 @@ const Trading = () => {
 
         setChartData(formattedData);
         
-        // Set current price from latest candle or API - ensure it's a valid number
-        const rawPrice = data.currentPrice || formattedData[formattedData.length - 1]?.close || 0;
+        // Set current price - use real CoinMarketCap price for crypto, API price for forex
+        const rawPrice = !isForex && realCurrentPrice > 0 ? realCurrentPrice : (data.currentPrice || formattedData[formattedData.length - 1]?.close || 0);
         const latestPrice = typeof rawPrice === 'number' ? rawPrice : parseFloat(String(rawPrice)) || 0;
         
         console.log('Setting current price:', {
           rawPrice,
           latestPrice,
+          realCurrentPrice,
+          isForex,
           isValid: latestPrice > 0
         });
         

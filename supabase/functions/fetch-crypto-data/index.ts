@@ -8,7 +8,7 @@ const corsHeaders = {
 // In-memory cache to prevent hitting CoinMarketCap API rate limits
 let cachedData: any = null;
 let cacheTimestamp: number = 0;
-const CACHE_DURATION_MS = 30000; // 30 seconds cache
+const CACHE_DURATION_MS = 60000; // 60 seconds cache to match API rate limit
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {

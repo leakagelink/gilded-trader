@@ -8,7 +8,7 @@ interface TradingItem {
   price: string;
   change: string;
   isPositive: boolean;
-  icon?: LucideIcon;
+  icon?: LucideIcon | string;
   logo?: string;
 }
 
@@ -70,6 +70,8 @@ const TradingList = ({ data }: TradingListProps) => {
               <div className="h-12 w-12 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center flex-shrink-0 relative">
                 {item.logo ? (
                   <img src={item.logo} alt={item.name} className="h-8 w-8" />
+                ) : typeof item.icon === 'string' ? (
+                  <span className="text-2xl">{item.icon}</span>
                 ) : IconComponent ? (
                   <IconComponent className="h-6 w-6 text-primary" />
                 ) : null}

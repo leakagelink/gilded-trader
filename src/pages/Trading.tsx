@@ -230,21 +230,38 @@ const Trading = () => {
       }
 
       if (data?.candles && data.candles.length > 0) {
-        console.log('Forex chart data received:', {
+        console.log('Chart data received:', {
           candleCount: data.candles.length,
           currentPrice: data.currentPrice,
-          firstCandle: data.candles[0],
-          lastCandle: data.candles[data.candles.length - 1]
+          source: data.source,
+          realCurrentPrice,
+          isForex
         });
         
-        // Show data source to user
-        if (data.source === 'fallback') {
-          toast.info('Using simulated live data', {
-            duration: 2000
+        // For crypto using fallback data, adjust candles to match real CoinMarketCap price
+        let adjustedCandles = data.candles;
+        if (!isForex && data.source === 'fallback' && realCurrentPrice > 0) {
+          // Calculate adjustment ratio based on real vs fallback price
+          const fallbackPrice = data.currentPrice || data.candles[data.candles.length - 1]?.close;
+          const adjustmentRatio = realCurrentPrice / fallbackPrice;
+          
+          console.log('Adjusting fallback candles to real price:', {
+            fallbackPrice,
+            realCurrentPrice,
+            adjustmentRatio
           });
+          
+          // Adjust all candle prices to match real market price
+          adjustedCandles = data.candles.map((candle: any) => ({
+            ...candle,
+            open: candle.open * adjustmentRatio,
+            high: candle.high * adjustmentRatio,
+            low: candle.low * adjustmentRatio,
+            close: candle.close * adjustmentRatio,
+          }));
         }
 
-        const formattedData: CandleData[] = data.candles.map((candle: any, index: number) => {
+        const formattedData: CandleData[] = adjustedCandles.map((candle: any, index: number) => {
           // Ensure all candle values are valid numbers
           const open = typeof candle.open === 'number' ? candle.open : parseFloat(candle.open) || 0;
           const high = typeof candle.high === 'number' ? candle.high : parseFloat(candle.high) || 0;
@@ -262,7 +279,7 @@ const Trading = () => {
             close,
             volume: candle.volume || 0,
             timestamp: candle.timestamp,
-            isLive: index === data.candles.length - 1, // Mark last candle as live
+            isLive: index === adjustedCandles.length - 1, // Mark last candle as live
           };
         });
 

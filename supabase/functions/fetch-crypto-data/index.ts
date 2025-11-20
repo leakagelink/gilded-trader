@@ -5,19 +5,38 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// In-memory cache to prevent hitting CoinMarketCap API rate limits
+let cachedData: any = null;
+let cacheTimestamp: number = 0;
+const CACHE_DURATION_MS = 30000; // 30 seconds cache
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    const now = Date.now();
+    
+    // Return cached data if still fresh
+    if (cachedData && (now - cacheTimestamp) < CACHE_DURATION_MS) {
+      console.log('Returning cached crypto data (age:', Math.floor((now - cacheTimestamp) / 1000), 'seconds)');
+      return new Response(
+        JSON.stringify(cachedData),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        }
+      );
+    }
+
     const COINMARKETCAP_API_KEY = Deno.env.get('COINMARKETCAP_API_KEY');
     
     if (!COINMARKETCAP_API_KEY) {
       throw new Error('COINMARKETCAP_API_KEY not configured');
     }
 
-    console.log('Fetching crypto data from CoinMarketCap...');
+    console.log('Fetching fresh crypto data from CoinMarketCap...');
 
     // Fetch latest cryptocurrency listings
     const response = await fetch(
@@ -33,11 +52,24 @@ serve(async (req) => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('CoinMarketCap API error:', response.status, errorText);
+      
+      // If we have cached data and hit rate limit, return stale cache
+      if (response.status === 429 && cachedData) {
+        console.log('Rate limit hit, returning stale cached data');
+        return new Response(
+          JSON.stringify(cachedData),
+          {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200,
+          }
+        );
+      }
+      
       throw new Error(`CoinMarketCap API error: ${response.status}`);
     }
 
     const data = await response.json();
-    console.log('Successfully fetched crypto data');
+    console.log('Successfully fetched fresh crypto data from CoinMarketCap');
 
     // Transform the data to match our app's format
     const cryptoData = data.data.map((coin: any) => {
@@ -62,8 +94,12 @@ serve(async (req) => {
       };
     });
 
+    // Update cache
+    cachedData = { cryptoData };
+    cacheTimestamp = now;
+
     return new Response(
-      JSON.stringify({ cryptoData }),
+      JSON.stringify(cachedData),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
@@ -71,6 +107,19 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error('Error in fetch-crypto-data function:', error);
+    
+    // Return cached data as last resort if available
+    if (cachedData) {
+      console.log('Error occurred, returning cached data as fallback');
+      return new Response(
+        JSON.stringify(cachedData),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        }
+      );
+    }
+    
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
       {

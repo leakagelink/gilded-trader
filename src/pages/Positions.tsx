@@ -162,6 +162,7 @@ const Positions = () => {
         ? (closePrice - position.entry_price) * position.amount * position.leverage
         : (position.entry_price - closePrice) * position.amount * position.leverage;
 
+      // Close position
       const { error } = await supabase
         .from('positions')
         .update({
@@ -175,7 +176,41 @@ const Positions = () => {
 
       if (error) throw error;
 
-      toast.success(`Position closed: ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} PnL`);
+      // Get current wallet balance
+      const { data: wallet, error: walletError } = await supabase
+        .from('user_wallets')
+        .select('balance')
+        .eq('user_id', user?.id)
+        .eq('currency', 'USD')
+        .single();
+
+      if (walletError) {
+        console.error('Error fetching wallet:', walletError);
+      } else {
+        const currentBalance = wallet?.balance || 0;
+        
+        // Return margin + PnL to wallet
+        const finalAmount = position.margin + pnl;
+        const newBalance = currentBalance + finalAmount;
+
+        await supabase
+          .from('user_wallets')
+          .update({ balance: newBalance })
+          .eq('user_id', user?.id)
+          .eq('currency', 'USD');
+
+        // Record transaction
+        await supabase.from('wallet_transactions').insert({
+          user_id: user?.id,
+          type: 'trade',
+          amount: finalAmount,
+          currency: 'USD',
+          status: 'Completed',
+          reference_id: position.id
+        });
+      }
+
+      toast.success(`Position closed: ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} PnL. Wallet updated with $${(position.margin + pnl).toFixed(2)}`);
       setClosePositionId(null);
       fetchPositions();
     } catch (error) {

@@ -78,11 +78,11 @@ const Dashboard = () => {
       fetchForexData();
       checkAdminStatus();
       
-      // Auto-refresh every 30 seconds for live data
+      // Auto-refresh every 10 seconds for real-time data
       const refreshInterval = setInterval(() => {
         fetchCryptoData();
         fetchForexData();
-      }, 30000);
+      }, 10000);
 
       return () => clearInterval(refreshInterval);
     }

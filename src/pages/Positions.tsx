@@ -287,6 +287,56 @@ const Positions = () => {
       </header>
 
       <main className="container mx-auto p-4">
+        {/* Total Portfolio P&L Card */}
+        {openPositions.length > 0 && (() => {
+          const totalPnL = openPositions.reduce((sum, pos) => sum + calculatePnL(pos), 0);
+          const isProfit = totalPnL >= 0;
+          const totalMargin = openPositions.reduce((sum, pos) => sum + pos.margin, 0);
+          const pnlPercentage = totalMargin > 0 ? (totalPnL / totalMargin) * 100 : 0;
+
+          return (
+            <Card className={`mb-6 p-6 border-2 ${isProfit ? 'bg-green-500/5 border-green-500/20' : 'bg-red-500/5 border-red-500/20'}`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground mb-1">Total Portfolio P&L</h3>
+                  <div className="flex items-baseline gap-2">
+                    <p className={`text-3xl font-bold ${isProfit ? 'text-green-500' : 'text-red-500'}`}>
+                      {isProfit ? '+' : ''}${totalPnL.toFixed(2)}
+                    </p>
+                    <span className={`text-lg font-semibold ${isProfit ? 'text-green-500' : 'text-red-500'}`}>
+                      ({isProfit ? '+' : ''}{pnlPercentage.toFixed(2)}%)
+                    </span>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-muted-foreground mb-1">Total Margin</p>
+                  <p className="text-xl font-semibold">${totalMargin.toFixed(2)}</p>
+                </div>
+              </div>
+              <div className="mt-4 pt-4 border-t border-border/50">
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Open Positions</p>
+                    <p className="text-lg font-semibold">{openPositions.length}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Long</p>
+                    <p className="text-lg font-semibold text-green-500">
+                      {openPositions.filter(p => p.position_type === 'long').length}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Short</p>
+                    <p className="text-lg font-semibold text-red-500">
+                      {openPositions.filter(p => p.position_type === 'short').length}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          );
+        })()}
+
         <Tabs defaultValue="open" className="w-full">
           <TabsList className="grid w-full grid-cols-2 mb-6">
             <TabsTrigger value="open" className="text-sm sm:text-base">

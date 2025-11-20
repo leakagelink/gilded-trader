@@ -394,6 +394,36 @@ const Trading = () => {
       const amount = parseFloat(tradeAmount);
       const margin = (amount * currentPrice) / leverage;
 
+      // Check wallet balance first
+      const { data: wallet, error: walletError } = await supabase
+        .from('user_wallets')
+        .select('balance')
+        .eq('user_id', user?.id)
+        .eq('currency', 'USD')
+        .single();
+
+      if (walletError) {
+        toast.error('Failed to check wallet balance');
+        return;
+      }
+
+      const currentBalance = wallet?.balance || 0;
+      
+      if (currentBalance < margin) {
+        toast.error(`Insufficient balance. Required: $${margin.toFixed(2)}, Available: $${currentBalance.toFixed(2)}`);
+        return;
+      }
+
+      // Deduct margin from wallet
+      const { error: updateError } = await supabase
+        .from('user_wallets')
+        .update({ balance: currentBalance - margin })
+        .eq('user_id', user?.id)
+        .eq('currency', 'USD');
+
+      if (updateError) throw updateError;
+
+      // Open position
       const { error } = await supabase.from('positions').insert({
         user_id: user?.id,
         symbol: symbol?.toUpperCase(),
@@ -406,9 +436,27 @@ const Trading = () => {
         status: 'open'
       });
 
-      if (error) throw error;
+      if (error) {
+        // Rollback wallet deduction if position creation fails
+        await supabase
+          .from('user_wallets')
+          .update({ balance: currentBalance })
+          .eq('user_id', user?.id)
+          .eq('currency', 'USD');
+        throw error;
+      }
 
-      toast.success(`${type.toUpperCase()} position opened: ${tradeAmount} ${symbol?.toUpperCase()} @ ${leverage}x leverage`);
+      // Record transaction
+      await supabase.from('wallet_transactions').insert({
+        user_id: user?.id,
+        type: 'trade',
+        amount: margin,
+        currency: 'USD',
+        status: 'Completed',
+        reference_id: null
+      });
+
+      toast.success(`${type.toUpperCase()} position opened: ${tradeAmount} ${symbol?.toUpperCase()} @ ${leverage}x leverage. $${margin.toFixed(2)} deducted from wallet.`);
       setTradeAmount("");
       setShowLongDialog(false);
       setShowShortDialog(false);

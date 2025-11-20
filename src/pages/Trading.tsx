@@ -167,12 +167,23 @@ const Trading = () => {
     };
   }, [chartData.length, liveCandle?.timestamp]);
 
+  // Check if symbol is a forex pair
+  const isForexPair = (sym: string) => {
+    const forexSymbols = ['EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CHF', 'CNY', 'INR', 'NZD', 'SGD'];
+    return forexSymbols.includes(sym.toUpperCase());
+  };
+
   const fetchRealTimeData = async () => {
     if (!symbol) return;
     
     try {
       setLoading(true);
-      const { data, error } = await supabase.functions.invoke('fetch-taapi-data', {
+      
+      // Determine which API to use based on symbol type
+      const isForex = isForexPair(symbol);
+      const functionName = isForex ? 'fetch-forex-chart-data' : 'fetch-taapi-data';
+      
+      const { data, error } = await supabase.functions.invoke(functionName, {
         body: { 
           symbol: symbol.toUpperCase(),
           interval: timeframe

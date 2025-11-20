@@ -43,10 +43,11 @@ serve(async (req) => {
     const cryptoData = data.data.map((coin: any) => ({
       name: coin.name,
       symbol: coin.symbol,
-      price: `$${coin.quote.USD.price.toFixed(2)}`,
+      price: coin.quote.USD.price.toFixed(2),
       change: `${coin.quote.USD.percent_change_24h >= 0 ? '+' : ''}${coin.quote.USD.percent_change_24h.toFixed(2)}%`,
       isPositive: coin.quote.USD.percent_change_24h >= 0,
       logo: `https://s2.coinmarketcap.com/static/img/coins/64x64/${coin.id}.png`,
+      currencySymbol: '$',
       id: coin.id,
     }));
 

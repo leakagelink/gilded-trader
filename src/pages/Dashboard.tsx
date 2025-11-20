@@ -22,6 +22,11 @@ const Dashboard = () => {
     { name: "Cardano", symbol: "ADA", price: "$0.48", change: "+3.2%", isPositive: true, icon: Coins },
     { name: "Solana", symbol: "SOL", price: "$98.75", change: "+5.1%", isPositive: true, icon: Coins },
   ]);
+  const [forexData, setForexData] = useState([
+    { name: "EUR/USD", symbol: "EUR", price: "1.0925", change: "+0.15%", isPositive: true, icon: "🇪🇺" },
+    { name: "GBP/USD", symbol: "GBP", price: "1.2750", change: "-0.08%", isPositive: false, icon: "🇬🇧" },
+    { name: "USD/JPY", symbol: "JPY", price: "148.50", change: "+0.22%", isPositive: true, icon: "🇯🇵" },
+  ]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -45,6 +50,23 @@ const Dashboard = () => {
     }
   };
 
+  const fetchForexData = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('fetch-forex-data');
+      
+      if (error) {
+        console.error('Error fetching forex data:', error);
+        return;
+      }
+      
+      if (data?.forexData) {
+        setForexData(data.forexData);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+    }
+  };
+
   useEffect(() => {
     if (!authLoading && !user) {
       navigate("/auth");
@@ -53,11 +75,13 @@ const Dashboard = () => {
 
     if (user) {
       fetchCryptoData();
+      fetchForexData();
       checkAdminStatus();
       
       // Auto-refresh every 30 seconds for live data
       const refreshInterval = setInterval(() => {
         fetchCryptoData();
+        fetchForexData();
       }, 30000);
 
       return () => clearInterval(refreshInterval);
@@ -79,13 +103,6 @@ const Dashboard = () => {
     }
   };
 
-  const forexData = [
-    { name: "EUR/USD", symbol: "EUR", price: "1.0925", change: "+0.15%", isPositive: true, icon: Euro },
-    { name: "GBP/USD", symbol: "GBP", price: "1.2750", change: "-0.08%", isPositive: false, icon: PoundSterling },
-    { name: "USD/JPY", symbol: "JPY", price: "148.50", change: "+0.22%", isPositive: true, icon: DollarSign },
-    { name: "AUD/USD", symbol: "AUD", price: "0.6580", change: "+0.10%", isPositive: true, icon: DollarSign },
-    { name: "USD/CAD", symbol: "CAD", price: "1.3420", change: "-0.12%", isPositive: false, icon: DollarSign },
-  ];
 
   const commoditiesData = [
     { name: "Gold", symbol: "XAU", price: "$2,050.00", change: "+1.2%", isPositive: true, icon: Gem },
@@ -95,7 +112,7 @@ const Dashboard = () => {
     { name: "Copper", symbol: "HG", price: "$3.85", change: "+1.5%", isPositive: true, icon: Coins },
   ];
 
-  const filterData = (data: typeof cryptoData) => {
+  const filterData = <T extends { name: string; symbol: string }>(data: T[]) => {
     if (!searchQuery.trim()) return data;
     
     const query = searchQuery.toLowerCase().trim();

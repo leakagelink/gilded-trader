@@ -10,6 +10,7 @@ interface TradingItem {
   isPositive: boolean;
   icon?: LucideIcon | string;
   logo?: string;
+  currencySymbol?: string;
 }
 
 interface TradingListProps {
@@ -51,7 +52,8 @@ const TradingList = ({ data }: TradingListProps) => {
         price: item.price,
         name: item.name,
         logo: item.logo,
-        icon: item.icon
+        icon: item.icon,
+        currencySymbol: item.currencySymbol || '$'
       }
     });
   };

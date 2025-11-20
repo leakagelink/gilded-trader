@@ -63,6 +63,7 @@ const Trading = () => {
   const initialPrice = parseInitialPrice(location.state?.price);
   const tradingName = location.state?.name || `${symbol?.toUpperCase()}`;
   const tradingIcon = location.state?.icon || location.state?.logo;
+  const currencySymbol = location.state?.currencySymbol || '$';
   
   const [currentPrice, setCurrentPrice] = useState<number>(initialPrice);
   const [priceChange, setPriceChange] = useState<number>(0);
@@ -491,20 +492,20 @@ const Trading = () => {
                       </div>
                       <div className="flex justify-between gap-4">
                         <span className="text-muted-foreground">Open:</span>
-                        <span className="font-medium">${o.toFixed(2)}</span>
+                        <span className="font-medium">{currencySymbol}{o.toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between gap-4">
                         <span className="text-muted-foreground">High:</span>
-                        <span className="font-medium text-green-500">${h.toFixed(2)}</span>
+                        <span className="font-medium text-green-500">{currencySymbol}{h.toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between gap-4">
                         <span className="text-muted-foreground">Low:</span>
-                        <span className="font-medium text-red-500">${l.toFixed(2)}</span>
+                        <span className="font-medium text-red-500">{currencySymbol}{l.toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between gap-4">
                         <span className="text-muted-foreground">Close:</span>
                         <span className={`font-medium ${isGreen ? 'text-green-500' : 'text-red-500'}`}>
-                          ${c.toFixed(2)}
+                          {currencySymbol}{c.toFixed(2)}
                         </span>
                       </div>
                     </div>
@@ -567,7 +568,7 @@ const Trading = () => {
                   priceDirection === 'down' ? 'text-red-500 scale-110' : ''
                 }`}
               >
-                ${typeof currentPrice === 'number' ? currentPrice.toFixed(2) : '0.00'}
+                {currencySymbol}{typeof currentPrice === 'number' ? currentPrice.toFixed(2) : '0.00'}
               </h2>
               <p className="text-xs text-muted-foreground mt-1">Updates every second</p>
             </div>
@@ -735,18 +736,18 @@ const Trading = () => {
             <div className="p-3 bg-muted rounded-lg space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Entry Price:</span>
-                <span className="font-semibold">${typeof currentPrice === 'number' ? currentPrice.toFixed(2) : '0.00'}</span>
+                <span className="font-semibold">{currencySymbol}{typeof currentPrice === 'number' ? currentPrice.toFixed(2) : '0.00'}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Margin Required:</span>
                 <span className="font-semibold">
-                  ${tradeAmount ? ((parseFloat(tradeAmount) * currentPrice) / leverage).toFixed(2) : "0.00"}
+                  {currencySymbol}{tradeAmount ? ((parseFloat(tradeAmount) * currentPrice) / leverage).toFixed(2) : "0.00"}
                 </span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Position Value:</span>
                 <span className="font-semibold text-lg">
-                  ${tradeAmount ? (parseFloat(tradeAmount) * currentPrice).toFixed(2) : "0.00"}
+                  {currencySymbol}{tradeAmount ? (parseFloat(tradeAmount) * currentPrice).toFixed(2) : "0.00"}
                 </span>
               </div>
             </div>
@@ -808,18 +809,18 @@ const Trading = () => {
             <div className="p-3 bg-muted rounded-lg space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Entry Price:</span>
-                <span className="font-semibold">${typeof currentPrice === 'number' ? currentPrice.toFixed(2) : '0.00'}</span>
+                <span className="font-semibold">{currencySymbol}{typeof currentPrice === 'number' ? currentPrice.toFixed(2) : '0.00'}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Margin Required:</span>
                 <span className="font-semibold">
-                  ${tradeAmount ? ((parseFloat(tradeAmount) * currentPrice) / leverage).toFixed(2) : "0.00"}
+                  {currencySymbol}{tradeAmount ? ((parseFloat(tradeAmount) * currentPrice) / leverage).toFixed(2) : "0.00"}
                 </span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Position Value:</span>
                 <span className="font-semibold text-lg">
-                  ${tradeAmount ? (parseFloat(tradeAmount) * currentPrice).toFixed(2) : "0.00"}
+                  {currencySymbol}{tradeAmount ? (parseFloat(tradeAmount) * currentPrice).toFixed(2) : "0.00"}
                 </span>
               </div>
             </div>

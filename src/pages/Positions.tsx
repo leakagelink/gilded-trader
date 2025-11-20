@@ -59,15 +59,39 @@ const Positions = () => {
       try {
         const symbols = [...new Set(openPositions.map(p => p.symbol))];
         
+        // Fetch real crypto prices from CoinMarketCap
+        let cryptoPrices: Record<string, number> = {};
+        try {
+          const { data: cryptoData, error: cryptoError } = await supabase.functions.invoke('fetch-crypto-data');
+          if (!cryptoError && cryptoData?.cryptoData) {
+            cryptoData.cryptoData.forEach((coin: any) => {
+              cryptoPrices[coin.symbol.toUpperCase()] = parseFloat(coin.price);
+            });
+          }
+        } catch (err) {
+          console.error('Error fetching crypto prices:', err);
+        }
+        
         for (const symbol of symbols) {
-          const { data, error } = await supabase.functions.invoke('fetch-taapi-data', {
-            body: { symbol, interval: '1m' }
-          });
+          let currentPrice = 0;
+          const isForex = symbol.includes('/');
+          
+          // For crypto, use real CoinMarketCap price
+          if (!isForex && cryptoPrices[symbol.toUpperCase()]) {
+            currentPrice = cryptoPrices[symbol.toUpperCase()];
+            console.log(`Real CoinMarketCap price for ${symbol}:`, currentPrice);
+          } else {
+            // For forex, use forex data
+            const { data, error } = await supabase.functions.invoke('fetch-forex-data', {
+              body: { symbol }
+            });
 
-          if (error) throw error;
-          if (!data?.currentPrice) continue;
+            if (error) throw error;
+            if (!data?.currentPrice) continue;
+            currentPrice = data.currentPrice;
+          }
 
-          const currentPrice = data.currentPrice;
+          if (currentPrice <= 0) continue;
 
           // Update positions with this symbol
           const positionsToUpdate = openPositions.filter(p => p.symbol === symbol);
@@ -93,9 +117,9 @@ const Positions = () => {
       }
     };
 
-    // Update prices immediately and then every 5 seconds
+    // Update prices immediately and then every 1 second for real-time updates
     updatePrices();
-    const interval = setInterval(updatePrices, 5000);
+    const interval = setInterval(updatePrices, 1000);
 
     return () => clearInterval(interval);
   }, [user, openPositions.length]);

@@ -117,9 +117,9 @@ const Positions = () => {
       }
     };
 
-    // Update prices immediately and then every 1 second for real-time updates
+    // Update prices immediately and then every 10 seconds
     updatePrices();
-    const interval = setInterval(updatePrices, 1000);
+    const interval = setInterval(updatePrices, 10000);
 
     return () => clearInterval(interval);
   }, [user, openPositions.length]);

@@ -40,16 +40,27 @@ serve(async (req) => {
     console.log('Successfully fetched crypto data');
 
     // Transform the data to match our app's format
-    const cryptoData = data.data.map((coin: any) => ({
-      name: coin.name,
-      symbol: coin.symbol,
-      price: coin.quote.USD.price.toFixed(2),
-      change: `${coin.quote.USD.percent_change_24h >= 0 ? '+' : ''}${coin.quote.USD.percent_change_24h.toFixed(2)}%`,
-      isPositive: coin.quote.USD.percent_change_24h >= 0,
-      logo: `https://s2.coinmarketcap.com/static/img/coins/64x64/${coin.id}.png`,
-      currencySymbol: '$',
-      id: coin.id,
-    }));
+    const cryptoData = data.data.map((coin: any) => {
+      const currentPrice = coin.quote.USD.price;
+      const changePercent = coin.quote.USD.percent_change_24h / 100;
+      
+      // Calculate approximate 24h high/low based on current price and 24h change
+      const high24h = currentPrice / (1 + changePercent);
+      const low24h = currentPrice * (1 - Math.abs(changePercent) * 0.8);
+      
+      return {
+        name: coin.name,
+        symbol: coin.symbol,
+        price: currentPrice.toFixed(2),
+        change: `${coin.quote.USD.percent_change_24h >= 0 ? '+' : ''}${coin.quote.USD.percent_change_24h.toFixed(2)}%`,
+        isPositive: coin.quote.USD.percent_change_24h >= 0,
+        logo: `https://s2.coinmarketcap.com/static/img/coins/64x64/${coin.id}.png`,
+        currencySymbol: '$',
+        high24h: high24h.toFixed(2),
+        low24h: low24h.toFixed(2),
+        id: coin.id,
+      };
+    });
 
     return new Response(
       JSON.stringify({ cryptoData }),

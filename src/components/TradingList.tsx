@@ -120,7 +120,7 @@ const TradingList = ({ data }: TradingListProps) => {
                 itemMomentum[index] === 'down' ? 'text-red-500 scale-105' :
                 ''
               }`}>
-                {item.price}
+                {item.currencySymbol || '$'}{item.price}
               </div>
               <div className={`text-sm font-semibold flex items-center justify-end gap-1 ${
                 item.isPositive 

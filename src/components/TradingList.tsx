@@ -11,6 +11,8 @@ interface TradingItem {
   icon?: LucideIcon | string;
   logo?: string;
   currencySymbol?: string;
+  high24h?: string;
+  low24h?: string;
 }
 
 interface TradingListProps {
@@ -85,7 +87,7 @@ const TradingList = ({ data }: TradingListProps) => {
                   }`} />
                 )}
               </div>
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <div className="font-bold text-base truncate flex items-center gap-1">
                   {item.name}
                   <Activity className={`h-3 w-3 transition-all duration-300 ${
@@ -110,6 +112,12 @@ const TradingList = ({ data }: TradingListProps) => {
                     </span>
                   )}
                 </div>
+                {item.high24h && item.low24h && (
+                  <div className="text-xs text-muted-foreground mt-1 flex gap-2">
+                    <span className="text-green-600 dark:text-green-400">H: {item.currencySymbol || '$'}{item.high24h}</span>
+                    <span className="text-red-600 dark:text-red-400">L: {item.currencySymbol || '$'}{item.low24h}</span>
+                  </div>
+                )}
               </div>
             </div>
             

@@ -39,6 +39,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { AdminTradeManagement } from "@/components/AdminTradeManagement";
 
 const AdminPanel = () => {
   const navigate = useNavigate();
@@ -447,10 +448,14 @@ const AdminPanel = () => {
 
       <main className="container mx-auto px-4 py-8 max-w-7xl">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-6">
+          <TabsList className="grid w-full grid-cols-5 mb-6">
             <TabsTrigger value="users" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
               Users
+            </TabsTrigger>
+            <TabsTrigger value="trades" className="flex items-center gap-2">
+              <TrendingUp className="h-4 w-4" />
+              Trades
             </TabsTrigger>
             <TabsTrigger value="deposits" className="flex items-center gap-2">
               <Wallet className="h-4 w-4" />
@@ -541,6 +546,11 @@ const AdminPanel = () => {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Trades Tab */}
+          <TabsContent value="trades">
+            <AdminTradeManagement />
           </TabsContent>
 
           {/* Deposits Tab */}

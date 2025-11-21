@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      api_keys: {
+        Row: {
+          api_key: string
+          created_at: string | null
+          daily_limit: number | null
+          id: string
+          is_active: boolean | null
+          last_used_at: string | null
+          priority: number
+          service_name: string
+          updated_at: string | null
+          usage_count: number | null
+        }
+        Insert: {
+          api_key: string
+          created_at?: string | null
+          daily_limit?: number | null
+          id?: string
+          is_active?: boolean | null
+          last_used_at?: string | null
+          priority?: number
+          service_name: string
+          updated_at?: string | null
+          usage_count?: number | null
+        }
+        Update: {
+          api_key?: string
+          created_at?: string | null
+          daily_limit?: number | null
+          id?: string
+          is_active?: boolean | null
+          last_used_at?: string | null
+          priority?: number
+          service_name?: string
+          updated_at?: string | null
+          usage_count?: number | null
+        }
+        Relationships: []
+      }
       deposit_requests: {
         Row: {
           amount: number
@@ -391,6 +430,7 @@ export type Database = {
         Args: { transaction_ref?: string; withdrawal_id: string }
         Returns: undefined
       }
+      get_active_api_key: { Args: { p_service_name: string }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

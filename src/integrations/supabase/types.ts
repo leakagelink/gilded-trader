@@ -118,6 +118,7 @@ export type Database = {
           opened_at: string
           pnl: number | null
           position_type: Database["public"]["Enums"]["position_type"]
+          price_mode: string | null
           status: Database["public"]["Enums"]["position_status"]
           symbol: string
           updated_at: string
@@ -137,6 +138,7 @@ export type Database = {
           opened_at?: string
           pnl?: number | null
           position_type: Database["public"]["Enums"]["position_type"]
+          price_mode?: string | null
           status?: Database["public"]["Enums"]["position_status"]
           symbol: string
           updated_at?: string
@@ -156,6 +158,7 @@ export type Database = {
           opened_at?: string
           pnl?: number | null
           position_type?: Database["public"]["Enums"]["position_type"]
+          price_mode?: string | null
           status?: Database["public"]["Enums"]["position_status"]
           symbol?: string
           updated_at?: string

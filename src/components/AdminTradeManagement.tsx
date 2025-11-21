@@ -47,6 +47,9 @@ export const AdminTradeManagement = () => {
   const [amount, setAmount] = useState("");
   const [entryPrice, setEntryPrice] = useState("");
   const [leverage, setLeverage] = useState("1");
+  const [priceMode, setPriceMode] = useState<'live' | 'manual'>('live');
+  const [adjustPnlPositionId, setAdjustPnlPositionId] = useState<string | null>(null);
+  const [targetPnlPercent, setTargetPnlPercent] = useState("");
 
   useEffect(() => {
     fetchUsers();
@@ -119,7 +122,8 @@ export const AdminTradeManagement = () => {
         current_price: price,
         leverage: lev,
         margin: margin,
-        status: 'open'
+        status: 'open',
+        price_mode: priceMode
       });
 
       if (error) {
@@ -277,6 +281,51 @@ export const AdminTradeManagement = () => {
     setAmount("");
     setEntryPrice("");
     setLeverage("1");
+    setPriceMode("live");
+  };
+
+  const handleAdjustPnl = async () => {
+    if (!adjustPnlPositionId || !targetPnlPercent) {
+      toast.error("Please enter target PnL%");
+      return;
+    }
+
+    const position = positions.find(p => p.id === adjustPnlPositionId);
+    if (!position) return;
+
+    try {
+      const targetPnl = (parseFloat(targetPnlPercent) / 100) * position.margin;
+      let newCurrentPrice: number;
+
+      if (position.position_type === 'long') {
+        // For long: pnl = (current_price - entry_price) * amount * leverage
+        // Solve for current_price: current_price = entry_price + (pnl / (amount * leverage))
+        newCurrentPrice = position.entry_price + (targetPnl / (position.amount * position.leverage));
+      } else {
+        // For short: pnl = (entry_price - current_price) * amount * leverage
+        // Solve for current_price: current_price = entry_price - (pnl / (amount * leverage))
+        newCurrentPrice = position.entry_price - (targetPnl / (position.amount * position.leverage));
+      }
+
+      // Update position with new current_price
+      const { error } = await supabase
+        .from('positions')
+        .update({
+          current_price: newCurrentPrice,
+          pnl: targetPnl,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', adjustPnlPositionId);
+
+      if (error) throw error;
+
+      toast.success(`PnL adjusted to ${targetPnlPercent}%`);
+      setAdjustPnlPositionId(null);
+      setTargetPnlPercent("");
+      fetchPositions();
+    } catch (error: any) {
+      toast.error(error.message);
+    }
   };
 
   const calculatePnL = (position: Position) => {
@@ -309,6 +358,7 @@ export const AdminTradeManagement = () => {
               <TableHead>Current Price</TableHead>
               <TableHead>Leverage</TableHead>
               <TableHead>PnL</TableHead>
+              <TableHead>PnL %</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -316,6 +366,7 @@ export const AdminTradeManagement = () => {
             {positions.map((position) => {
               const pnl = calculatePnL(position);
               const isProfit = pnl >= 0;
+              const pnlPercent = (pnl / position.margin) * 100;
               
               return (
                 <TableRow key={position.id}>
@@ -338,6 +389,31 @@ export const AdminTradeManagement = () => {
                   <TableCell>{position.leverage}x</TableCell>
                   <TableCell className={isProfit ? 'text-green-500' : 'text-red-500'}>
                     {isProfit ? '+' : ''}${pnl.toFixed(2)}
+                  </TableCell>
+                  <TableCell>
+                    {adjustPnlPositionId === position.id ? (
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          placeholder="PnL %"
+                          value={targetPnlPercent}
+                          onChange={(e) => setTargetPnlPercent(e.target.value)}
+                          className="w-20 h-8"
+                        />
+                        <Button size="sm" onClick={handleAdjustPnl}>OK</Button>
+                        <Button size="sm" variant="outline" onClick={() => setAdjustPnlPositionId(null)}>Cancel</Button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setAdjustPnlPositionId(position.id);
+                          setTargetPnlPercent(pnlPercent.toFixed(2));
+                        }}
+                        className={`font-semibold ${isProfit ? 'text-green-500' : 'text-red-500'}`}
+                      >
+                        {isProfit ? '+' : ''}{pnlPercent.toFixed(2)}%
+                      </button>
+                    )}
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-2">
@@ -436,6 +512,18 @@ export const AdminTradeManagement = () => {
                       {lev}x
                     </SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Price Mode</Label>
+              <Select value={priceMode} onValueChange={(v) => setPriceMode(v as 'live' | 'manual')}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="live">Live Market Price</SelectItem>
+                  <SelectItem value="manual">Manual Entry Price (±5%)</SelectItem>
                 </SelectContent>
               </Select>
             </div>

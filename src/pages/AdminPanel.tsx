@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { 
-  TrendingUp, Shield, Users, Wallet, Settings as SettingsIcon, 
+  TrendingUp, Shield, Users, Wallet, Settings, SettingsIcon, 
   Check, X, RefreshCw, Edit, Trash2, DollarSign, FileText, ArrowUpRight 
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { AdminTradeManagement } from "@/components/AdminTradeManagement";
+import { AdminAPIManagement } from "@/components/AdminAPIManagement";
 
 const AdminPanel = () => {
   const navigate = useNavigate();
@@ -150,7 +151,7 @@ const AdminPanel = () => {
         .from("deposit_requests")
         .select(`
           *,
-          profiles:user_id (full_name, email)
+          profiles!deposit_requests_user_id_fkey (full_name, email)
         `)
         .order("created_at", { ascending: false });
 
@@ -162,7 +163,7 @@ const AdminPanel = () => {
         .from("withdrawal_requests")
         .select(`
           *,
-          profiles:user_id (full_name, email)
+          profiles!withdrawal_requests_user_id_fkey (full_name, email)
         `)
         .order("created_at", { ascending: false });
 
@@ -448,7 +449,7 @@ const AdminPanel = () => {
 
       <main className="container mx-auto px-4 py-8 max-w-7xl">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-5 mb-6">
+          <TabsList className="grid w-full grid-cols-6 mb-6">
             <TabsTrigger value="users" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
               Users
@@ -456,6 +457,10 @@ const AdminPanel = () => {
             <TabsTrigger value="trades" className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
               Trades
+            </TabsTrigger>
+            <TabsTrigger value="api" className="flex items-center gap-2">
+              <Settings className="h-4 w-4" />
+              API Keys
             </TabsTrigger>
             <TabsTrigger value="deposits" className="flex items-center gap-2">
               <Wallet className="h-4 w-4" />
@@ -551,6 +556,11 @@ const AdminPanel = () => {
           {/* Trades Tab */}
           <TabsContent value="trades">
             <AdminTradeManagement />
+          </TabsContent>
+
+          {/* API Keys Tab */}
+          <TabsContent value="api">
+            <AdminAPIManagement />
           </TabsContent>
 
           {/* Deposits Tab */}

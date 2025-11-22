@@ -1,11 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Generate realistic fallback data when TAAPI is unavailable
 function generateFallbackCandles(symbol: string, interval: string, count: number = 20) {
   console.log(`Generating fallback data for ${symbol}`);
   
@@ -18,7 +18,7 @@ function generateFallbackCandles(symbol: string, interval: string, count: number
   
   for (let i = count - 1; i >= 0; i--) {
     const timestamp = now - (i * intervalMs);
-    const volatility = prevClose * 0.02; // 2% volatility
+    const volatility = prevClose * 0.02;
     
     const open = prevClose;
     const close = open + (Math.random() - 0.5) * volatility * 2;
@@ -70,6 +70,57 @@ function getBasePrice(symbol: string): number {
   return prices[symbol.toUpperCase()] || 100;
 }
 
+async function getActiveApiKey(serviceName: string) {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const supabase = createClient(supabaseUrl, supabaseKey);
+  
+  const { data, error } = await supabase.rpc('get_active_api_key', {
+    p_service_name: serviceName
+  });
+  
+  if (error) {
+    console.error('Error fetching API key:', error);
+    return null;
+  }
+  
+  return data;
+}
+
+async function markKeyAsInactive(serviceName: string, apiKey: string) {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const supabase = createClient(supabaseUrl, supabaseKey);
+  
+  const { error } = await supabase
+    .from('api_keys')
+    .update({ is_active: false })
+    .eq('service_name', serviceName)
+    .eq('api_key', apiKey);
+  
+  if (error) {
+    console.error('Error marking key as inactive:', error);
+  } else {
+    console.log(`Marked ${serviceName} key as inactive due to rate limit`);
+  }
+}
+
+async function fetchTaapiData(apiKey: string, symbol: string, interval: string) {
+  const candleResponse = await fetch(
+    `https://api.taapi.io/candles?secret=${apiKey}&exchange=binance&symbol=${symbol}/USDT&interval=${interval}&backtracks=10`,
+    { signal: AbortSignal.timeout(5000) }
+  );
+  return candleResponse;
+}
+
+async function fetchTaapiPrice(apiKey: string, symbol: string) {
+  const priceResponse = await fetch(
+    `https://api.taapi.io/price?secret=${apiKey}&exchange=binance&symbol=${symbol}/USDT`,
+    { signal: AbortSignal.timeout(3000) }
+  );
+  return priceResponse;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -77,92 +128,118 @@ serve(async (req) => {
 
   try {
     const { symbol, interval = '1h' } = await req.json();
-    const TAAPI_API_KEY = Deno.env.get('TAAPI_API_KEY');
+    
+    let attempts = 0;
+    const MAX_ATTEMPTS = 10;
+    let lastError: any = null;
 
-    if (!TAAPI_API_KEY) {
-      console.log('TAAPI_API_KEY not configured, using fallback data');
-      const fallbackCandles = generateFallbackCandles(symbol, interval);
-      const currentPrice = fallbackCandles[fallbackCandles.length - 1].close;
+    while (attempts < MAX_ATTEMPTS) {
+      attempts++;
+      const apiKey = await getActiveApiKey('taapi');
       
-      return new Response(
-        JSON.stringify({ 
-          candles: fallbackCandles,
-          currentPrice,
-          symbol,
-          source: 'fallback'
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    console.log(`Attempting to fetch TAAPI data for ${symbol} with interval ${interval}`);
-
-    try {
-      // Try to fetch from TAAPI with reduced candles
-      const candleResponse = await fetch(
-        `https://api.taapi.io/candles?secret=${TAAPI_API_KEY}&exchange=binance&symbol=${symbol}/USDT&interval=${interval}&backtracks=10`,
-        { signal: AbortSignal.timeout(5000) } // 5 second timeout
-      );
-
-      if (!candleResponse.ok) {
-        if (candleResponse.status === 429) {
-          console.log('TAAPI rate limit hit, using fallback data');
-          throw new Error('RATE_LIMIT');
-        } else if (candleResponse.status === 401) {
-          console.log('TAAPI authentication failed, using fallback data');
-          throw new Error('AUTH_ERROR');
-        }
-        throw new Error(`TAAPI_ERROR_${candleResponse.status}`);
-      }
-
-      const candles = await candleResponse.json();
-
-      // Try to fetch current price
-      let currentPrice = candles[candles.length - 1]?.close || 0;
-      try {
-        const priceResponse = await fetch(
-          `https://api.taapi.io/price?secret=${TAAPI_API_KEY}&exchange=binance&symbol=${symbol}/USDT`,
-          { signal: AbortSignal.timeout(3000) }
+      if (!apiKey) {
+        console.log('No active TAAPI API key available, using fallback data');
+        const fallbackCandles = generateFallbackCandles(symbol, interval);
+        const currentPrice = fallbackCandles[fallbackCandles.length - 1].close;
+        
+        return new Response(
+          JSON.stringify({ 
+            candles: fallbackCandles,
+            currentPrice,
+            symbol,
+            source: 'fallback'
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
-        if (priceResponse.ok) {
-          const priceData = await priceResponse.json();
-          currentPrice = priceData.value || currentPrice;
-        }
-      } catch {
-        console.log('Could not fetch current price, using last candle close');
       }
 
-      console.log(`Successfully fetched ${candles.length} candles from TAAPI for ${symbol}`);
+      console.log(`Attempt ${attempts}: Fetching TAAPI data for ${symbol} with interval ${interval}`);
 
-      return new Response(
-        JSON.stringify({ 
-          candles: candles.reverse(),
-          currentPrice,
-          symbol,
-          source: 'taapi'
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      try {
+        const candleResponse = await fetchTaapiData(apiKey, symbol, interval);
 
-    } catch (taapiError) {
-      // If TAAPI fails for any reason, use fallback
-      const errorMessage = taapiError instanceof Error ? taapiError.message : 'UNKNOWN';
-      console.log(`TAAPI error (${errorMessage}), using fallback data`);
-      
-      const fallbackCandles = generateFallbackCandles(symbol, interval);
-      const currentPrice = fallbackCandles[fallbackCandles.length - 1].close;
-      
-      return new Response(
-        JSON.stringify({ 
-          candles: fallbackCandles,
-          currentPrice,
-          symbol,
-          source: 'fallback',
-          reason: errorMessage
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+        if (candleResponse.ok) {
+          const candles = await candleResponse.json();
+
+          // Try to fetch current price
+          let currentPrice = candles[candles.length - 1]?.close || 0;
+          try {
+            const priceResponse = await fetchTaapiPrice(apiKey, symbol);
+            if (priceResponse.ok) {
+              const priceData = await priceResponse.json();
+              currentPrice = priceData.value || currentPrice;
+            }
+          } catch {
+            console.log('Could not fetch current price, using last candle close');
+          }
+
+          console.log(`Successfully fetched ${candles.length} candles from TAAPI for ${symbol}`);
+
+          return new Response(
+            JSON.stringify({ 
+              candles: candles.reverse(),
+              currentPrice,
+              symbol,
+              source: 'taapi'
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        // Check if rate limit error
+        if (candleResponse.status === 429) {
+          const errorText = await candleResponse.text();
+          console.error(`TAAPI rate limit hit for key, status ${candleResponse.status}:`, errorText);
+          
+          // Mark this key as inactive
+          await markKeyAsInactive('taapi', apiKey);
+          
+          // Try next key
+          console.log('Trying next available TAAPI API key...');
+          continue;
+        }
+
+        // Check authentication error
+        if (candleResponse.status === 401) {
+          console.log('TAAPI authentication failed');
+          await markKeyAsInactive('taapi', apiKey);
+          continue;
+        }
+
+        // Other errors
+        const errorText = await candleResponse.text();
+        lastError = `TAAPI error ${candleResponse.status}: ${errorText}`;
+        console.error(lastError);
+        break;
+
+      } catch (error) {
+        lastError = error;
+        console.error(`Error with TAAPI key attempt ${attempts}:`, error);
+        
+        // If it's a timeout or network error, try next key
+        if (error instanceof Error && (error.name === 'AbortError' || error.message.includes('network'))) {
+          console.log('Network/timeout error, trying next key...');
+          continue;
+        }
+        break;
+      }
     }
+
+    // If all attempts failed, use fallback
+    console.log(`All TAAPI attempts failed, using fallback data`);
+    const fallbackCandles = generateFallbackCandles(symbol, interval);
+    const currentPrice = fallbackCandles[fallbackCandles.length - 1].close;
+    
+    return new Response(
+      JSON.stringify({ 
+        candles: fallbackCandles,
+        currentPrice,
+        symbol,
+        source: 'fallback',
+        reason: lastError instanceof Error ? lastError.message : 'UNKNOWN'
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
 
   } catch (error) {
     console.error('Unexpected error:', error);
@@ -178,7 +255,7 @@ serve(async (req) => {
         error: error instanceof Error ? error.message : 'Unknown error'
       }),
       { 
-        status: 200, // Return 200 even on error so app works
+        status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );

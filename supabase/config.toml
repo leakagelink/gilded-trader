@@ -6,6 +6,12 @@ verify_jwt = false
 [functions.fetch-taapi-data]
 verify_jwt = false
 
+[functions.fetch-forex-data]
+verify_jwt = false
+
+[functions.fetch-forex-chart-data]
+verify_jwt = false
+
 [functions.delete-user]
 verify_jwt = true
 

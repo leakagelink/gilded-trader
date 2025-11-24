@@ -149,26 +149,48 @@ const AdminPanel = () => {
       // Fetch deposit requests
       const { data: depositsData, error: depositsError } = await supabase
         .from("deposit_requests")
-        .select(`
-          *,
-          profiles (full_name, email)
-        `)
+        .select("*")
         .order("created_at", { ascending: false });
 
       if (depositsError) throw depositsError;
-      setDepositRequests(depositsData || []);
+      
+      // Fetch user profiles for deposits
+      const depositUserIds = depositsData?.map(d => d.user_id) || [];
+      const { data: depositProfiles } = await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .in("id", depositUserIds);
+      
+      // Merge profiles with deposits
+      const depositsWithProfiles = depositsData?.map(deposit => ({
+        ...deposit,
+        profiles: depositProfiles?.find(p => p.id === deposit.user_id)
+      })) || [];
+      
+      setDepositRequests(depositsWithProfiles);
 
       // Fetch withdrawal requests
       const { data: withdrawalsData, error: withdrawalsError } = await supabase
         .from("withdrawal_requests")
-        .select(`
-          *,
-          profiles (full_name, email)
-        `)
+        .select("*")
         .order("created_at", { ascending: false });
 
       if (withdrawalsError) throw withdrawalsError;
-      setWithdrawalRequests(withdrawalsData || []);
+      
+      // Fetch user profiles for withdrawals
+      const withdrawalUserIds = withdrawalsData?.map(w => w.user_id) || [];
+      const { data: withdrawalProfiles } = await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .in("id", withdrawalUserIds);
+      
+      // Merge profiles with withdrawals
+      const withdrawalsWithProfiles = withdrawalsData?.map(withdrawal => ({
+        ...withdrawal,
+        profiles: withdrawalProfiles?.find(p => p.id === withdrawal.user_id)
+      })) || [];
+      
+      setWithdrawalRequests(withdrawalsWithProfiles);
 
       // Fetch payment settings
       const { data: settingsData, error: settingsError } = await supabase

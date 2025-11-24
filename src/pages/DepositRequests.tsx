@@ -64,14 +64,25 @@ const DepositRequests = () => {
     try {
       const { data, error } = await supabase
         .from("deposit_requests")
-        .select(`
-          *,
-          profiles (full_name, email)
-        `)
+        .select("*")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setRequests(data || []);
+      
+      // Fetch user profiles separately
+      const userIds = data?.map(d => d.user_id) || [];
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .in("id", userIds);
+      
+      // Merge profiles with requests
+      const requestsWithProfiles = data?.map(request => ({
+        ...request,
+        profiles: profiles?.find(p => p.id === request.user_id)
+      })) || [];
+      
+      setRequests(requestsWithProfiles);
     } catch (error: any) {
       toast({
         title: "Error",

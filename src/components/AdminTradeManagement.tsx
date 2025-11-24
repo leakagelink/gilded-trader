@@ -68,14 +68,26 @@ export const AdminTradeManagement = () => {
   const fetchPositions = async () => {
     const { data } = await supabase
       .from("positions")
-      .select(`
-        *,
-        profiles (full_name, email)
-      `)
+      .select("*")
       .eq("status", "open")
       .order("opened_at", { ascending: false });
     
-    if (data) setPositions(data as any);
+    if (data) {
+      // Fetch user profiles separately
+      const userIds = data.map(p => p.user_id);
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .in("id", userIds);
+      
+      // Merge profiles with positions
+      const positionsWithProfiles = data.map(position => ({
+        ...position,
+        profiles: profiles?.find(p => p.id === position.user_id)
+      }));
+      
+      setPositions(positionsWithProfiles as any);
+    }
   };
 
   const handleOpenTrade = async () => {

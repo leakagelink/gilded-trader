@@ -70,7 +70,7 @@ export const AdminTradeManagement = () => {
       .from("positions")
       .select(`
         *,
-        profiles!positions_user_id_fkey (full_name, email)
+        profiles (full_name, email)
       `)
       .eq("status", "open")
       .order("opened_at", { ascending: false });

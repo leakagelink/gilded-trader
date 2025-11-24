@@ -151,7 +151,7 @@ const AdminPanel = () => {
         .from("deposit_requests")
         .select(`
           *,
-          profiles!deposit_requests_user_id_fkey (full_name, email)
+          profiles (full_name, email)
         `)
         .order("created_at", { ascending: false });
 
@@ -163,7 +163,7 @@ const AdminPanel = () => {
         .from("withdrawal_requests")
         .select(`
           *,
-          profiles!withdrawal_requests_user_id_fkey (full_name, email)
+          profiles (full_name, email)
         `)
         .order("created_at", { ascending: false });
 

@@ -119,14 +119,14 @@ export const AdminTradeManagement = () => {
           return;
         }
 
-        if (!priceData || !Array.isArray(priceData)) {
+        if (!priceData || !priceData.cryptoData || !Array.isArray(priceData.cryptoData)) {
           console.error('Invalid price data format:', priceData);
           toast.error("Invalid price data received");
           return;
         }
 
         // Find the symbol in the price data - be more flexible with matching
-        const symbolData = priceData.find((coin: any) => {
+        const symbolData = priceData.cryptoData.find((coin: any) => {
           const coinSymbol = coin.symbol?.toUpperCase() || '';
           const searchSymbol = symbol.toUpperCase().trim();
           return coinSymbol === searchSymbol;
@@ -134,14 +134,14 @@ export const AdminTradeManagement = () => {
 
         console.log('Found symbol data:', symbolData);
 
-        if (!symbolData || !symbolData.quote?.USD?.price) {
+        if (!symbolData || !symbolData.price) {
           console.error('Symbol not found or invalid price. Available symbols:', 
-            priceData.slice(0, 10).map((c: any) => c.symbol).join(', '));
+            priceData.cryptoData.slice(0, 10).map((c: any) => c.symbol).join(', '));
           toast.error(`Symbol ${symbol} not found. Please check symbol name.`);
           return;
         }
 
-        price = symbolData.quote.USD.price;
+        price = parseFloat(symbolData.price);
         // For live mode, use amount of 1 unit
         tradeAmount = 1;
         console.log('Opening trade at live price:', price);

@@ -34,6 +34,7 @@ interface Position {
   opened_at: string;
   closed_at?: string;
   close_price?: number;
+  price_mode?: string;
   profiles?: {
     full_name?: string;
     email?: string;
@@ -64,33 +65,35 @@ const AdminPositions = () => {
 
     const updatePrices = async () => {
       try {
-        const symbols = [...new Set(openPositions.map(p => p.symbol))];
-        
-        for (const symbol of symbols) {
-          const { data, error } = await supabase.functions.invoke('fetch-taapi-data', {
-            body: { symbol, interval: '1m' }
-          });
+        for (const position of openPositions) {
+          let currentPrice = position.current_price;
 
-          if (error) throw error;
-          if (!data?.currentPrice) continue;
+          // Check if this is a manual trade
+          if (position.price_mode === 'manual') {
+            // Generate fake momentum between 1-5% for manual trades
+            const randomPercent = (Math.random() * 4 + 1) * (Math.random() > 0.5 ? 1 : -1); // 1-5% up or down
+            currentPrice = position.entry_price * (1 + randomPercent / 100);
+          } else {
+            // For live trades, fetch real market prices
+            const { data, error } = await supabase.functions.invoke('fetch-taapi-data', {
+              body: { symbol: position.symbol, interval: '1m' }
+            });
 
-          const currentPrice = data.currentPrice;
-
-          // Update positions with this symbol
-          const positionsToUpdate = openPositions.filter(p => p.symbol === symbol);
-          
-          for (const position of positionsToUpdate) {
-            const { error: updateError } = await supabase
-              .from('positions')
-              .update({ 
-                current_price: currentPrice,
-                updated_at: new Date().toISOString()
-              })
-              .eq('id', position.id)
-              .eq('status', 'open');
-
-            if (updateError) console.error('Error updating position price:', updateError);
+            if (error || !data?.currentPrice) continue;
+            currentPrice = data.currentPrice;
           }
+
+          // Update position with new price
+          const { error: updateError } = await supabase
+            .from('positions')
+            .update({ 
+              current_price: currentPrice,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', position.id)
+            .eq('status', 'open');
+
+          if (updateError) console.error('Error updating position price:', updateError);
         }
 
         // Refresh positions to show updated prices
@@ -100,9 +103,9 @@ const AdminPositions = () => {
       }
     };
 
-    // Update prices immediately and then every 5 seconds
+    // Update prices immediately and then every 1 second
     updatePrices();
-    const interval = setInterval(updatePrices, 5000);
+    const interval = setInterval(updatePrices, 1000);
 
     return () => clearInterval(interval);
   }, [isAdmin, openPositions.length]);

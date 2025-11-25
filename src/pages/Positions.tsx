@@ -33,6 +33,7 @@ interface Position {
   opened_at: string;
   closed_at?: string;
   close_price?: number;
+  price_mode?: string;
 }
 
 const Positions = () => {
@@ -57,9 +58,7 @@ const Positions = () => {
 
     const updatePrices = async () => {
       try {
-        const symbols = [...new Set(openPositions.map(p => p.symbol))];
-        
-        // Fetch real crypto prices from CoinMarketCap
+        // Fetch real crypto prices from CoinMarketCap for live trades
         let cryptoPrices: Record<string, number> = {};
         try {
           const { data: cryptoData, error: cryptoError } = await supabase.functions.invoke('fetch-crypto-data');
@@ -72,42 +71,45 @@ const Positions = () => {
           console.error('Error fetching crypto prices:', err);
         }
         
-        for (const symbol of symbols) {
-          let currentPrice = 0;
-          const isForex = symbol.includes('/');
-          
-          // For crypto, use real CoinMarketCap price
-          if (!isForex && cryptoPrices[symbol.toUpperCase()]) {
-            currentPrice = cryptoPrices[symbol.toUpperCase()];
-            console.log(`Real CoinMarketCap price for ${symbol}:`, currentPrice);
+        for (const position of openPositions) {
+          let currentPrice = position.current_price;
+
+          // Check if this is a manual trade
+          if (position.price_mode === 'manual') {
+            // Generate fake momentum between 1-5% for manual trades
+            const randomPercent = (Math.random() * 4 + 1) * (Math.random() > 0.5 ? 1 : -1); // 1-5% up or down
+            currentPrice = position.entry_price * (1 + randomPercent / 100);
           } else {
-            // For forex, use forex data
-            const { data, error } = await supabase.functions.invoke('fetch-forex-data', {
-              body: { symbol }
-            });
+            // For live trades, use real market prices
+            const isForex = position.symbol.includes('/');
+            
+            if (!isForex && cryptoPrices[position.symbol.toUpperCase()]) {
+              // For crypto, use real CoinMarketCap price
+              currentPrice = cryptoPrices[position.symbol.toUpperCase()];
+            } else if (isForex) {
+              // For forex, use forex data
+              const { data, error } = await supabase.functions.invoke('fetch-forex-data', {
+                body: { symbol: position.symbol }
+              });
 
-            if (error) throw error;
-            if (!data?.currentPrice) continue;
-            currentPrice = data.currentPrice;
+              if (error || !data?.currentPrice) continue;
+              currentPrice = data.currentPrice;
+            }
+
+            if (currentPrice <= 0) continue;
           }
 
-          if (currentPrice <= 0) continue;
+          // Update position with new price
+          const { error: updateError } = await supabase
+            .from('positions')
+            .update({ 
+              current_price: currentPrice,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', position.id)
+            .eq('status', 'open');
 
-          // Update positions with this symbol
-          const positionsToUpdate = openPositions.filter(p => p.symbol === symbol);
-          
-          for (const position of positionsToUpdate) {
-            const { error: updateError } = await supabase
-              .from('positions')
-              .update({ 
-                current_price: currentPrice,
-                updated_at: new Date().toISOString()
-              })
-              .eq('id', position.id)
-              .eq('status', 'open');
-
-            if (updateError) console.error('Error updating position price:', updateError);
-          }
+          if (updateError) console.error('Error updating position price:', updateError);
         }
 
         // Refresh positions to show updated prices
@@ -117,9 +119,9 @@ const Positions = () => {
       }
     };
 
-    // Update prices immediately and then every 10 seconds
+    // Update prices immediately and then every 1 second
     updatePrices();
-    const interval = setInterval(updatePrices, 10000);
+    const interval = setInterval(updatePrices, 1000);
 
     return () => clearInterval(interval);
   }, [user, openPositions.length]);

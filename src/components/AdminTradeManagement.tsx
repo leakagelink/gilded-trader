@@ -108,30 +108,48 @@ export const AdminTradeManagement = () => {
 
       if (priceMode === 'live') {
         // Fetch real-time market price
+        console.log('Fetching live market price for symbol:', symbol);
         const { data: priceData, error: priceError } = await supabase.functions.invoke('fetch-crypto-data');
         
-        if (priceError || !priceData) {
-          toast.error("Failed to fetch live market price");
+        console.log('Price data response:', priceData, 'Error:', priceError);
+        
+        if (priceError) {
+          console.error('Error fetching price:', priceError);
+          toast.error("Failed to fetch live market price: " + priceError.message);
           return;
         }
 
-        // Find the symbol in the price data
-        const symbolData = priceData.find((coin: any) => 
-          coin.symbol.toUpperCase() === symbol.toUpperCase()
-        );
+        if (!priceData || !Array.isArray(priceData)) {
+          console.error('Invalid price data format:', priceData);
+          toast.error("Invalid price data received");
+          return;
+        }
 
-        if (!symbolData) {
-          toast.error(`Symbol ${symbol} not found in market data`);
+        // Find the symbol in the price data - be more flexible with matching
+        const symbolData = priceData.find((coin: any) => {
+          const coinSymbol = coin.symbol?.toUpperCase() || '';
+          const searchSymbol = symbol.toUpperCase().trim();
+          return coinSymbol === searchSymbol;
+        });
+
+        console.log('Found symbol data:', symbolData);
+
+        if (!symbolData || !symbolData.quote?.USD?.price) {
+          console.error('Symbol not found or invalid price. Available symbols:', 
+            priceData.slice(0, 10).map((c: any) => c.symbol).join(', '));
+          toast.error(`Symbol ${symbol} not found. Please check symbol name.`);
           return;
         }
 
         price = symbolData.quote.USD.price;
-        // For live mode, use default amount of 1 unit
+        // For live mode, use amount of 1 unit
         tradeAmount = 1;
+        console.log('Opening trade at live price:', price);
       } else {
         // Manual mode
         price = parseFloat(entryPrice);
         tradeAmount = parseFloat(amount);
+        console.log('Opening trade at manual price:', price);
       }
 
       const lev = parseInt(leverage);

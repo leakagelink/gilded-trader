@@ -91,14 +91,49 @@ export const AdminTradeManagement = () => {
   };
 
   const handleOpenTrade = async () => {
-    if (!selectedUser || !symbol || !amount || !entryPrice) {
-      toast.error("Please fill all fields");
+    // Validate based on price mode
+    if (!selectedUser || !symbol) {
+      toast.error("Please select user and symbol");
+      return;
+    }
+
+    if (priceMode === 'manual' && (!amount || !entryPrice)) {
+      toast.error("Please fill amount and entry price for manual mode");
       return;
     }
 
     try {
-      const tradeAmount = parseFloat(amount);
-      const price = parseFloat(entryPrice);
+      let price: number;
+      let tradeAmount: number;
+
+      if (priceMode === 'live') {
+        // Fetch real-time market price
+        const { data: priceData, error: priceError } = await supabase.functions.invoke('fetch-crypto-data');
+        
+        if (priceError || !priceData) {
+          toast.error("Failed to fetch live market price");
+          return;
+        }
+
+        // Find the symbol in the price data
+        const symbolData = priceData.find((coin: any) => 
+          coin.symbol.toUpperCase() === symbol.toUpperCase()
+        );
+
+        if (!symbolData) {
+          toast.error(`Symbol ${symbol} not found in market data`);
+          return;
+        }
+
+        price = symbolData.quote.USD.price;
+        // For live mode, use default amount of 1 unit
+        tradeAmount = 1;
+      } else {
+        // Manual mode
+        price = parseFloat(entryPrice);
+        tradeAmount = parseFloat(amount);
+      }
+
       const lev = parseInt(leverage);
       const margin = (tradeAmount * price) / lev;
 
@@ -296,6 +331,10 @@ export const AdminTradeManagement = () => {
     setPriceMode("live");
   };
 
+  const handleSymbolChange = (value: string) => {
+    setSymbol(value);
+  };
+
   const handleAdjustPnl = async () => {
     if (!adjustPnlPositionId || !targetPnlPercent) {
       toast.error("Please enter target PnL%");
@@ -460,6 +499,19 @@ export const AdminTradeManagement = () => {
           </DialogHeader>
           <div className="space-y-4">
             <div>
+              <Label>Price Mode</Label>
+              <Select value={priceMode} onValueChange={(v) => setPriceMode(v as 'live' | 'manual')}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="live">Live Market Price</SelectItem>
+                  <SelectItem value="manual">Manual Entry Price (±5%)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
               <Label>Select User</Label>
               <Select value={selectedUser} onValueChange={setSelectedUser}>
                 <SelectTrigger>
@@ -474,14 +526,16 @@ export const AdminTradeManagement = () => {
                 </SelectContent>
               </Select>
             </div>
+
             <div>
               <Label>Symbol</Label>
               <Input
                 placeholder="BTC, ETH, EUR/USD, etc."
                 value={symbol}
-                onChange={(e) => setSymbol(e.target.value)}
+                onChange={(e) => handleSymbolChange(e.target.value)}
               />
             </div>
+
             <div>
               <Label>Position Type</Label>
               <Select value={positionType} onValueChange={(v) => setPositionType(v as 'long' | 'short')}>
@@ -494,24 +548,30 @@ export const AdminTradeManagement = () => {
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <Label>Amount</Label>
-              <Input
-                type="number"
-                placeholder="0.00"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-              />
-            </div>
-            <div>
-              <Label>Entry Price</Label>
-              <Input
-                type="number"
-                placeholder="0.00"
-                value={entryPrice}
-                onChange={(e) => setEntryPrice(e.target.value)}
-              />
-            </div>
+
+            {priceMode === 'manual' && (
+              <>
+                <div>
+                  <Label>Amount</Label>
+                  <Input
+                    type="number"
+                    placeholder="0.00"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label>Entry Price</Label>
+                  <Input
+                    type="number"
+                    placeholder="0.00"
+                    value={entryPrice}
+                    onChange={(e) => setEntryPrice(e.target.value)}
+                  />
+                </div>
+              </>
+            )}
+
             <div>
               <Label>Leverage</Label>
               <Select value={leverage} onValueChange={setLeverage}>
@@ -527,18 +587,17 @@ export const AdminTradeManagement = () => {
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <Label>Price Mode</Label>
-              <Select value={priceMode} onValueChange={(v) => setPriceMode(v as 'live' | 'manual')}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="live">Live Market Price</SelectItem>
-                  <SelectItem value="manual">Manual Entry Price (±5%)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+
+            {priceMode === 'live' && (
+              <p className="text-sm text-muted-foreground">
+                Trade will open at current live market price and follow real-time market movements.
+              </p>
+            )}
+            {priceMode === 'manual' && (
+              <p className="text-sm text-muted-foreground">
+                Trade will fluctuate ±5% around the manual entry price you specify.
+              </p>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpenTradeDialog(false)}>

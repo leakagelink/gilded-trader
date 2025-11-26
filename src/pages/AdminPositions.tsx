@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, TrendingUp, TrendingDown, X, RefreshCcw, Search } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, X, RefreshCcw, Search, ArrowUp, ArrowDown } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -50,6 +50,8 @@ const AdminPositions = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [closePositionId, setClosePositionId] = useState<string | null>(null);
+  const [priceChanges, setPriceChanges] = useState<Record<string, { direction: 'up' | 'down' | 'none'; flash: boolean }>>({});
+  const previousPricesRef = useRef<Record<string, number>>({});
 
   useEffect(() => {
     if (!user) {
@@ -113,6 +115,21 @@ const AdminPositions = () => {
               .then(({ error }) => {
                 if (error) console.error('Error updating position:', error);
               });
+
+            // Track price changes for visual indicators
+            const previousPrice = previousPricesRef.current[position.id];
+            if (previousPrice !== undefined && previousPrice !== currentPrice) {
+              const direction = currentPrice > previousPrice ? 'up' : 'down';
+              setPriceChanges(prev => ({ ...prev, [position.id]: { direction, flash: true } }));
+              
+              // Remove flash effect after animation
+              setTimeout(() => {
+                setPriceChanges(prev => ({ ...prev, [position.id]: { ...prev[position.id], flash: false } }));
+              }, 500);
+            }
+            
+            // Store current price for next comparison
+            previousPricesRef.current[position.id] = currentPrice;
 
             // Return updated position for immediate UI update
             return {
@@ -263,6 +280,7 @@ const AdminPositions = () => {
     const pnl = calculatePnL(position);
     const isProfit = pnl >= 0;
     const isLong = position.position_type === 'long';
+    const priceChange = priceChanges[position.id];
 
     return (
       <Card className="p-4 hover:shadow-lg transition-shadow">
@@ -310,7 +328,29 @@ const AdminPositions = () => {
           </div>
           <div>
             <p className="text-muted-foreground">Current Price</p>
-            <p className="font-semibold">${position.current_price.toFixed(2)}</p>
+            <div className={`flex items-center gap-1 font-semibold transition-all duration-300 ${
+              priceChange?.flash 
+                ? priceChange.direction === 'up' 
+                  ? 'text-green-500 animate-pulse' 
+                  : 'text-red-500 animate-pulse'
+                : ''
+            }`}>
+              <span className={`px-2 py-1 rounded transition-all duration-300 ${
+                priceChange?.flash
+                  ? priceChange.direction === 'up'
+                    ? 'bg-green-500/20'
+                    : 'bg-red-500/20'
+                  : ''
+              }`}>
+                ${position.current_price.toFixed(2)}
+              </span>
+              {priceChange?.direction === 'up' && (
+                <ArrowUp className="h-4 w-4 text-green-500" />
+              )}
+              {priceChange?.direction === 'down' && (
+                <ArrowDown className="h-4 w-4 text-red-500" />
+              )}
+            </div>
           </div>
           <div>
             <p className="text-muted-foreground">Margin</p>
@@ -318,12 +358,26 @@ const AdminPositions = () => {
           </div>
         </div>
 
-        <div className={`mt-4 p-3 rounded-lg ${isProfit ? 'bg-green-500/10' : 'bg-red-500/10'}`}>
+        <div className={`mt-4 p-3 rounded-lg transition-all duration-300 ${
+          priceChange?.flash
+            ? priceChange.direction === 'up'
+              ? 'bg-green-500/20 animate-pulse'
+              : 'bg-red-500/20 animate-pulse'
+            : isProfit ? 'bg-green-500/10' : 'bg-red-500/10'
+        }`}>
           <div className="flex justify-between items-center">
             <span className="text-sm font-medium">PnL</span>
-            <span className={`text-lg font-bold ${isProfit ? 'text-green-500' : 'text-red-500'}`}>
-              {isProfit ? '+' : ''}${pnl.toFixed(2)}
-            </span>
+            <div className="flex items-center gap-1">
+              <span className={`text-lg font-bold ${isProfit ? 'text-green-500' : 'text-red-500'}`}>
+                {isProfit ? '+' : ''}${pnl.toFixed(2)}
+              </span>
+              {priceChange?.direction === 'up' && (
+                <ArrowUp className="h-4 w-4 text-green-500" />
+              )}
+              {priceChange?.direction === 'down' && (
+                <ArrowDown className="h-4 w-4 text-red-500" />
+              )}
+            </div>
           </div>
         </div>
 

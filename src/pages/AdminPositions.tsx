@@ -74,13 +74,26 @@ const AdminPositions = () => {
             const randomPercent = (Math.random() * 4 + 1) * (Math.random() > 0.5 ? 1 : -1); // 1-5% up or down
             currentPrice = position.entry_price * (1 + randomPercent / 100);
           } else {
-            // For live trades, fetch real market prices
-            const { data, error } = await supabase.functions.invoke('fetch-taapi-data', {
-              body: { symbol: position.symbol, interval: '1m' }
+            // For live trades, fetch real market prices from CoinMarketCap
+            const { data, error } = await supabase.functions.invoke('fetch-crypto-data', {
+              body: { symbols: [position.symbol] }
             });
 
-            if (error || !data?.currentPrice) continue;
-            currentPrice = data.currentPrice;
+            if (error || !data?.cryptoData || !Array.isArray(data.cryptoData)) {
+              console.error('Error fetching live price for', position.symbol, error);
+              continue;
+            }
+
+            const symbolData = data.cryptoData.find((coin: any) => 
+              coin.symbol?.toUpperCase() === position.symbol.toUpperCase()
+            );
+
+            if (!symbolData || !symbolData.price) {
+              console.error('Symbol price not found for', position.symbol);
+              continue;
+            }
+
+            currentPrice = parseFloat(symbolData.price);
           }
 
           // Update position with new price

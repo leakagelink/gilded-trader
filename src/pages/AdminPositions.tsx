@@ -65,52 +65,66 @@ const AdminPositions = () => {
 
     const updatePrices = async () => {
       try {
-        for (const position of openPositions) {
-          let currentPrice = position.current_price;
+        const updatedPositions = await Promise.all(
+          openPositions.map(async (position) => {
+            let currentPrice = position.current_price;
 
-          // Check if this is a manual trade
-          if (position.price_mode === 'manual') {
-            // Generate fake momentum between 1-5% for manual trades
-            const randomPercent = (Math.random() * 4 + 1) * (Math.random() > 0.5 ? 1 : -1); // 1-5% up or down
-            currentPrice = position.entry_price * (1 + randomPercent / 100);
-          } else {
-            // For live trades, fetch real market prices from CoinMarketCap
-            const { data, error } = await supabase.functions.invoke('fetch-crypto-data', {
-              body: { symbols: [position.symbol] }
-            });
+            // Check if this is a manual trade
+            if (position.price_mode === 'manual') {
+              // Generate fake momentum between 1-5% for manual trades
+              const randomPercent = (Math.random() * 4 + 1) * (Math.random() > 0.5 ? 1 : -1); // 1-5% up or down
+              currentPrice = position.entry_price * (1 + randomPercent / 100);
+            } else {
+              // For live trades, fetch real market prices from CoinMarketCap
+              try {
+                const { data, error } = await supabase.functions.invoke('fetch-crypto-data', {
+                  body: { symbols: [position.symbol] }
+                });
 
-            if (error || !data?.cryptoData || !Array.isArray(data.cryptoData)) {
-              console.error('Error fetching live price for', position.symbol, error);
-              continue;
+                if (!error && data?.cryptoData && Array.isArray(data.cryptoData)) {
+                  const symbolData = data.cryptoData.find((coin: any) => 
+                    coin.symbol?.toUpperCase() === position.symbol.toUpperCase()
+                  );
+
+                  if (symbolData && symbolData.price) {
+                    currentPrice = parseFloat(symbolData.price);
+                  }
+                }
+              } catch (err) {
+                console.error('Error fetching price for', position.symbol, err);
+              }
             }
 
-            const symbolData = data.cryptoData.find((coin: any) => 
-              coin.symbol?.toUpperCase() === position.symbol.toUpperCase()
-            );
+            // Calculate new PnL
+            const pnl = position.position_type === 'long'
+              ? (currentPrice - position.entry_price) * position.amount * position.leverage
+              : (position.entry_price - currentPrice) * position.amount * position.leverage;
 
-            if (!symbolData || !symbolData.price) {
-              console.error('Symbol price not found for', position.symbol);
-              continue;
-            }
+            // Update database in background
+            supabase
+              .from('positions')
+              .update({ 
+                current_price: currentPrice,
+                pnl: pnl,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', position.id)
+              .eq('status', 'open')
+              .then(({ error }) => {
+                if (error) console.error('Error updating position:', error);
+              });
 
-            currentPrice = parseFloat(symbolData.price);
-          }
-
-          // Update position with new price
-          const { error: updateError } = await supabase
-            .from('positions')
-            .update({ 
+            // Return updated position for immediate UI update
+            return {
+              ...position,
               current_price: currentPrice,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', position.id)
-            .eq('status', 'open');
+              pnl: pnl
+            };
+          })
+        );
 
-          if (updateError) console.error('Error updating position price:', updateError);
-        }
-
-        // Refresh positions to show updated prices
-        fetchPositions();
+        // Update state immediately for real-time UI updates
+        setOpenPositions(updatedPositions);
       } catch (error) {
         console.error('Error updating prices:', error);
       }

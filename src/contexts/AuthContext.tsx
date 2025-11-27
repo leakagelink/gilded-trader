@@ -36,7 +36,52 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (session?.user) {
-          // Check if user is approved
+          // Check if user has admin role
+          const { data: roles } = await supabase
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', session.user.id);
+          
+          const isAdmin = roles?.some(r => r.role === 'admin');
+          
+          // Only check approval for non-admin users
+          if (!isAdmin) {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('is_approved')
+              .eq('id', session.user.id)
+              .single();
+            
+            if (profile && !profile.is_approved) {
+              // User is not approved, sign them out
+              await supabase.auth.signOut();
+              setSession(null);
+              setUser(null);
+              setLoading(false);
+              return;
+            }
+          }
+        }
+        
+        setSession(session);
+        setUser(session?.user ?? null);
+        setLoading(false);
+      }
+    );
+
+    // Check for existing session
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session?.user) {
+        // Check if user has admin role
+        const { data: roles } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', session.user.id);
+        
+        const isAdmin = roles?.some(r => r.role === 'admin');
+        
+        // Only check approval for non-admin users
+        if (!isAdmin) {
           const { data: profile } = await supabase
             .from('profiles')
             .select('is_approved')
@@ -51,31 +96,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             setLoading(false);
             return;
           }
-        }
-        
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
-      }
-    );
-
-    // Check for existing session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session?.user) {
-        // Check if user is approved
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('is_approved')
-          .eq('id', session.user.id)
-          .single();
-        
-        if (profile && !profile.is_approved) {
-          // User is not approved, sign them out
-          await supabase.auth.signOut();
-          setSession(null);
-          setUser(null);
-          setLoading(false);
-          return;
         }
       }
       

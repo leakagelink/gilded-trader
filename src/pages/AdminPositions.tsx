@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, TrendingUp, TrendingDown, X, RefreshCcw, Search } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, X, RefreshCcw, Search, ArrowUp, ArrowDown } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -50,6 +50,14 @@ const AdminPositions = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [closePositionId, setClosePositionId] = useState<string | null>(null);
+  const [priceChanges, setPriceChanges] = useState<Record<string, { direction: 'up' | 'down' | 'none'; flash: boolean }>>({});
+  const previousPricesRef = useRef<Record<string, number>>({});
+  const openPositionsRef = useRef<Position[]>([]);
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    openPositionsRef.current = openPositions;
+  }, [openPositions]);
 
   useEffect(() => {
     if (!user) {
@@ -61,67 +69,95 @@ const AdminPositions = () => {
 
   // Real-time price updates for open positions
   useEffect(() => {
-    if (!isAdmin || openPositions.length === 0) return;
+    if (!isAdmin) return;
 
     const updatePrices = async () => {
+      const positions = openPositionsRef.current;
+      if (positions.length === 0) return;
+
       try {
-        const updatedPositions = await Promise.all(
-          openPositions.map(async (position) => {
-            let currentPrice = position.current_price;
+        // Batch fetch all live market prices
+        const liveSymbols = positions
+          .filter(p => p.price_mode !== 'manual')
+          .map(p => p.symbol);
 
-            // Check if this is a manual trade
-            if (position.price_mode === 'manual') {
-              // Generate fake momentum between 1-5% for manual trades
-              const randomPercent = (Math.random() * 4 + 1) * (Math.random() > 0.5 ? 1 : -1); // 1-5% up or down
-              currentPrice = position.entry_price * (1 + randomPercent / 100);
-            } else {
-              // For live trades, fetch real market prices from CoinMarketCap
-              try {
-                const { data, error } = await supabase.functions.invoke('fetch-crypto-data', {
-                  body: { symbols: [position.symbol] }
-                });
+        let livePricesMap: Record<string, number> = {};
+        
+        if (liveSymbols.length > 0) {
+          try {
+            const { data, error } = await supabase.functions.invoke('fetch-crypto-data', {
+              body: { symbols: liveSymbols }
+            });
 
-                if (!error && data?.cryptoData && Array.isArray(data.cryptoData)) {
-                  const symbolData = data.cryptoData.find((coin: any) => 
-                    coin.symbol?.toUpperCase() === position.symbol.toUpperCase()
-                  );
-
-                  if (symbolData && symbolData.price) {
-                    currentPrice = parseFloat(symbolData.price);
-                  }
+            if (!error && data?.cryptoData && Array.isArray(data.cryptoData)) {
+              data.cryptoData.forEach((coin: any) => {
+                if (coin.symbol && coin.price) {
+                  livePricesMap[coin.symbol.toUpperCase()] = parseFloat(coin.price);
                 }
-              } catch (err) {
-                console.error('Error fetching price for', position.symbol, err);
-              }
-            }
-
-            // Calculate new PnL
-            const pnl = position.position_type === 'long'
-              ? (currentPrice - position.entry_price) * position.amount * position.leverage
-              : (position.entry_price - currentPrice) * position.amount * position.leverage;
-
-            // Update database in background
-            supabase
-              .from('positions')
-              .update({ 
-                current_price: currentPrice,
-                pnl: pnl,
-                updated_at: new Date().toISOString()
-              })
-              .eq('id', position.id)
-              .eq('status', 'open')
-              .then(({ error }) => {
-                if (error) console.error('Error updating position:', error);
               });
+            }
+          } catch (err) {
+            console.error('Error fetching live prices:', err);
+          }
+        }
 
-            // Return updated position for immediate UI update
-            return {
-              ...position,
+        const updatedPositions = positions.map((position) => {
+          let currentPrice = position.current_price;
+
+          // Check if this is a manual trade
+          if (position.price_mode === 'manual') {
+            // Generate fake momentum between 1-5% for manual trades
+            const randomPercent = (Math.random() * 4 + 1) * (Math.random() > 0.5 ? 1 : -1);
+            currentPrice = position.entry_price * (1 + randomPercent / 100);
+          } else {
+            // Use live market price if available
+            const livePrice = livePricesMap[position.symbol.toUpperCase()];
+            if (livePrice) {
+              currentPrice = livePrice;
+            }
+          }
+
+          // Calculate new PnL
+          const pnl = position.position_type === 'long'
+            ? (currentPrice - position.entry_price) * position.amount * position.leverage
+            : (position.entry_price - currentPrice) * position.amount * position.leverage;
+
+          // Update database in background (non-blocking)
+          supabase
+            .from('positions')
+            .update({ 
               current_price: currentPrice,
-              pnl: pnl
-            };
-          })
-        );
+              pnl: pnl,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', position.id)
+            .eq('status', 'open')
+            .then(({ error }) => {
+              if (error) console.error('Error updating position:', error);
+            });
+
+          // Track price changes for visual indicators
+          const previousPrice = previousPricesRef.current[position.id];
+          if (previousPrice !== undefined && previousPrice !== currentPrice) {
+            const direction = currentPrice > previousPrice ? 'up' : 'down';
+            setPriceChanges(prev => ({ ...prev, [position.id]: { direction, flash: true } }));
+            
+            // Remove flash effect after animation
+            setTimeout(() => {
+              setPriceChanges(prev => ({ ...prev, [position.id]: { ...prev[position.id], flash: false } }));
+            }, 500);
+          }
+          
+          // Store current price for next comparison
+          previousPricesRef.current[position.id] = currentPrice;
+
+          // Return updated position
+          return {
+            ...position,
+            current_price: currentPrice,
+            pnl: pnl
+          };
+        });
 
         // Update state immediately for real-time UI updates
         setOpenPositions(updatedPositions);
@@ -135,7 +171,7 @@ const AdminPositions = () => {
     const interval = setInterval(updatePrices, 1000);
 
     return () => clearInterval(interval);
-  }, [isAdmin, openPositions.length]);
+  }, [isAdmin]);
 
   const checkAdminAndFetch = async () => {
     try {
@@ -263,6 +299,7 @@ const AdminPositions = () => {
     const pnl = calculatePnL(position);
     const isProfit = pnl >= 0;
     const isLong = position.position_type === 'long';
+    const priceChange = priceChanges[position.id];
 
     return (
       <Card className="p-4 hover:shadow-lg transition-shadow">
@@ -310,7 +347,29 @@ const AdminPositions = () => {
           </div>
           <div>
             <p className="text-muted-foreground">Current Price</p>
-            <p className="font-semibold">${position.current_price.toFixed(2)}</p>
+            <div className={`flex items-center gap-1 font-semibold transition-all duration-300 ${
+              priceChange?.flash 
+                ? priceChange.direction === 'up' 
+                  ? 'text-green-500 animate-pulse' 
+                  : 'text-red-500 animate-pulse'
+                : ''
+            }`}>
+              <span className={`px-2 py-1 rounded transition-all duration-300 ${
+                priceChange?.flash
+                  ? priceChange.direction === 'up'
+                    ? 'bg-green-500/20'
+                    : 'bg-red-500/20'
+                  : ''
+              }`}>
+                ${position.current_price.toFixed(2)}
+              </span>
+              {priceChange?.direction === 'up' && (
+                <ArrowUp className="h-4 w-4 text-green-500" />
+              )}
+              {priceChange?.direction === 'down' && (
+                <ArrowDown className="h-4 w-4 text-red-500" />
+              )}
+            </div>
           </div>
           <div>
             <p className="text-muted-foreground">Margin</p>
@@ -318,12 +377,26 @@ const AdminPositions = () => {
           </div>
         </div>
 
-        <div className={`mt-4 p-3 rounded-lg ${isProfit ? 'bg-green-500/10' : 'bg-red-500/10'}`}>
+        <div className={`mt-4 p-3 rounded-lg transition-all duration-300 ${
+          priceChange?.flash
+            ? priceChange.direction === 'up'
+              ? 'bg-green-500/20 animate-pulse'
+              : 'bg-red-500/20 animate-pulse'
+            : isProfit ? 'bg-green-500/10' : 'bg-red-500/10'
+        }`}>
           <div className="flex justify-between items-center">
             <span className="text-sm font-medium">PnL</span>
-            <span className={`text-lg font-bold ${isProfit ? 'text-green-500' : 'text-red-500'}`}>
-              {isProfit ? '+' : ''}${pnl.toFixed(2)}
-            </span>
+            <div className="flex items-center gap-1">
+              <span className={`text-lg font-bold ${isProfit ? 'text-green-500' : 'text-red-500'}`}>
+                {isProfit ? '+' : ''}${pnl.toFixed(2)}
+              </span>
+              {priceChange?.direction === 'up' && (
+                <ArrowUp className="h-4 w-4 text-green-500" />
+              )}
+              {priceChange?.direction === 'down' && (
+                <ArrowDown className="h-4 w-4 text-red-500" />
+              )}
+            </div>
           </div>
         </div>
 

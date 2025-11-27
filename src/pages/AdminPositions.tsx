@@ -52,12 +52,6 @@ const AdminPositions = () => {
   const [closePositionId, setClosePositionId] = useState<string | null>(null);
   const [priceChanges, setPriceChanges] = useState<Record<string, { direction: 'up' | 'down' | 'none'; flash: boolean }>>({});
   const previousPricesRef = useRef<Record<string, number>>({});
-  const openPositionsRef = useRef<Position[]>([]);
-
-  // Keep ref in sync with state
-  useEffect(() => {
-    openPositionsRef.current = openPositions;
-  }, [openPositions]);
 
   useEffect(() => {
     if (!user) {
@@ -69,95 +63,82 @@ const AdminPositions = () => {
 
   // Real-time price updates for open positions
   useEffect(() => {
-    if (!isAdmin) return;
+    if (!isAdmin || openPositions.length === 0) return;
 
     const updatePrices = async () => {
-      const positions = openPositionsRef.current;
-      if (positions.length === 0) return;
-
       try {
-        // Batch fetch all live market prices
-        const liveSymbols = positions
-          .filter(p => p.price_mode !== 'manual')
-          .map(p => p.symbol);
+        const updatedPositions = await Promise.all(
+          openPositions.map(async (position) => {
+            let currentPrice = position.current_price;
 
-        let livePricesMap: Record<string, number> = {};
-        
-        if (liveSymbols.length > 0) {
-          try {
-            const { data, error } = await supabase.functions.invoke('fetch-crypto-data', {
-              body: { symbols: liveSymbols }
-            });
+            // Check if this is a manual trade
+            if (position.price_mode === 'manual') {
+              // Generate fake momentum between 1-5% for manual trades
+              const randomPercent = (Math.random() * 4 + 1) * (Math.random() > 0.5 ? 1 : -1); // 1-5% up or down
+              currentPrice = position.entry_price * (1 + randomPercent / 100);
+            } else {
+              // For live trades, fetch real market prices from CoinMarketCap
+              try {
+                const { data, error } = await supabase.functions.invoke('fetch-crypto-data', {
+                  body: { symbols: [position.symbol] }
+                });
 
-            if (!error && data?.cryptoData && Array.isArray(data.cryptoData)) {
-              data.cryptoData.forEach((coin: any) => {
-                if (coin.symbol && coin.price) {
-                  livePricesMap[coin.symbol.toUpperCase()] = parseFloat(coin.price);
+                if (!error && data?.cryptoData && Array.isArray(data.cryptoData)) {
+                  const symbolData = data.cryptoData.find((coin: any) => 
+                    coin.symbol?.toUpperCase() === position.symbol.toUpperCase()
+                  );
+
+                  if (symbolData && symbolData.price) {
+                    currentPrice = parseFloat(symbolData.price);
+                  }
                 }
+              } catch (err) {
+                console.error('Error fetching price for', position.symbol, err);
+              }
+            }
+
+            // Calculate new PnL
+            const pnl = position.position_type === 'long'
+              ? (currentPrice - position.entry_price) * position.amount * position.leverage
+              : (position.entry_price - currentPrice) * position.amount * position.leverage;
+
+            // Update database in background
+            supabase
+              .from('positions')
+              .update({ 
+                current_price: currentPrice,
+                pnl: pnl,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', position.id)
+              .eq('status', 'open')
+              .then(({ error }) => {
+                if (error) console.error('Error updating position:', error);
               });
+
+            // Track price changes for visual indicators
+            const previousPrice = previousPricesRef.current[position.id];
+            if (previousPrice !== undefined && previousPrice !== currentPrice) {
+              const direction = currentPrice > previousPrice ? 'up' : 'down';
+              setPriceChanges(prev => ({ ...prev, [position.id]: { direction, flash: true } }));
+              
+              // Remove flash effect after animation
+              setTimeout(() => {
+                setPriceChanges(prev => ({ ...prev, [position.id]: { ...prev[position.id], flash: false } }));
+              }, 500);
             }
-          } catch (err) {
-            console.error('Error fetching live prices:', err);
-          }
-        }
-
-        const updatedPositions = positions.map((position) => {
-          let currentPrice = position.current_price;
-
-          // Check if this is a manual trade
-          if (position.price_mode === 'manual') {
-            // Generate fake momentum between 1-5% for manual trades
-            const randomPercent = (Math.random() * 4 + 1) * (Math.random() > 0.5 ? 1 : -1);
-            currentPrice = position.entry_price * (1 + randomPercent / 100);
-          } else {
-            // Use live market price if available
-            const livePrice = livePricesMap[position.symbol.toUpperCase()];
-            if (livePrice) {
-              currentPrice = livePrice;
-            }
-          }
-
-          // Calculate new PnL
-          const pnl = position.position_type === 'long'
-            ? (currentPrice - position.entry_price) * position.amount * position.leverage
-            : (position.entry_price - currentPrice) * position.amount * position.leverage;
-
-          // Update database in background (non-blocking)
-          supabase
-            .from('positions')
-            .update({ 
-              current_price: currentPrice,
-              pnl: pnl,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', position.id)
-            .eq('status', 'open')
-            .then(({ error }) => {
-              if (error) console.error('Error updating position:', error);
-            });
-
-          // Track price changes for visual indicators
-          const previousPrice = previousPricesRef.current[position.id];
-          if (previousPrice !== undefined && previousPrice !== currentPrice) {
-            const direction = currentPrice > previousPrice ? 'up' : 'down';
-            setPriceChanges(prev => ({ ...prev, [position.id]: { direction, flash: true } }));
             
-            // Remove flash effect after animation
-            setTimeout(() => {
-              setPriceChanges(prev => ({ ...prev, [position.id]: { ...prev[position.id], flash: false } }));
-            }, 500);
-          }
-          
-          // Store current price for next comparison
-          previousPricesRef.current[position.id] = currentPrice;
+            // Store current price for next comparison
+            previousPricesRef.current[position.id] = currentPrice;
 
-          // Return updated position
-          return {
-            ...position,
-            current_price: currentPrice,
-            pnl: pnl
-          };
-        });
+            // Return updated position for immediate UI update
+            return {
+              ...position,
+              current_price: currentPrice,
+              pnl: pnl
+            };
+          })
+        );
 
         // Update state immediately for real-time UI updates
         setOpenPositions(updatedPositions);
@@ -171,7 +152,7 @@ const AdminPositions = () => {
     const interval = setInterval(updatePrices, 1000);
 
     return () => clearInterval(interval);
-  }, [isAdmin]);
+  }, [isAdmin, openPositions.length]);
 
   const checkAdminAndFetch = async () => {
     try {

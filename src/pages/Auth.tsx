@@ -60,6 +60,19 @@ const Auth = () => {
       }
 
       if (data.user) {
+        // Check if user is approved
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('is_approved')
+          .eq('id', data.user.id)
+          .single();
+        
+        if (profile && !profile.is_approved) {
+          await supabase.auth.signOut();
+          toast.error("Your account is pending admin approval. Please wait for approval to access your account.");
+          return;
+        }
+        
         toast.success("Successfully signed in!");
         navigate("/dashboard");
       }
@@ -107,8 +120,8 @@ const Auth = () => {
       }
 
       if (data.user) {
-        toast.success("Account created successfully!");
-        navigate("/dashboard");
+        await supabase.auth.signOut();
+        toast.success("Account created successfully! Please wait for admin approval before you can log in.");
       }
     } catch (error) {
       if (error instanceof z.ZodError) {

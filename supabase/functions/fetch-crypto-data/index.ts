@@ -9,7 +9,7 @@ const corsHeaders = {
 // In-memory cache to prevent hitting CoinMarketCap API rate limits
 let cachedData: any = null;
 let cacheTimestamp: number = 0;
-const CACHE_DURATION_MS = 300000; // 5 minutes cache to reduce API calls
+const CACHE_DURATION_MS = 60000; // 60 seconds cache to match API rate limit
 
 async function getActiveApiKey(serviceName: string) {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -28,47 +28,21 @@ async function getActiveApiKey(serviceName: string) {
   return data;
 }
 
-async function markKeyAsInactive(serviceName: string, apiKey: string, cooldownMinutes: number = 60) {
+async function markKeyAsInactive(serviceName: string, apiKey: string) {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const supabase = createClient(supabaseUrl, supabaseKey);
   
-  // Set a cooldown timestamp instead of permanently disabling
-  const reactivateAt = new Date(Date.now() + (cooldownMinutes * 60 * 1000)).toISOString();
-  
   const { error } = await supabase
     .from('api_keys')
-    .update({ 
-      is_active: false,
-      last_used_at: new Date().toISOString()
-    })
+    .update({ is_active: false })
     .eq('service_name', serviceName)
     .eq('api_key', apiKey);
   
   if (error) {
     console.error('Error marking key as inactive:', error);
   } else {
-    console.log(`Marked ${serviceName} key as inactive due to rate limit (will reactivate after ${cooldownMinutes} minutes)`);
-  }
-}
-
-async function reactivateExpiredKeys(serviceName: string) {
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-  const supabase = createClient(supabaseUrl, supabaseKey);
-  
-  // Reactivate keys that have been inactive for more than 60 minutes
-  const oneHourAgo = new Date(Date.now() - (60 * 60 * 1000)).toISOString();
-  
-  const { error } = await supabase
-    .from('api_keys')
-    .update({ is_active: true })
-    .eq('service_name', serviceName)
-    .eq('is_active', false)
-    .lt('last_used_at', oneHourAgo);
-  
-  if (!error) {
-    console.log(`Reactivated expired ${serviceName} API keys`);
+    console.log(`Marked ${serviceName} key as inactive due to rate limit`);
   }
 }
 
@@ -108,9 +82,6 @@ serve(async (req) => {
 
     console.log('Fetching fresh crypto data from CoinMarketCap...');
     
-    // Try to reactivate expired keys first
-    await reactivateExpiredKeys('coinmarketcap');
-    
     let attempts = 0;
     const MAX_ATTEMPTS = 10;
     let lastError: any = null;
@@ -121,15 +92,6 @@ serve(async (req) => {
       
       if (!apiKey) {
         console.error('No active CoinMarketCap API key available');
-        // If no active keys, try reactivating all keys as last resort
-        if (attempts === 1) {
-          const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-          const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-          const supabase = createClient(supabaseUrl, supabaseKey);
-          await supabase.from('api_keys').update({ is_active: true }).eq('service_name', 'coinmarketcap');
-          console.log('Force reactivated all CoinMarketCap keys');
-          continue;
-        }
         break;
       }
 

@@ -60,29 +60,6 @@ const Auth = () => {
       }
 
       if (data.user) {
-        // Check if user has admin role
-        const { data: roles } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', data.user.id);
-        
-        const isAdmin = roles?.some(r => r.role === 'admin');
-        
-        // Only check approval for non-admin users
-        if (!isAdmin) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('is_approved')
-            .eq('id', data.user.id)
-            .single();
-          
-          if (profile && !profile.is_approved) {
-            await supabase.auth.signOut();
-            toast.error("Your account is pending admin approval. Please wait for approval to access your account.");
-            return;
-          }
-        }
-        
         toast.success("Successfully signed in!");
         navigate("/dashboard");
       }
@@ -130,8 +107,8 @@ const Auth = () => {
       }
 
       if (data.user) {
-        await supabase.auth.signOut();
-        toast.success("Account created successfully! Please wait for admin approval before you can log in.");
+        toast.success("Account created successfully!");
+        navigate("/dashboard");
       }
     } catch (error) {
       if (error instanceof z.ZodError) {

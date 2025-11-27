@@ -47,7 +47,7 @@ const AdminPanel = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [activeTab, setActiveTab] = useState("pending");
+  const [activeTab, setActiveTab] = useState("users");
 
   // Users state
   const [users, setUsers] = useState<any[]>([]);
@@ -471,16 +471,7 @@ const AdminPanel = () => {
 
       <main className="container mx-auto px-4 py-8 max-w-7xl">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-7 mb-6">
-            <TabsTrigger value="pending" className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              Pending
-              {users.filter(u => !u.is_approved).length > 0 && (
-                <Badge variant="destructive" className="ml-1">
-                  {users.filter(u => !u.is_approved).length}
-                </Badge>
-              )}
-            </TabsTrigger>
+          <TabsList className="grid w-full grid-cols-6 mb-6">
             <TabsTrigger value="users" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
               Users
@@ -506,98 +497,6 @@ const AdminPanel = () => {
               Payment Settings
             </TabsTrigger>
           </TabsList>
-
-          {/* Pending Users Tab */}
-          <TabsContent value="pending">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <Users className="h-5 w-5" />
-                      Pending User Approvals
-                    </CardTitle>
-                    <CardDescription>Review and approve new user registrations</CardDescription>
-                  </div>
-                  <Button onClick={fetchAllData} variant="outline" size="icon">
-                    <RefreshCw className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <p className="text-center py-8 text-muted-foreground">Loading pending users...</p>
-                ) : users.filter(u => !u.is_approved).length === 0 ? (
-                  <p className="text-center py-8 text-muted-foreground">No pending users</p>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Registered</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {users.filter(u => !u.is_approved).map((user) => (
-                        <TableRow key={user.id}>
-                          <TableCell className="font-medium">
-                            {user.full_name || "N/A"}
-                          </TableCell>
-                          <TableCell>{user.email}</TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {new Date(user.created_at).toLocaleDateString()}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex gap-2">
-                              <Button
-                                size="sm"
-                                onClick={async () => {
-                                  try {
-                                    const { error } = await supabase.rpc('approve_user', {
-                                      target_user_id: user.id
-                                    });
-                                    if (error) throw error;
-                                    toast({
-                                      title: "Success",
-                                      description: "User approved successfully",
-                                    });
-                                    fetchAllData();
-                                  } catch (error: any) {
-                                    toast({
-                                      title: "Error",
-                                      description: error.message,
-                                      variant: "destructive",
-                                    });
-                                  }
-                                }}
-                                className="bg-green-600 hover:bg-green-700"
-                              >
-                                <Check className="h-4 w-4 mr-1" />
-                                Approve
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => {
-                                  setUserToDelete(user);
-                                  setDeleteUserOpen(true);
-                                }}
-                              >
-                                <X className="h-4 w-4 mr-1" />
-                                Reject
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
 
           {/* Users Tab */}
           <TabsContent value="users">
@@ -628,13 +527,12 @@ const AdminPanel = () => {
                         <TableHead>Name</TableHead>
                         <TableHead>Email</TableHead>
                         <TableHead>Balance (USD)</TableHead>
-                        <TableHead>Status</TableHead>
                         <TableHead>Created</TableHead>
                         <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {users.filter(u => u.is_approved).map((user) => (
+                      {users.map((user) => (
                         <TableRow key={user.id}>
                           <TableCell className="font-medium">
                             {user.full_name || "N/A"}
@@ -642,11 +540,6 @@ const AdminPanel = () => {
                           <TableCell>{user.email}</TableCell>
                           <TableCell className="font-semibold">
                             ${getUserBalance(user.id)}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="default" className="bg-green-600">
-                              Approved
-                            </Badge>
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">
                             {new Date(user.created_at).toLocaleDateString()}

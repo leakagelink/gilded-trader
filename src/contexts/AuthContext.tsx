@@ -34,7 +34,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
+        if (session?.user) {
+          // Check if user is approved
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('is_approved')
+            .eq('id', session.user.id)
+            .single();
+          
+          if (profile && !profile.is_approved) {
+            // User is not approved, sign them out
+            await supabase.auth.signOut();
+            setSession(null);
+            setUser(null);
+            setLoading(false);
+            return;
+          }
+        }
+        
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
@@ -42,7 +60,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     );
 
     // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session?.user) {
+        // Check if user is approved
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('is_approved')
+          .eq('id', session.user.id)
+          .single();
+        
+        if (profile && !profile.is_approved) {
+          // User is not approved, sign them out
+          await supabase.auth.signOut();
+          setSession(null);
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+      }
+      
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);

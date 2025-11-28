@@ -17,6 +17,8 @@ import DepositRequests from "./pages/DepositRequests";
 import Trading from "./pages/Trading";
 import Positions from "./pages/Positions";
 import AdminPositions from "./pages/AdminPositions";
+import PendingApproval from "./pages/PendingApproval";
+import UserApprovals from "./pages/UserApprovals";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -134,6 +136,22 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <AdminPositions />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/pending-approval"
+              element={
+                <ProtectedRoute>
+                  <PendingApproval />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/user-approvals"
+              element={
+                <ProtectedRoute>
+                  <UserApprovals />
                 </ProtectedRoute>
               }
             />

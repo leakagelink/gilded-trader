@@ -74,6 +74,26 @@ const Dashboard = () => {
     }
 
     if (user) {
+      checkUserApproval();
+    }
+  }, [user, authLoading, navigate]);
+
+  const checkUserApproval = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("is_approved")
+        .eq("id", user?.id)
+        .single();
+
+      if (error) throw error;
+
+      if (!data?.is_approved) {
+        navigate("/pending-approval");
+        return;
+      }
+
+      // User is approved, continue with normal dashboard flow
       fetchCryptoData();
       fetchForexData();
       checkAdminStatus();
@@ -85,8 +105,10 @@ const Dashboard = () => {
       }, 10000);
 
       return () => clearInterval(refreshInterval);
+    } catch (error) {
+      console.error("Error checking user approval:", error);
     }
-  }, [user, authLoading, navigate]);
+  };
 
   const checkAdminStatus = async () => {
     try {

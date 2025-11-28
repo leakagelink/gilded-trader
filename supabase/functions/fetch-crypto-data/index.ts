@@ -88,11 +88,16 @@ serve(async (req) => {
 
     while (attempts < MAX_ATTEMPTS) {
       attempts++;
-      const apiKey = await getActiveApiKey('coinmarketcap');
+      let apiKey = await getActiveApiKey('coinmarketcap');
       
+      // Fallback to secret if no database keys configured
       if (!apiKey) {
-        console.error('No active CoinMarketCap API key available');
-        break;
+        apiKey = Deno.env.get('COINMARKETCAP_API_KEY');
+        if (!apiKey) {
+          console.error('No active CoinMarketCap API key available and no secret configured');
+          break;
+        }
+        console.log('Using fallback API key from secrets');
       }
 
       console.log(`Attempt ${attempts}: Using CoinMarketCap API key`);

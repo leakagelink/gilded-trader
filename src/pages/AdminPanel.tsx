@@ -47,10 +47,11 @@ const AdminPanel = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [activeTab, setActiveTab] = useState("users");
+  const [activeTab, setActiveTab] = useState("approvals");
 
   // Users state
   const [users, setUsers] = useState<any[]>([]);
+  const [pendingUsers, setPendingUsers] = useState<any[]>([]);
   const [wallets, setWallets] = useState<any[]>([]);
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [editBalanceOpen, setEditBalanceOpen] = useState(false);
@@ -88,6 +89,18 @@ const AdminPanel = () => {
       fetchAllData();
     }
   }, [isAdmin, activeTab]);
+  
+  // Update countdown timer every second for approvals tab
+  useEffect(() => {
+    if (activeTab === 'approvals' && pendingUsers.length > 0) {
+      const interval = setInterval(() => {
+        // Force re-render to update time remaining
+        setPendingUsers(prev => [...prev]);
+      }, 1000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [activeTab, pendingUsers.length]);
 
   const checkAdminStatus = async () => {
     try {
@@ -137,6 +150,10 @@ const AdminPanel = () => {
 
       if (usersError) throw usersError;
       setUsers(usersData || []);
+      
+      // Separate pending users
+      const pending = usersData?.filter(u => !u.is_approved) || [];
+      setPendingUsers(pending);
 
       // Fetch wallets
       const { data: walletsData, error: walletsError } = await supabase
@@ -401,6 +418,61 @@ const AdminPanel = () => {
     }
   };
 
+  const handleApproveUser = async (userId: string) => {
+    try {
+      const { error } = await supabase.rpc("approve_user", {
+        target_user_id: userId,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "User account activated successfully",
+      });
+
+      fetchAllData();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeactivateUser = async (userId: string) => {
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ is_approved: false })
+        .eq("id", userId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "User account deactivated successfully",
+      });
+
+      fetchAllData();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const getTimeRemaining = (createdAt: string) => {
+    const created = new Date(createdAt).getTime();
+    const now = Date.now();
+    const hoursPassed = (now - created) / (1000 * 60 * 60);
+    const hoursRemaining = Math.max(0, 24 - hoursPassed);
+    return hoursRemaining.toFixed(1);
+  };
+
   const handleSavePaymentSettings = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -471,7 +543,11 @@ const AdminPanel = () => {
 
       <main className="container mx-auto px-4 py-8 max-w-7xl">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-6 mb-6">
+          <TabsList className="grid w-full grid-cols-7 mb-6">
+            <TabsTrigger value="approvals" className="flex items-center gap-2">
+              <Shield className="h-4 w-4" />
+              Approvals
+            </TabsTrigger>
             <TabsTrigger value="users" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
               Users
@@ -497,6 +573,122 @@ const AdminPanel = () => {
               Payment Settings
             </TabsTrigger>
           </TabsList>
+
+          {/* User Approvals Tab */}
+          <TabsContent value="approvals">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Shield className="h-5 w-5" />
+                      User Approvals
+                    </CardTitle>
+                    <CardDescription>Activate or deactivate user accounts</CardDescription>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary" className="text-lg px-3 py-1">
+                      {pendingUsers.length} Pending
+                    </Badge>
+                    <Button onClick={fetchAllData} variant="outline" size="icon">
+                      <RefreshCw className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <p className="text-center py-8 text-muted-foreground">Loading users...</p>
+                ) : (
+                  <div className="space-y-6">
+                    {/* Pending Users */}
+                    {pendingUsers.length > 0 && (
+                      <div>
+                        <h3 className="text-sm font-semibold mb-3 text-amber-600">Pending Approval ({pendingUsers.length})</h3>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Name</TableHead>
+                              <TableHead>Email</TableHead>
+                              <TableHead>Signup Date</TableHead>
+                              <TableHead>Time Remaining</TableHead>
+                              <TableHead>Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {pendingUsers.map((user) => (
+                              <TableRow key={user.id}>
+                                <TableCell className="font-medium">
+                                  {user.full_name || "N/A"}
+                                </TableCell>
+                                <TableCell>{user.email}</TableCell>
+                                <TableCell className="text-sm text-muted-foreground">
+                                  {new Date(user.created_at).toLocaleString()}
+                                </TableCell>
+                                <TableCell>
+                                  <Badge variant="secondary">
+                                    {getTimeRemaining(user.created_at)}h left
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleApproveUser(user.id)}
+                                    className="bg-green-600 hover:bg-green-700"
+                                  >
+                                    <Check className="h-4 w-4 mr-1" />
+                                    Activate
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                    
+                    {/* Active Users */}
+                    <div>
+                      <h3 className="text-sm font-semibold mb-3 text-green-600">Active Users ({users.filter(u => u.is_approved).length})</h3>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Name</TableHead>
+                            <TableHead>Email</TableHead>
+                            <TableHead>Activated Date</TableHead>
+                            <TableHead>Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {users.filter(u => u.is_approved).map((user) => (
+                            <TableRow key={user.id}>
+                              <TableCell className="font-medium">
+                                {user.full_name || "N/A"}
+                              </TableCell>
+                              <TableCell>{user.email}</TableCell>
+                              <TableCell className="text-sm text-muted-foreground">
+                                {user.approved_at ? new Date(user.approved_at).toLocaleString() : "N/A"}
+                              </TableCell>
+                              <TableCell>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => handleDeactivateUser(user.id)}
+                                >
+                                  <X className="h-4 w-4 mr-1" />
+                                  Deactivate
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           {/* Users Tab */}
           <TabsContent value="users">

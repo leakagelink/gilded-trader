@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { TrendingUp, TrendingDown, Edit, X } from "lucide-react";
+import { TrendingUp, TrendingDown, Edit, X, ArrowUp, ArrowDown } from "lucide-react";
 
 interface User {
   id: string;
@@ -27,6 +27,8 @@ interface Position {
   leverage: number;
   margin: number;
   status: 'open' | 'closed';
+  price_mode?: string;
+  pnl?: number;
   profiles?: {
     full_name?: string;
     email?: string;
@@ -40,6 +42,8 @@ export const AdminTradeManagement = () => {
   const [editTradeDialog, setEditTradeDialog] = useState(false);
   const [selectedUser, setSelectedUser] = useState("");
   const [selectedPosition, setSelectedPosition] = useState<Position | null>(null);
+  const [priceChanges, setPriceChanges] = useState<Record<string, { direction: 'up' | 'down' | 'none'; flash: boolean }>>({});
+  const previousPricesRef = useRef<Record<string, number>>({});
   
   // Trade form fields
   const [symbol, setSymbol] = useState("");
@@ -55,6 +59,109 @@ export const AdminTradeManagement = () => {
     fetchUsers();
     fetchPositions();
   }, []);
+
+  // Real-time price updates for open positions
+  useEffect(() => {
+    if (positions.length === 0) return;
+
+    const updatePrices = async () => {
+      try {
+        // Fetch real crypto prices from CoinMarketCap for live trades
+        let cryptoPrices: Record<string, number> = {};
+        try {
+          const { data: cryptoData, error: cryptoError } = await supabase.functions.invoke('fetch-crypto-data');
+          if (!cryptoError && cryptoData?.cryptoData) {
+            cryptoData.cryptoData.forEach((coin: any) => {
+              cryptoPrices[coin.symbol.toUpperCase()] = parseFloat(coin.price);
+            });
+          }
+        } catch (err) {
+          console.error('Error fetching crypto prices:', err);
+        }
+        
+        const updatedPositions = await Promise.all(
+          positions.map(async (position) => {
+            let currentPrice = position.current_price;
+
+            // Check if this is a manual trade
+            if (position.price_mode === 'manual') {
+              // Generate fake momentum between 1-5% for manual trades
+              const randomPercent = (Math.random() * 4 + 1) * (Math.random() > 0.5 ? 1 : -1);
+              currentPrice = position.entry_price * (1 + randomPercent / 100);
+            } else {
+              // For live trades, use real market prices
+              const isForex = position.symbol.includes('/');
+              
+              if (!isForex && cryptoPrices[position.symbol.toUpperCase()]) {
+                currentPrice = cryptoPrices[position.symbol.toUpperCase()];
+              } else if (isForex) {
+                try {
+                  const { data, error } = await supabase.functions.invoke('fetch-forex-data', {
+                    body: { symbol: position.symbol }
+                  });
+
+                  if (!error && data?.currentPrice) {
+                    currentPrice = data.currentPrice;
+                  }
+                } catch (err) {
+                  console.error('Error fetching forex price:', err);
+                }
+              }
+
+              if (currentPrice <= 0) return position;
+            }
+
+            // Track price changes for visual indicators
+            const previousPrice = previousPricesRef.current[position.id];
+            if (previousPrice !== undefined && previousPrice !== currentPrice) {
+              const direction = currentPrice > previousPrice ? 'up' : 'down';
+              setPriceChanges(prev => ({ ...prev, [position.id]: { direction, flash: true } }));
+              
+              setTimeout(() => {
+                setPriceChanges(prev => ({ ...prev, [position.id]: { ...prev[position.id], flash: false } }));
+              }, 500);
+            }
+            
+            previousPricesRef.current[position.id] = currentPrice;
+
+            // Calculate new PnL
+            const pnl = position.position_type === 'long'
+              ? (currentPrice - position.entry_price) * position.amount * position.leverage
+              : (position.entry_price - currentPrice) * position.amount * position.leverage;
+
+            // Update database in background
+            supabase
+              .from('positions')
+              .update({ 
+                current_price: currentPrice,
+                pnl: pnl,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', position.id)
+              .eq('status', 'open')
+              .then(({ error }) => {
+                if (error) console.error('Error updating position:', error);
+              });
+
+            return {
+              ...position,
+              current_price: currentPrice,
+              pnl: pnl
+            };
+          })
+        );
+
+        setPositions(updatedPositions);
+      } catch (error) {
+        console.error('Error updating prices:', error);
+      }
+    };
+
+    updatePrices();
+    const interval = setInterval(updatePrices, 1000);
+
+    return () => clearInterval(interval);
+  }, [positions.length]);
 
   const fetchUsers = async () => {
     const { data } = await supabase
@@ -454,10 +561,54 @@ export const AdminTradeManagement = () => {
                   </TableCell>
                   <TableCell>{position.amount}</TableCell>
                   <TableCell>${position.entry_price.toFixed(2)}</TableCell>
-                  <TableCell>${position.current_price.toFixed(2)}</TableCell>
+                  <TableCell>
+                    <div className={`flex items-center gap-1 transition-all duration-300 ${
+                      priceChanges[position.id]?.flash 
+                        ? priceChanges[position.id].direction === 'up' 
+                          ? 'text-green-500 animate-pulse' 
+                          : 'text-red-500 animate-pulse'
+                        : ''
+                    }`}>
+                      <span className={`px-2 py-1 rounded transition-all duration-300 ${
+                        priceChanges[position.id]?.flash
+                          ? priceChanges[position.id].direction === 'up'
+                            ? 'bg-green-500/20'
+                            : 'bg-red-500/20'
+                          : ''
+                      }`}>
+                        ${position.current_price.toFixed(2)}
+                      </span>
+                      {priceChanges[position.id]?.direction === 'up' && (
+                        <ArrowUp className="h-4 w-4 text-green-500" />
+                      )}
+                      {priceChanges[position.id]?.direction === 'down' && (
+                        <ArrowDown className="h-4 w-4 text-red-500" />
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell>{position.leverage}x</TableCell>
-                  <TableCell className={isProfit ? 'text-green-500' : 'text-red-500'}>
-                    {isProfit ? '+' : ''}${pnl.toFixed(2)}
+                  <TableCell>
+                    <div className={`flex items-center gap-1 transition-all duration-300 ${
+                      priceChanges[position.id]?.flash 
+                        ? 'animate-pulse'
+                        : ''
+                    } ${isProfit ? 'text-green-500' : 'text-red-500'}`}>
+                      <span className={`px-2 py-1 rounded ${
+                        priceChanges[position.id]?.flash
+                          ? isProfit
+                            ? 'bg-green-500/20'
+                            : 'bg-red-500/20'
+                          : ''
+                      }`}>
+                        {isProfit ? '+' : ''}${pnl.toFixed(2)}
+                      </span>
+                      {priceChanges[position.id]?.direction === 'up' && (
+                        <ArrowUp className="h-4 w-4 text-green-500" />
+                      )}
+                      {priceChanges[position.id]?.direction === 'down' && (
+                        <ArrowDown className="h-4 w-4 text-red-500" />
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>
                     {adjustPnlPositionId === position.id ? (

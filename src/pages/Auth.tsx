@@ -107,8 +107,8 @@ const Auth = () => {
       }
 
       if (data.user) {
-        toast.success("Account created successfully!");
-        navigate("/dashboard");
+        toast.success("Account created! Awaiting admin approval to access your account.");
+        navigate("/pending-approval");
       }
     } catch (error) {
       if (error instanceof z.ZodError) {

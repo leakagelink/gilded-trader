@@ -95,6 +95,7 @@ serve(async (req) => {
         apiKey = Deno.env.get('COINMARKETCAP_API_KEY');
         if (!apiKey) {
           console.error('No active CoinMarketCap API key available and no secret configured');
+          lastError = 'No API key available';
           break;
         }
         console.log('Using fallback API key from secrets');
@@ -150,18 +151,29 @@ serve(async (req) => {
           const errorText = await response.text();
           console.error(`Rate limit hit for key, status ${response.status}:`, errorText);
           
-          // Mark this key as inactive
-          await markKeyAsInactive('coinmarketcap', apiKey);
+          // Only mark database keys as inactive, not the secret fallback
+          const dbApiKey = await getActiveApiKey('coinmarketcap');
+          if (dbApiKey) {
+            await markKeyAsInactive('coinmarketcap', dbApiKey);
+          }
           
           // Try next key
           console.log('Trying next available API key...');
           continue;
         }
 
-        // Other errors
+        // Other errors - log detailed info
         const errorText = await response.text();
         lastError = `API error ${response.status}: ${errorText}`;
-        console.error(lastError);
+        console.error('CoinMarketCap API error:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorText,
+          attempt: attempts
+        });
+        
+        // For non-rate-limit errors, break instead of continuing
+        // This prevents exhausting all attempts on persistent errors
         break;
 
       } catch (error) {

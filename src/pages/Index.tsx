@@ -2,9 +2,12 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { ArrowRight, Shield, TrendingUp, Wallet, LineChart, Globe, Award, CheckCircle, Users, Star, Lock, Zap } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { ArrowRight, Shield, TrendingUp, Wallet, LineChart, Globe, Award, CheckCircle, Users, Star, Lock, Zap, Bell, ArrowUp, ArrowDown, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -15,6 +18,82 @@ const Index = () => {
     amount: string;
     time: string;
   }>>([]);
+  
+  const [notification, setNotification] = useState<{
+    show: boolean;
+    message: string;
+    user: string;
+  }>({ show: false, message: "", user: "" });
+
+  const [cryptoPrices, setCryptoPrices] = useState<{
+    [key: string]: { price: number; change: number; previousPrice: number };
+  }>({
+    BTCUSDT: { price: 0, change: 0, previousPrice: 0 },
+    ETHUSDT: { price: 0, change: 0, previousPrice: 0 },
+    BNBUSDT: { price: 0, change: 0, previousPrice: 0 },
+  });
+
+  // Fake notification alerts
+  useEffect(() => {
+    const notifications = [
+      { user: "John D.", message: "just deposited $5,000" },
+      { user: "Sarah M.", message: "just withdrew $12,500" },
+      { user: "Mike R.", message: "opened a BTC position worth $8,200" },
+      { user: "Emma W.", message: "made +$3,500 profit on ETH" },
+      { user: "David L.", message: "just deposited $6,800" },
+      { user: "Lisa P.", message: "just withdrew $9,200" },
+      { user: "Alex K.", message: "opened a Gold position worth $15,000" },
+    ];
+
+    const showNotification = () => {
+      const randomNotification = notifications[Math.floor(Math.random() * notifications.length)];
+      setNotification({ show: true, ...randomNotification });
+      
+      setTimeout(() => {
+        setNotification(prev => ({ ...prev, show: false }));
+      }, 4000);
+    };
+
+    showNotification();
+    const interval = setInterval(showNotification, 5000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Fetch real-time crypto prices
+  useEffect(() => {
+    const fetchCryptoPrices = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('fetch-crypto-data', {
+          body: { symbols: ['BTC', 'ETH', 'BNB'] }
+        });
+
+        if (error) throw error;
+        
+        if (data?.prices) {
+          setCryptoPrices(prev => {
+            const updated: typeof prev = {};
+            Object.entries(data.prices).forEach(([symbol, priceData]: [string, any]) => {
+              const symbolKey = `${symbol}USDT`;
+              updated[symbolKey] = {
+                price: priceData.price,
+                change: prev[symbolKey] ? priceData.price - prev[symbolKey].price : 0,
+                previousPrice: prev[symbolKey]?.price || priceData.price
+              };
+            });
+            return updated;
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching crypto prices:', error);
+      }
+    };
+
+    fetchCryptoPrices();
+    const interval = setInterval(fetchCryptoPrices, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   // Generate fake recent activities
   useEffect(() => {
@@ -79,6 +158,24 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background overflow-hidden">
+      {/* Notification Alert */}
+      {notification.show && (
+        <div className="fixed top-20 right-4 z-[100] animate-in slide-in-from-right-full duration-500">
+          <Alert className="bg-gradient-to-r from-primary/90 to-accent/90 border-none text-white shadow-2xl backdrop-blur-xl w-80">
+            <Bell className="h-5 w-5 animate-pulse" />
+            <AlertDescription className="ml-2 font-semibold">
+              <span className="font-bold">{notification.user}</span> {notification.message}
+            </AlertDescription>
+            <button
+              onClick={() => setNotification(prev => ({ ...prev, show: false }))}
+              className="absolute top-2 right-2 p-1 hover:bg-white/20 rounded transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </Alert>
+        </div>
+      )}
+
       {/* Navigation */}
       <nav className="border-b border-border/40 backdrop-blur-xl bg-background/80 sticky top-0 z-50 shadow-sm">
         <div className="container mx-auto px-4 py-4">
@@ -102,6 +199,46 @@ const Index = () => {
           </div>
         </div>
       </nav>
+
+      {/* Crypto Ticker */}
+      <div className="bg-gradient-to-r from-primary/10 via-accent/10 to-primary/10 border-b border-border/40 py-4 overflow-hidden">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-center gap-8 md:gap-16">
+            {Object.entries(cryptoPrices).map(([symbol, data]) => {
+              const displayName = symbol.replace('USDT', '');
+              const isUp = data.change > 0;
+              const isDown = data.change < 0;
+              
+              return (
+                <div
+                  key={symbol}
+                  className={`flex items-center gap-3 p-3 rounded-xl transition-all duration-500 ${
+                    isUp ? 'animate-pulse bg-green-500/10' : isDown ? 'animate-pulse bg-red-500/10' : 'bg-muted/20'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center font-bold text-white shadow-lg">
+                      {displayName.substring(0, 2)}
+                    </div>
+                    <div>
+                      <p className="font-bold text-sm">{displayName}</p>
+                      <div className="flex items-center gap-1">
+                        <p className={`font-black text-lg transition-all duration-300 ${
+                          isUp ? 'text-green-600 scale-110' : isDown ? 'text-red-600 scale-110' : ''
+                        }`}>
+                          ${data.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </p>
+                        {isUp && <ArrowUp className="h-4 w-4 text-green-600 animate-bounce" />}
+                        {isDown && <ArrowDown className="h-4 w-4 text-red-600 animate-bounce" />}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
 
       {/* Hero Section */}
       <section className="relative overflow-hidden py-24 md:py-40">
@@ -167,6 +304,90 @@ const Index = () => {
                 <span className="font-semibold">50K+ Active Users</span>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Live Crypto Markets */}
+      <section className="py-20 bg-gradient-to-br from-primary/5 via-background to-accent/5 relative overflow-hidden">
+        <div className="absolute inset-0 bg-grid-pattern opacity-5" />
+        <div className="absolute top-20 right-20 w-64 h-64 bg-primary/20 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-20 left-20 w-80 h-80 bg-accent/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1.5s' }} />
+        
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="text-center mb-16">
+            <Badge className="mb-6 bg-gradient-to-r from-primary/10 to-accent/10 text-primary border-primary/20 px-4 py-2 text-sm font-semibold animate-bounce-in">
+              <TrendingUp className="h-4 w-4 mr-2 animate-pulse" /> Live Markets
+            </Badge>
+            <h2 className="text-4xl md:text-6xl font-black mb-6 animate-fade-in">
+              Real-Time Crypto <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">Markets</span>
+            </h2>
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto animate-fade-in" style={{ animationDelay: '0.1s' }}>
+              Track live prices with instant updates every second
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+            {Object.entries(cryptoPrices).map(([symbol, data], index) => {
+              const displayName = symbol.replace('USDT', '');
+              const isUp = data.change > 0;
+              const isDown = data.change < 0;
+              
+              return (
+                <Card
+                  key={symbol}
+                  className={`group p-8 border-2 hover:shadow-2xl transition-all duration-500 rounded-2xl backdrop-blur-sm hover:scale-105 animate-fade-in ${
+                    isUp 
+                      ? 'bg-gradient-to-br from-green-500/10 to-green-500/5 border-green-500/30 hover:border-green-500/50' 
+                      : isDown 
+                      ? 'bg-gradient-to-br from-red-500/10 to-red-500/5 border-red-500/30 hover:border-red-500/50'
+                      : 'bg-gradient-to-br from-card to-card/50 border-border/50 hover:border-primary/50'
+                  }`}
+                  style={{ animationDelay: `${index * 0.15}s` }}
+                >
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3">
+                      <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center font-black text-2xl text-white shadow-xl group-hover:scale-110 transition-transform">
+                        {displayName.substring(0, 2)}
+                      </div>
+                      <div>
+                        <p className="text-2xl font-black">{displayName}</p>
+                        <p className="text-sm text-muted-foreground">USDT</p>
+                      </div>
+                    </div>
+                    <div className={`p-3 rounded-xl transition-all ${
+                      isUp ? 'bg-green-500/20 animate-pulse' : isDown ? 'bg-red-500/20 animate-pulse' : 'bg-muted/20'
+                    }`}>
+                      {isUp && <ArrowUp className="h-8 w-8 text-green-600 animate-bounce" />}
+                      {isDown && <ArrowDown className="h-8 w-8 text-red-600 animate-bounce" />}
+                      {!isUp && !isDown && <TrendingUp className="h-8 w-8 text-muted-foreground" />}
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <p className={`text-4xl font-black transition-all duration-300 ${
+                      isUp ? 'text-green-600 scale-110' : isDown ? 'text-red-600 scale-110' : 'text-foreground'
+                    }`}>
+                      ${data.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                    <p className={`text-sm font-semibold flex items-center gap-1 ${
+                      isUp ? 'text-green-600' : isDown ? 'text-red-600' : 'text-muted-foreground'
+                    }`}>
+                      {isUp && '+'}{data.change.toFixed(2)} USD
+                      {isUp && ' 📈'}
+                      {isDown && ' 📉'}
+                    </p>
+                  </div>
+
+                  <Button 
+                    className="w-full mt-6 bg-gradient-to-r from-primary to-accent hover:shadow-lg transition-all group-hover:scale-105"
+                    onClick={() => navigate("/auth")}
+                  >
+                    Trade Now <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </Card>
+              );
+            })}
           </div>
         </div>
       </section>
@@ -389,6 +610,109 @@ const Index = () => {
             <p className="mt-8 text-white/80 flex items-center justify-center gap-2">
               <CheckCircle className="h-5 w-5" /> No credit card required • Start in 2 minutes
             </p>
+          </div>
+        </div>
+      </section>
+
+      {/* FAQs Section */}
+      <section className="py-24 bg-gradient-to-b from-background to-muted/30 relative">
+        <div className="absolute inset-0 bg-grid-pattern opacity-5" />
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="max-w-4xl mx-auto">
+            <div className="text-center mb-16">
+              <Badge className="mb-6 bg-gradient-to-r from-primary/10 to-accent/10 text-primary border-primary/20 px-4 py-2 text-sm font-semibold">
+                <CheckCircle className="h-4 w-4 mr-2" /> FAQs
+              </Badge>
+              <h2 className="text-4xl md:text-6xl font-black mb-6">
+                Frequently Asked <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">Questions</span>
+              </h2>
+              <p className="text-xl text-muted-foreground">
+                Everything you need to know about trading with TradePro
+              </p>
+            </div>
+
+            <Accordion type="single" collapsible className="space-y-4">
+              <AccordionItem 
+                value="item-1" 
+                className="border-2 border-border/50 rounded-2xl px-6 bg-card/50 backdrop-blur-sm hover:border-primary/50 transition-all"
+              >
+                <AccordionTrigger className="text-lg font-bold hover:text-primary">
+                  How do I get started with TradePro?
+                </AccordionTrigger>
+                <AccordionContent className="text-muted-foreground leading-relaxed">
+                  Getting started is simple! Click "Get Started" to create your free account. Complete the KYC verification process, 
+                  deposit funds using UPI or Net Banking, and you're ready to start trading crypto, forex, and commodities.
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem 
+                value="item-2" 
+                className="border-2 border-border/50 rounded-2xl px-6 bg-card/50 backdrop-blur-sm hover:border-primary/50 transition-all"
+              >
+                <AccordionTrigger className="text-lg font-bold hover:text-primary">
+                  What are the deposit and withdrawal methods?
+                </AccordionTrigger>
+                <AccordionContent className="text-muted-foreground leading-relaxed">
+                  We support multiple payment methods including UPI, Net Banking, and bank transfers. Deposits are typically processed 
+                  instantly, while withdrawals are processed within 24-48 hours after admin approval for security purposes.
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem 
+                value="item-3" 
+                className="border-2 border-border/50 rounded-2xl px-6 bg-card/50 backdrop-blur-sm hover:border-primary/50 transition-all"
+              >
+                <AccordionTrigger className="text-lg font-bold hover:text-primary">
+                  Is my money safe on TradePro?
+                </AccordionTrigger>
+                <AccordionContent className="text-muted-foreground leading-relaxed">
+                  Absolutely! We use bank-level SSL encryption, secure cold storage for crypto assets, and implement strict KYC/AML 
+                  policies. All funds are segregated and your data is protected with industry-leading security measures.
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem 
+                value="item-4" 
+                className="border-2 border-border/50 rounded-2xl px-6 bg-card/50 backdrop-blur-sm hover:border-primary/50 transition-all"
+              >
+                <AccordionTrigger className="text-lg font-bold hover:text-primary">
+                  What is leverage trading and how does it work?
+                </AccordionTrigger>
+                <AccordionContent className="text-muted-foreground leading-relaxed">
+                  Leverage allows you to control larger positions with smaller capital. TradePro offers leverage up to 100x on 
+                  select markets. For example, with 10x leverage and $100, you can open a $1,000 position. However, leverage 
+                  amplifies both gains and losses, so trade responsibly.
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem 
+                value="item-5" 
+                className="border-2 border-border/50 rounded-2xl px-6 bg-card/50 backdrop-blur-sm hover:border-primary/50 transition-all"
+              >
+                <AccordionTrigger className="text-lg font-bold hover:text-primary">
+                  Are there any trading fees?
+                </AccordionTrigger>
+                <AccordionContent className="text-muted-foreground leading-relaxed">
+                  TradePro operates on a transparent fee structure. We charge competitive spreads on trades with no hidden fees. 
+                  There are no deposit fees, and withdrawal fees vary by payment method. Check our fee schedule in your account 
+                  settings for detailed information.
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem 
+                value="item-6" 
+                className="border-2 border-border/50 rounded-2xl px-6 bg-card/50 backdrop-blur-sm hover:border-primary/50 transition-all"
+              >
+                <AccordionTrigger className="text-lg font-bold hover:text-primary">
+                  Can I trade on mobile?
+                </AccordionTrigger>
+                <AccordionContent className="text-muted-foreground leading-relaxed">
+                  Yes! TradePro is fully optimized for mobile devices. Access all trading features, manage positions, and monitor 
+                  markets from anywhere using your mobile browser. Our responsive design ensures a seamless trading experience 
+                  on any device.
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
           </div>
         </div>
       </section>

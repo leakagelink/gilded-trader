@@ -60,6 +60,39 @@ async function fetchCryptoData(apiKey: string) {
   return response;
 }
 
+async function fetchCryptoDataFromCoinGecko() {
+  console.log('Attempting to fetch from CoinGecko API (free fallback)...');
+  const response = await fetch(
+    'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=20&page=1&sparkline=false&price_change_percentage=24h'
+  );
+
+  if (!response.ok) {
+    throw new Error(`CoinGecko API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  
+  // Transform CoinGecko data to match our app's format
+  const cryptoData = data.map((coin: any) => {
+    const changePercent = coin.price_change_percentage_24h || 0;
+    
+    return {
+      name: coin.name,
+      symbol: coin.symbol.toUpperCase(),
+      price: coin.current_price.toFixed(2),
+      change: `${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(2)}%`,
+      isPositive: changePercent >= 0,
+      logo: coin.image,
+      currencySymbol: '$',
+      high24h: coin.high_24h?.toFixed(2) || coin.current_price.toFixed(2),
+      low24h: coin.low_24h?.toFixed(2) || coin.current_price.toFixed(2),
+      id: coin.id,
+    };
+  });
+
+  return { cryptoData };
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -183,19 +216,40 @@ serve(async (req) => {
       }
     }
 
-    // If all attempts failed, return cached data if available
-    if (cachedData) {
-      console.log('All API attempts failed, returning stale cached data');
+    // If all CoinMarketCap attempts failed, try CoinGecko as fallback
+    console.log('All CoinMarketCap API attempts failed, trying CoinGecko fallback...');
+    try {
+      const coinGeckoData = await fetchCryptoDataFromCoinGecko();
+      
+      // Update cache with CoinGecko data
+      cachedData = coinGeckoData;
+      cacheTimestamp = now;
+      
+      console.log('Successfully fetched crypto data from CoinGecko fallback');
       return new Response(
-        JSON.stringify(cachedData),
+        JSON.stringify(coinGeckoData),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 200,
         }
       );
+    } catch (coinGeckoError) {
+      console.error('CoinGecko fallback also failed:', coinGeckoError);
+      
+      // If CoinGecko also fails, return cached data if available
+      if (cachedData) {
+        console.log('All API sources failed, returning stale cached data');
+        return new Response(
+          JSON.stringify(cachedData),
+          {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200,
+          }
+        );
+      }
+      
+      throw new Error('All API sources exhausted: ' + (lastError || 'Unknown error'));
     }
-
-    throw new Error(lastError || 'Failed to fetch crypto data from all available API keys');
 
   } catch (error) {
     console.error('Error in fetch-crypto-data function:', error);

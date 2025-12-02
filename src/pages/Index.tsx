@@ -64,23 +64,29 @@ const Index = () => {
   useEffect(() => {
     const fetchCryptoPrices = async () => {
       try {
-        const { data, error } = await supabase.functions.invoke('fetch-crypto-data', {
-          body: { symbols: ['BTC', 'ETH', 'BNB'] }
-        });
+        const { data, error } = await supabase.functions.invoke('fetch-crypto-data');
 
         if (error) throw error;
         
-        if (data?.prices) {
+        if (data?.cryptoData && Array.isArray(data.cryptoData)) {
           setCryptoPrices(prev => {
             const updated: typeof prev = {};
-            Object.entries(data.prices).forEach(([symbol, priceData]: [string, any]) => {
-              const symbolKey = `${symbol}USDT`;
-              updated[symbolKey] = {
-                price: priceData.price,
-                change: prev[symbolKey] ? priceData.price - prev[symbolKey].price : 0,
-                previousPrice: prev[symbolKey]?.price || priceData.price
-              };
-            });
+            
+            // Filter for BTC, ETH, BNB
+            const targetCoins = ['BTC', 'ETH', 'BNB'];
+            data.cryptoData
+              .filter((coin: any) => targetCoins.includes(coin.symbol))
+              .forEach((coin: any) => {
+                const symbolKey = `${coin.symbol}USDT`;
+                const newPrice = parseFloat(coin.price);
+                
+                updated[symbolKey] = {
+                  price: newPrice,
+                  change: prev[symbolKey] ? newPrice - prev[symbolKey].price : 0,
+                  previousPrice: prev[symbolKey]?.price || newPrice
+                };
+              });
+            
             return updated;
           });
         }

@@ -1,10 +1,10 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { ArrowRight, Shield, TrendingUp, Wallet, LineChart, Globe, Award, CheckCircle, Users, Star, Lock, Zap, Bell, ArrowUp, ArrowDown, X } from "lucide-react";
+import { ArrowRight, Shield, TrendingUp, Wallet, LineChart, Globe, Award, CheckCircle, Users, Star, Lock, Zap, Bell, ArrowUp, ArrowDown, X, Newspaper, TrendingDown } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -209,6 +209,12 @@ const Index = () => {
               const isUp = data.change > 0;
               const isDown = data.change < 0;
               
+              const coinIcons: { [key: string]: string } = {
+                'BTC': '₿',
+                'ETH': 'Ξ',
+                'BNB': 'B'
+              };
+              
               return (
                 <div
                   key={symbol}
@@ -217,8 +223,8 @@ const Index = () => {
                   }`}
                 >
                   <div className="flex items-center gap-2">
-                    <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center font-bold text-white shadow-lg">
-                      {displayName.substring(0, 2)}
+                    <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center font-bold text-white shadow-lg text-xl">
+                      {coinIcons[displayName] || displayName.substring(0, 2)}
                     </div>
                     <div>
                       <p className="font-bold text-sm">{displayName}</p>
@@ -226,7 +232,7 @@ const Index = () => {
                         <p className={`font-black text-lg transition-all duration-300 ${
                           isUp ? 'text-green-600 scale-110' : isDown ? 'text-red-600 scale-110' : ''
                         }`}>
-                          ${data.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          ${data.price > 0 ? data.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
                         </p>
                         {isUp && <ArrowUp className="h-4 w-4 text-green-600 animate-bounce" />}
                         {isDown && <ArrowDown className="h-4 w-4 text-red-600 animate-bounce" />}
@@ -333,6 +339,12 @@ const Index = () => {
               const isUp = data.change > 0;
               const isDown = data.change < 0;
               
+              const coinIcons: { [key: string]: string } = {
+                'BTC': '₿',
+                'ETH': 'Ξ',
+                'BNB': 'B'
+              };
+              
               return (
                 <Card
                   key={symbol}
@@ -347,8 +359,8 @@ const Index = () => {
                 >
                   <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-3">
-                      <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center font-black text-2xl text-white shadow-xl group-hover:scale-110 transition-transform">
-                        {displayName.substring(0, 2)}
+                      <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center font-black text-3xl text-white shadow-xl group-hover:scale-110 transition-transform">
+                        {coinIcons[displayName] || displayName.substring(0, 2)}
                       </div>
                       <div>
                         <p className="text-2xl font-black">{displayName}</p>
@@ -368,7 +380,7 @@ const Index = () => {
                     <p className={`text-4xl font-black transition-all duration-300 ${
                       isUp ? 'text-green-600 scale-110' : isDown ? 'text-red-600 scale-110' : 'text-foreground'
                     }`}>
-                      ${data.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      ${data.price > 0 ? data.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
                     </p>
                     <p className={`text-sm font-semibold flex items-center gap-1 ${
                       isUp ? 'text-green-600' : isDown ? 'text-red-600' : 'text-muted-foreground'
@@ -416,8 +428,9 @@ const Index = () => {
                     style={{ animationDelay: `${index * 0.1}s` }}
                   >
                     <div className="flex items-center gap-4">
-                      <Avatar className="h-12 w-12 bg-gradient-to-br from-primary to-accent ring-2 ring-primary/20">
-                        <AvatarFallback className="text-primary-foreground font-bold text-lg">
+                      <Avatar className="h-12 w-12 ring-2 ring-primary/20">
+                        <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${activity.user}`} alt={activity.user} />
+                        <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold text-lg">
                           {activity.user.charAt(0)}
                         </AvatarFallback>
                       </Avatar>
@@ -447,6 +460,104 @@ const Index = () => {
                 </p>
               </div>
             </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* Crypto News Section */}
+      <section className="py-20 bg-gradient-to-br from-background via-primary/5 to-accent/5 relative overflow-hidden">
+        <div className="absolute inset-0 bg-grid-pattern opacity-5" />
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="text-center mb-16">
+            <Badge className="mb-6 bg-gradient-to-r from-primary/10 to-accent/10 text-primary border-primary/20 px-4 py-2 text-sm font-semibold animate-bounce-in">
+              <Newspaper className="h-4 w-4 mr-2 animate-pulse" /> Latest News
+            </Badge>
+            <h2 className="text-4xl md:text-6xl font-black mb-6 animate-fade-in">
+              Crypto Market <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">News</span>
+            </h2>
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto animate-fade-in" style={{ animationDelay: '0.1s' }}>
+              Stay updated with the latest cryptocurrency market trends
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
+            {[
+              {
+                title: "Bitcoin Surges Past $65,000 Mark",
+                excerpt: "Bitcoin has broken through the $65,000 resistance level as institutional adoption continues to grow...",
+                category: "Bitcoin",
+                time: "2 hours ago",
+                trend: "up"
+              },
+              {
+                title: "Ethereum 2.0 Upgrade Shows Promise",
+                excerpt: "The latest Ethereum network upgrade demonstrates significant improvements in transaction speed and gas fees...",
+                category: "Ethereum",
+                time: "5 hours ago",
+                trend: "up"
+              },
+              {
+                title: "BNB Chain Announces New DeFi Features",
+                excerpt: "Binance Smart Chain unveils revolutionary DeFi protocols aimed at expanding the ecosystem...",
+                category: "BNB",
+                time: "8 hours ago",
+                trend: "neutral"
+              },
+              {
+                title: "Crypto Market Cap Reaches New High",
+                excerpt: "Total cryptocurrency market capitalization exceeds $2.8 trillion as bull run continues...",
+                category: "Market",
+                time: "12 hours ago",
+                trend: "up"
+              },
+              {
+                title: "Regulatory Changes Impact Trading",
+                excerpt: "New financial regulations bring clarity to cryptocurrency trading and taxation policies...",
+                category: "Regulation",
+                time: "1 day ago",
+                trend: "neutral"
+              },
+              {
+                title: "Altcoins Show Strong Performance",
+                excerpt: "Several altcoins demonstrate remarkable growth as investors diversify portfolios...",
+                category: "Altcoins",
+                time: "1 day ago",
+                trend: "up"
+              }
+            ].map((news, index) => (
+              <Card
+                key={index}
+                className="group p-6 border-2 border-border/50 hover:border-primary/50 bg-gradient-to-br from-card to-card/50 backdrop-blur-sm rounded-2xl hover:shadow-2xl transition-all duration-500 hover:scale-105 animate-in fade-in slide-in-from-bottom-4 cursor-pointer"
+                style={{ animationDelay: `${index * 0.1}s` }}
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <Badge className={`${
+                    news.trend === 'up' 
+                      ? 'bg-green-500/10 text-green-600 border-green-500/30' 
+                      : 'bg-muted/50 text-muted-foreground border-border'
+                  }`}>
+                    {news.category}
+                  </Badge>
+                  {news.trend === 'up' && <TrendingUp className="h-5 w-5 text-green-600 animate-bounce" />}
+                  {news.trend === 'down' && <TrendingDown className="h-5 w-5 text-red-600 animate-bounce" />}
+                </div>
+                
+                <h3 className="text-xl font-black mb-3 group-hover:text-primary transition-colors line-clamp-2">
+                  {news.title}
+                </h3>
+                
+                <p className="text-muted-foreground mb-4 leading-relaxed line-clamp-3">
+                  {news.excerpt}
+                </p>
+                
+                <div className="flex items-center justify-between pt-4 border-t border-border/50">
+                  <p className="text-xs text-muted-foreground">{news.time}</p>
+                  <Button variant="ghost" size="sm" className="text-primary hover:bg-primary/10">
+                    Read More <ArrowRight className="ml-1 h-3 w-3" />
+                  </Button>
+                </div>
+              </Card>
+            ))}
           </div>
         </div>
       </section>
@@ -529,8 +640,9 @@ const Index = () => {
                 </div>
                 <p className="text-muted-foreground mb-6 italic leading-relaxed text-lg">"{testimonial.content}"</p>
                 <div className="flex items-center gap-4 pt-4 border-t border-border/50">
-                  <Avatar className="h-14 w-14 bg-gradient-to-br from-primary to-accent ring-2 ring-primary/20">
-                    <AvatarFallback className="text-primary-foreground font-bold text-xl">
+                  <Avatar className="h-14 w-14 ring-2 ring-primary/20">
+                    <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${testimonial.name}`} alt={testimonial.name} />
+                    <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground font-bold text-xl">
                       {testimonial.name.charAt(0)}
                     </AvatarFallback>
                   </Avatar>

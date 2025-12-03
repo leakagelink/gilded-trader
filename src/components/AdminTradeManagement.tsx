@@ -209,6 +209,11 @@ export const AdminTradeManagement = () => {
       return;
     }
 
+    if (priceMode === 'live' && !amount) {
+      toast.error("Please enter amount");
+      return;
+    }
+
     try {
       let price: number;
       let tradeAmount: number;
@@ -249,9 +254,9 @@ export const AdminTradeManagement = () => {
         }
 
         price = parseFloat(symbolData.price);
-        // For live mode, use amount of 1 unit
-        tradeAmount = 1;
-        console.log('Opening trade at live price:', price);
+        // For live mode, use user-specified amount
+        tradeAmount = parseFloat(amount);
+        console.log('Opening trade at live price:', price, 'with amount:', tradeAmount);
       } else {
         // Manual mode
         price = parseFloat(entryPrice);
@@ -719,27 +724,26 @@ export const AdminTradeManagement = () => {
             </div>
 
             {priceMode === 'manual' && (
-              <>
-                <div>
-                  <Label>Amount</Label>
-                  <Input
-                    type="number"
-                    placeholder="0.00"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label>Entry Price</Label>
-                  <Input
-                    type="number"
-                    placeholder="0.00"
-                    value={entryPrice}
-                    onChange={(e) => setEntryPrice(e.target.value)}
-                  />
-                </div>
-              </>
+              <div>
+                <Label>Entry Price</Label>
+                <Input
+                  type="number"
+                  placeholder="0.00"
+                  value={entryPrice}
+                  onChange={(e) => setEntryPrice(e.target.value)}
+                />
+              </div>
             )}
+
+            <div>
+              <Label>Amount</Label>
+              <Input
+                type="number"
+                placeholder="0.00"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+              />
+            </div>
 
             <div>
               <Label>Leverage</Label>

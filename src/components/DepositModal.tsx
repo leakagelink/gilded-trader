@@ -24,9 +24,9 @@ const DepositModal = ({ open, onOpenChange, onSuccess }: DepositModalProps) => {
   const { toast } = useToast();
 
   // Payment details from database
-  const [upiId, setUpiId] = useState("tradepro@upi");
+  const [upiId, setUpiId] = useState("coingoldfx@upi");
   const [bankDetails, setBankDetails] = useState({
-    accountName: "TradePro Account",
+    accountName: "CoinGoldFX Account",
     accountNumber: "1234567890",
     ifsc: "BANK0001234",
     bankName: "Demo Bank",
@@ -52,9 +52,9 @@ const DepositModal = ({ open, onOpenChange, onSuccess }: DepositModalProps) => {
           settings[setting.setting_key] = setting.setting_value;
         });
 
-        setUpiId(settings.upi_id || "tradepro@upi");
+        setUpiId(settings.upi_id || "coingoldfx@upi");
         setBankDetails({
-          accountName: settings.account_name || "TradePro Account",
+          accountName: settings.account_name || "CoinGoldFX Account",
           accountNumber: settings.account_number || "1234567890",
           ifsc: settings.ifsc_code || "BANK0001234",
           bankName: settings.bank_name || "Demo Bank",
@@ -165,7 +165,7 @@ const DepositModal = ({ open, onOpenChange, onSuccess }: DepositModalProps) => {
                 <h3 className="font-semibold mb-3">Scan QR Code</h3>
                 <div className="flex justify-center mb-4">
                   <div className="bg-white p-4 rounded-lg">
-                    <QRCodeSVG value={`upi://pay?pa=${upiId}&pn=TradePro&cu=INR`} size={200} />
+                    <QRCodeSVG value={`upi://pay?pa=${upiId}&pn=CoinGoldFX&cu=INR`} size={200} />
                   </div>
                 </div>
                 <div className="text-sm text-muted-foreground mb-2">Or use UPI ID:</div>

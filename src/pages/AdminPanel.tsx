@@ -73,8 +73,8 @@ const AdminPanel = () => {
 
   // Payment settings state
   const [paymentSettings, setPaymentSettings] = useState({
-    upiId: "tradepro@upi",
-    accountName: "TradePro Account",
+    upiId: "coingoldfx@upi",
+    accountName: "CoinGoldFX Account",
     accountNumber: "1234567890",
     ifsc: "BANK0001234",
     bankName: "Demo Bank",
@@ -225,8 +225,8 @@ const AdminPanel = () => {
           settings[key] = setting.setting_value;
         });
         setPaymentSettings({
-          upiId: settings.upiId || "tradepro@upi",
-          accountName: settings.accountName || "TradePro Account",
+          upiId: settings.upiId || "coingoldfx@upi",
+          accountName: settings.accountName || "CoinGoldFX Account",
           accountNumber: settings.accountNumber || "1234567890",
           ifsc: settings.ifscCode || "BANK0001234",
           bankName: settings.bankName || "Demo Bank",

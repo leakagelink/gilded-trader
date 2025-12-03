@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, TrendingUp, TrendingDown, RefreshCcw, Activity, ChevronLeft, ChevronRight, ShoppingCart, DollarSign } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, RefreshCcw, Activity, ChevronLeft, ChevronRight, ShoppingCart, DollarSign, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -184,6 +184,39 @@ const Trading = () => {
   const isForexPair = (sym: string) => {
     const forexSymbols = ['EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CHF', 'CNY', 'INR', 'NZD', 'SGD'];
     return forexSymbols.includes(sym.toUpperCase());
+  };
+
+  // Check if symbol is a commodity
+  const isCommodity = (sym: string) => {
+    const commoditySymbols = ['XAU', 'XAG', 'WTI', 'NG', 'HG', 'XPT', 'XPD', 'BRENT'];
+    return commoditySymbols.includes(sym.toUpperCase());
+  };
+
+  // Generate TradingView URL based on symbol type
+  const getTradingViewUrl = () => {
+    const sym = symbol?.toUpperCase() || 'BTC';
+    
+    if (isForexPair(sym)) {
+      // Forex pairs - use FX exchange
+      return `https://www.tradingview.com/chart/?symbol=FX%3A${sym}USD`;
+    } else if (isCommodity(sym)) {
+      // Commodities
+      const commodityMap: Record<string, string> = {
+        'XAU': 'OANDA:XAUUSD',
+        'XAG': 'OANDA:XAGUSD',
+        'WTI': 'NYMEX:CL1!',
+        'NG': 'NYMEX:NG1!',
+        'HG': 'COMEX:HG1!',
+        'XPT': 'OANDA:XPTUSD',
+        'XPD': 'OANDA:XPDUSD',
+        'BRENT': 'ICEEUR:BRN1!',
+      };
+      const tradingViewSymbol = commodityMap[sym] || `TVC:${sym}`;
+      return `https://www.tradingview.com/chart/?symbol=${encodeURIComponent(tradingViewSymbol)}`;
+    } else {
+      // Crypto - use BINANCE exchange
+      return `https://www.tradingview.com/chart/?symbol=BINANCE%3A${sym}USDT`;
+    }
   };
 
   const fetchRealTimeData = async () => {
@@ -751,6 +784,19 @@ const Trading = () => {
                 </p>
               </div>
             )}
+          </div>
+          
+          {/* View Full Chart Link */}
+          <div className="mt-4 flex justify-center">
+            <a
+              href={getTradingViewUrl()}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary font-medium text-sm transition-all hover:scale-105"
+            >
+              <ExternalLink className="h-4 w-4" />
+              View Full Chart on TradingView
+            </a>
           </div>
         </Card>
       </main>

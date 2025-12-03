@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileCheck, TrendingUp, Upload, CheckCircle, Clock, XCircle } from "lucide-react";
+import { FileCheck, TrendingUp, Upload, CheckCircle, Clock, XCircle, X, FileImage } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -22,6 +22,7 @@ interface KYCData {
   city: string;
   postal_code: string;
   id_document_type: string;
+  document_url: string | null;
   status: 'pending' | 'approved' | 'rejected';
   rejection_reason: string | null;
   created_at: string;
@@ -33,6 +34,10 @@ const KYC = () => {
   const [kycData, setKycData] = useState<KYCData | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [uploadedFileUrl, setUploadedFileUrl] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Form state
   const [firstName, setFirstName] = useState("");
@@ -77,11 +82,80 @@ const KYC = () => {
         setCity(data.city);
         setPostalCode(data.postal_code);
         setIdDocumentType(data.id_document_type);
+        
+        // Load existing document URL
+        if (data.document_url) {
+          setUploadedFileUrl(data.document_url);
+        }
       }
     } catch (error: any) {
       console.error("Error fetching KYC data:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error("Please upload a JPG, PNG, or PDF file");
+      return;
+    }
+
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("File size must be less than 5MB");
+      return;
+    }
+
+    setUploadedFile(file);
+    
+    // Create preview URL for images
+    if (file.type.startsWith('image/')) {
+      const previewUrl = URL.createObjectURL(file);
+      setUploadedFileUrl(previewUrl);
+    } else {
+      setUploadedFileUrl(null);
+    }
+  };
+
+  const uploadDocument = async (): Promise<string | null> => {
+    if (!uploadedFile || !user) return null;
+
+    try {
+      setUploading(true);
+      const fileExt = uploadedFile.name.split('.').pop();
+      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('kyc-documents')
+        .upload(fileName, uploadedFile, {
+          cacheControl: '3600',
+          upsert: true
+        });
+
+      if (uploadError) throw uploadError;
+
+      // Get the file path (not public URL since bucket is private)
+      return fileName;
+    } catch (error: any) {
+      console.error("Error uploading document:", error);
+      toast.error("Failed to upload document");
+      return null;
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const removeFile = () => {
+    setUploadedFile(null);
+    setUploadedFileUrl(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
@@ -98,8 +172,25 @@ const KYC = () => {
       return;
     }
 
+    if (!uploadedFile && !kycData?.document_url) {
+      toast.error("Please upload your ID document");
+      return;
+    }
+
     try {
       setSubmitting(true);
+
+      // Upload document if a new file was selected
+      let documentUrl = kycData?.document_url || null;
+      if (uploadedFile) {
+        const uploadedPath = await uploadDocument();
+        if (uploadedPath) {
+          documentUrl = uploadedPath;
+        } else if (!kycData?.document_url) {
+          // Upload failed and no existing document
+          return;
+        }
+      }
 
       const kycPayload = {
         user_id: user.id,
@@ -111,6 +202,7 @@ const KYC = () => {
         city: city,
         postal_code: postalCode,
         id_document_type: idDocumentType,
+        document_url: documentUrl,
         status: 'pending' as const,
       };
 
@@ -371,24 +463,80 @@ const KYC = () => {
               </div>
 
               <div className="space-y-2">
-                <Label>Upload Documents</Label>
-                <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary transition-colors cursor-pointer">
-                  <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground mb-2">
-                    Click to upload or drag and drop
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    PDF, JPG or PNG (max. 5MB)
-                  </p>
-                </div>
+                <Label>Upload ID Document *</Label>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".jpg,.jpeg,.png,.pdf"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                
+                {!uploadedFile && !uploadedFileUrl ? (
+                  <div 
+                    className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary transition-colors cursor-pointer"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground mb-2">
+                      Click to upload or drag and drop
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      PDF, JPG or PNG (max. 5MB)
+                    </p>
+                  </div>
+                ) : (
+                  <div className="border border-border rounded-lg p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        {uploadedFileUrl && uploadedFile?.type.startsWith('image/') ? (
+                          <img 
+                            src={uploadedFileUrl} 
+                            alt="Document preview" 
+                            className="h-16 w-16 object-cover rounded"
+                          />
+                        ) : (
+                          <div className="h-16 w-16 bg-muted rounded flex items-center justify-center">
+                            <FileImage className="h-8 w-8 text-muted-foreground" />
+                          </div>
+                        )}
+                        <div>
+                          <p className="font-medium text-sm">
+                            {uploadedFile?.name || "Document uploaded"}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {uploadedFile ? `${(uploadedFile.size / 1024).toFixed(1)} KB` : "Previously uploaded"}
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={removeFile}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="mt-3"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      Change Document
+                    </Button>
+                  </div>
+                )}
               </div>
 
               <Button
                 type="submit"
                 className="w-full bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary"
-                disabled={submitting}
+                disabled={submitting || uploading}
               >
-                {submitting ? "Submitting..." : kycData ? "Update & Resubmit" : "Submit for Verification"}
+                {submitting || uploading ? "Submitting..." : kycData ? "Update & Resubmit" : "Submit for Verification"}
               </Button>
             </form>
           </Card>

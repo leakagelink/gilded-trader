@@ -2,10 +2,9 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Check, X, RefreshCw, FileCheck, Eye } from "lucide-react";
+import { Check, X, RefreshCw, FileCheck, Eye, Download, FileImage, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -55,6 +54,8 @@ export const AdminKYCManagement = () => {
   const [viewOpen, setViewOpen] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
+  const [documentUrl, setDocumentUrl] = useState<string | null>(null);
+  const [loadingDocument, setLoadingDocument] = useState(false);
 
   useEffect(() => {
     fetchKYCSubmissions();
@@ -93,6 +94,34 @@ export const AdminKYCManagement = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadDocument = async (documentPath: string | null) => {
+    if (!documentPath) {
+      setDocumentUrl(null);
+      return;
+    }
+
+    try {
+      setLoadingDocument(true);
+      const { data, error } = await supabase.storage
+        .from('kyc-documents')
+        .createSignedUrl(documentPath, 3600); // 1 hour expiry
+
+      if (error) throw error;
+      setDocumentUrl(data.signedUrl);
+    } catch (error: any) {
+      console.error("Error loading document:", error);
+      setDocumentUrl(null);
+    } finally {
+      setLoadingDocument(false);
+    }
+  };
+
+  const handleViewKYC = async (kyc: KYCSubmission) => {
+    setSelectedKYC(kyc);
+    setViewOpen(true);
+    await loadDocument(kyc.document_url);
   };
 
   const handleApproveKYC = async (kycId: string) => {
@@ -167,6 +196,12 @@ export const AdminKYCManagement = () => {
     });
   };
 
+  const isImageFile = (url: string | null) => {
+    if (!url) return false;
+    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+    return imageExtensions.some(ext => url.toLowerCase().includes(ext));
+  };
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
@@ -192,7 +227,7 @@ export const AdminKYCManagement = () => {
                   <TableHead>User</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Country</TableHead>
-                  <TableHead>Document Type</TableHead>
+                  <TableHead>Document</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Submitted</TableHead>
                   <TableHead>Actions</TableHead>
@@ -209,7 +244,15 @@ export const AdminKYCManagement = () => {
                     </TableCell>
                     <TableCell>{kyc.first_name} {kyc.last_name}</TableCell>
                     <TableCell>{kyc.country}</TableCell>
-                    <TableCell className="capitalize">{kyc.id_document_type.replace("-", " ")}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <FileImage className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm capitalize">{kyc.id_document_type.replace("-", " ")}</span>
+                        {kyc.document_url && (
+                          <Badge variant="outline" className="text-xs">Uploaded</Badge>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell>{getStatusBadge(kyc.status)}</TableCell>
                     <TableCell>{formatDate(kyc.created_at)}</TableCell>
                     <TableCell>
@@ -217,10 +260,7 @@ export const AdminKYCManagement = () => {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => {
-                            setSelectedKYC(kyc);
-                            setViewOpen(true);
-                          }}
+                          onClick={() => handleViewKYC(kyc)}
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
@@ -258,15 +298,15 @@ export const AdminKYCManagement = () => {
 
       {/* View KYC Details Dialog */}
       <Dialog open={viewOpen} onOpenChange={setViewOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>KYC Details</DialogTitle>
             <DialogDescription>
-              Review the submitted KYC information
+              Review the submitted KYC information and documents
             </DialogDescription>
           </DialogHeader>
           {selectedKYC && (
-            <div className="space-y-4">
+            <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-muted-foreground">First Name</Label>
@@ -311,6 +351,61 @@ export const AdminKYCManagement = () => {
                   </div>
                 )}
               </div>
+
+              {/* Document Preview */}
+              <div className="border-t pt-4">
+                <Label className="text-muted-foreground mb-3 block">Uploaded Document</Label>
+                {loadingDocument ? (
+                  <div className="flex items-center justify-center py-8">
+                    <p className="text-muted-foreground">Loading document...</p>
+                  </div>
+                ) : documentUrl ? (
+                  <div className="space-y-3">
+                    {isImageFile(selectedKYC.document_url) ? (
+                      <div className="border rounded-lg overflow-hidden">
+                        <img 
+                          src={documentUrl} 
+                          alt="KYC Document" 
+                          className="max-w-full max-h-96 mx-auto"
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-3 p-4 bg-muted rounded-lg">
+                        <FileImage className="h-10 w-10 text-muted-foreground" />
+                        <div className="flex-1">
+                          <p className="font-medium">PDF Document</p>
+                          <p className="text-sm text-muted-foreground">Click to view the document</p>
+                        </div>
+                      </div>
+                    )}
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => window.open(documentUrl, '_blank')}
+                      >
+                        <ExternalLink className="h-4 w-4 mr-2" />
+                        Open in New Tab
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        asChild
+                      >
+                        <a href={documentUrl} download>
+                          <Download className="h-4 w-4 mr-2" />
+                          Download
+                        </a>
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center py-8 bg-muted rounded-lg">
+                    <p className="text-muted-foreground">No document uploaded</p>
+                  </div>
+                )}
+              </div>
+
               {selectedKYC.status === "pending" && (
                 <DialogFooter>
                   <Button

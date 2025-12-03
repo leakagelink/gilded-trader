@@ -117,11 +117,29 @@ const UserApprovals = () => {
 
   const handleApprove = async (userId: string) => {
     try {
+      // Find the user to get email info
+      const user = pendingUsers.find(u => u.id === userId);
+      
       const { error } = await supabase.rpc('approve_user', {
         target_user_id: userId
       });
 
       if (error) throw error;
+
+      // Send email notification
+      if (user?.email) {
+        try {
+          await supabase.functions.invoke("send-account-notification", {
+            body: {
+              email: user.email,
+              userName: user.full_name || "Trader",
+              status: "activated",
+            },
+          });
+        } catch (emailError) {
+          console.error("Failed to send account activation email:", emailError);
+        }
+      }
 
       toast.success("User approved successfully!");
       fetchPendingUsers();

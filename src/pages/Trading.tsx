@@ -489,7 +489,7 @@ const Trading = () => {
         reference_id: null
       });
 
-      toast.success(`${type.toUpperCase()} position opened: ${tradeAmount} ${symbol?.toUpperCase()} @ ${leverage}x leverage. $${margin.toFixed(2)} deducted from wallet.`);
+      toast.success(`${type.toUpperCase()} position opened: ${tradeAmount} ${symbol?.toUpperCase()}. $${margin.toFixed(2)} deducted from wallet.`);
       setTradeAmount("");
       setShowLongDialog(false);
       setShowShortDialog(false);
@@ -832,7 +832,7 @@ const Trading = () => {
               Open LONG Position
             </DialogTitle>
             <DialogDescription>
-              Buy {symbol?.toUpperCase()} with leverage
+              Buy {symbol?.toUpperCase()}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 mt-4">
@@ -846,25 +846,6 @@ const Trading = () => {
                 onChange={(e) => setTradeAmount(e.target.value)}
                 className="mt-2"
               />
-            </div>
-            <div>
-              <Label htmlFor="leverage">Leverage: {leverage}x</Label>
-              <div className="flex items-center gap-4 mt-2">
-                <Input
-                  id="leverage"
-                  type="range"
-                  min="1"
-                  max="100"
-                  value={leverage}
-                  onChange={(e) => setLeverage(parseInt(e.target.value))}
-                  className="flex-1"
-                />
-                <span className="font-bold text-lg w-12 text-right">{leverage}x</span>
-              </div>
-              <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                <span>1x</span>
-                <span>100x</span>
-              </div>
             </div>
             <div className="p-3 bg-muted rounded-lg space-y-2">
               <div className="flex justify-between text-sm">
@@ -905,7 +886,7 @@ const Trading = () => {
               Open SHORT Position
             </DialogTitle>
             <DialogDescription>
-              Sell {symbol?.toUpperCase()} with leverage
+              Sell {symbol?.toUpperCase()}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 mt-4">
@@ -919,25 +900,6 @@ const Trading = () => {
                 onChange={(e) => setTradeAmount(e.target.value)}
                 className="mt-2"
               />
-            </div>
-            <div>
-              <Label htmlFor="leverage-short">Leverage: {leverage}x</Label>
-              <div className="flex items-center gap-4 mt-2">
-                <Input
-                  id="leverage-short"
-                  type="range"
-                  min="1"
-                  max="100"
-                  value={leverage}
-                  onChange={(e) => setLeverage(parseInt(e.target.value))}
-                  className="flex-1"
-                />
-                <span className="font-bold text-lg w-12 text-right">{leverage}x</span>
-              </div>
-              <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                <span>1x</span>
-                <span>100x</span>
-              </div>
             </div>
             <div className="p-3 bg-muted rounded-lg space-y-2">
               <div className="flex justify-between text-sm">

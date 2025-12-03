@@ -96,11 +96,30 @@ const DepositRequests = () => {
 
   const handleApprove = async (depositId: string) => {
     try {
+      const deposit = requests.find(r => r.id === depositId);
+      
       const { error } = await supabase.rpc("approve_deposit", {
         deposit_id: depositId,
       });
 
       if (error) throw error;
+
+      // Send email notification
+      if (deposit?.profiles?.email) {
+        try {
+          await supabase.functions.invoke("send-deposit-notification", {
+            body: {
+              email: deposit.profiles.email,
+              userName: deposit.profiles.full_name || "Trader",
+              status: "approved",
+              amount: deposit.amount,
+              currency: deposit.currency,
+            },
+          });
+        } catch (emailError) {
+          console.error("Failed to send deposit notification email:", emailError);
+        }
+      }
 
       toast({
         title: "Success",
@@ -119,12 +138,33 @@ const DepositRequests = () => {
 
   const handleReject = async (depositId: string) => {
     try {
+      const deposit = requests.find(r => r.id === depositId);
+      const rejectionReason = "Rejected by admin";
+      
       const { error } = await supabase
         .from("deposit_requests")
-        .update({ status: "rejected", rejection_reason: "Rejected by admin" })
+        .update({ status: "rejected", rejection_reason: rejectionReason })
         .eq("id", depositId);
 
       if (error) throw error;
+
+      // Send email notification
+      if (deposit?.profiles?.email) {
+        try {
+          await supabase.functions.invoke("send-deposit-notification", {
+            body: {
+              email: deposit.profiles.email,
+              userName: deposit.profiles.full_name || "Trader",
+              status: "rejected",
+              amount: deposit.amount,
+              currency: deposit.currency,
+              rejectionReason: rejectionReason,
+            },
+          });
+        } catch (emailError) {
+          console.error("Failed to send deposit notification email:", emailError);
+        }
+      }
 
       toast({
         title: "Success",

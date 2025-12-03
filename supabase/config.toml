@@ -17,3 +17,9 @@ verify_jwt = true
 
 [functions.send-kyc-notification]
 verify_jwt = false
+
+[functions.send-deposit-notification]
+verify_jwt = false
+
+[functions.send-withdrawal-notification]
+verify_jwt = false

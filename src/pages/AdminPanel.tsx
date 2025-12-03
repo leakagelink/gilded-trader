@@ -41,6 +41,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { AdminTradeManagement } from "@/components/AdminTradeManagement";
 import { AdminAPIManagement } from "@/components/AdminAPIManagement";
+import { AdminKYCManagement } from "@/components/AdminKYCManagement";
 
 const AdminPanel = () => {
   const navigate = useNavigate();
@@ -568,6 +569,10 @@ const AdminPanel = () => {
               <ArrowUpRight className="h-4 w-4" />
               Withdrawals
             </TabsTrigger>
+            <TabsTrigger value="kyc" className="flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              KYC
+            </TabsTrigger>
             <TabsTrigger value="settings" className="flex items-center gap-2">
               <SettingsIcon className="h-4 w-4" />
               Payment Settings
@@ -1010,6 +1015,11 @@ const AdminPanel = () => {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* KYC Management Tab */}
+          <TabsContent value="kyc">
+            <AdminKYCManagement />
           </TabsContent>
 
           {/* Payment Settings Tab */}

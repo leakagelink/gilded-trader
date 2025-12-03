@@ -191,7 +191,7 @@ const Index = () => {
                 <TrendingUp className="h-5 w-5 sm:h-7 sm:w-7 text-primary-foreground" />
               </div>
               <span className="text-xl sm:text-3xl font-extrabold gradient-text">
-                TradePro
+                CoinGoldFX
               </span>
             </div>
             <div className="flex items-center gap-2 sm:gap-3">
@@ -630,7 +630,7 @@ const Index = () => {
         <div className="container mx-auto px-3 sm:px-4 relative z-10">
           <div className="text-center mb-8 sm:mb-16">
             <h2 className="text-2xl sm:text-4xl md:text-6xl font-black mb-3 sm:mb-6">
-              Why Choose <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">TradePro?</span>
+              Why Choose <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">CoinGoldFX?</span>
             </h2>
             <p className="text-sm sm:text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto px-2">
               Professional-grade tools trusted by thousands of successful traders worldwide
@@ -666,7 +666,7 @@ const Index = () => {
               What Our <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">Traders</span> Say
             </h2>
             <p className="text-sm sm:text-xl text-muted-foreground max-w-2xl mx-auto px-2">
-              Join thousands of satisfied traders who trust TradePro
+              Join thousands of satisfied traders who trust CoinGoldFX
             </p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-8 max-w-7xl mx-auto">
@@ -680,7 +680,7 @@ const Index = () => {
               {
                 name: "Sarah Williams",
                 role: "Crypto Investor",
-                content: "TradePro's security features give me peace of mind. The withdrawal process is smooth and customer support is excellent.",
+                content: "CoinGoldFX's security features give me peace of mind. The withdrawal process is smooth and customer support is excellent.",
                 rating: 5
               },
               {
@@ -761,7 +761,7 @@ const Index = () => {
               Ready to Start <span className="block">Trading?</span>
             </h2>
             <p className="text-sm sm:text-xl md:text-2xl mb-6 sm:mb-12 opacity-95 leading-relaxed max-w-2xl mx-auto px-2">
-              Join 50,000+ successful traders who trust TradePro. Start with a free account today.
+              Join 50,000+ successful traders who trust CoinGoldFX. Start with a free account today.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 px-4">
               <Button 
@@ -801,7 +801,7 @@ const Index = () => {
                 Frequently Asked <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">Questions</span>
               </h2>
               <p className="text-sm sm:text-xl text-muted-foreground px-2">
-                Everything you need to know about trading with TradePro
+                Everything you need to know about trading with CoinGoldFX
               </p>
             </div>
 
@@ -811,7 +811,7 @@ const Index = () => {
                 className="border-2 border-border/50 rounded-xl sm:rounded-2xl px-3 sm:px-6 bg-card/50 backdrop-blur-sm hover:border-primary/50 transition-all"
               >
                 <AccordionTrigger className="text-sm sm:text-lg font-bold hover:text-primary">
-                  How do I get started with TradePro?
+                  How do I get started with CoinGoldFX?
                 </AccordionTrigger>
                 <AccordionContent className="text-xs sm:text-base text-muted-foreground leading-relaxed">
                   Getting started is simple! Click "Get Started" to create your free account. Complete the KYC verification process, 
@@ -837,7 +837,7 @@ const Index = () => {
                 className="border-2 border-border/50 rounded-xl sm:rounded-2xl px-3 sm:px-6 bg-card/50 backdrop-blur-sm hover:border-primary/50 transition-all"
               >
                 <AccordionTrigger className="text-sm sm:text-lg font-bold hover:text-primary">
-                  Is my money safe on TradePro?
+                  Is my money safe on CoinGoldFX?
                 </AccordionTrigger>
                 <AccordionContent className="text-xs sm:text-base text-muted-foreground leading-relaxed">
                   Absolutely! We use bank-level SSL encryption, secure cold storage for crypto assets, and implement strict KYC/AML 
@@ -853,7 +853,7 @@ const Index = () => {
                   What is leverage trading and how does it work?
                 </AccordionTrigger>
                 <AccordionContent className="text-xs sm:text-base text-muted-foreground leading-relaxed">
-                  Leverage allows you to control larger positions with smaller capital. TradePro offers leverage up to 100x on 
+                  Leverage allows you to control larger positions with smaller capital. CoinGoldFX offers leverage up to 100x on 
                   select markets. For example, with 10x leverage and $100, you can open a $1,000 position. However, leverage 
                   amplifies both gains and losses, so trade responsibly.
                 </AccordionContent>
@@ -867,7 +867,7 @@ const Index = () => {
                   Are there any trading fees?
                 </AccordionTrigger>
                 <AccordionContent className="text-xs sm:text-base text-muted-foreground leading-relaxed">
-                  TradePro operates on a transparent fee structure. We charge competitive spreads on trades with no hidden fees. 
+                  CoinGoldFX operates on a transparent fee structure. We charge competitive spreads on trades with no hidden fees. 
                   There are no deposit fees, and withdrawal fees vary by payment method. Check our fee schedule in your account 
                   settings for detailed information.
                 </AccordionContent>
@@ -881,7 +881,7 @@ const Index = () => {
                   Can I trade on mobile?
                 </AccordionTrigger>
                 <AccordionContent className="text-xs sm:text-base text-muted-foreground leading-relaxed">
-                  Yes! TradePro is fully optimized for mobile devices. Access all trading features, manage positions, and monitor 
+                  Yes! CoinGoldFX is fully optimized for mobile devices. Access all trading features, manage positions, and monitor 
                   markets from anywhere using your mobile browser. Our responsive design ensures a seamless trading experience 
                   on any device.
                 </AccordionContent>
@@ -901,7 +901,7 @@ const Index = () => {
                   <TrendingUp className="h-4 w-4 sm:h-6 sm:w-6 text-primary-foreground" />
                 </div>
                 <span className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                  TradePro
+                  CoinGoldFX
                 </span>
               </div>
               <div className="flex items-center gap-4 sm:gap-8 text-xs sm:text-sm text-muted-foreground">
@@ -911,7 +911,7 @@ const Index = () => {
               </div>
             </div>
             <div className="mt-6 sm:mt-8 pt-6 sm:pt-8 border-t border-border/40 text-center text-xs sm:text-sm text-muted-foreground">
-              <p>© 2024 TradePro. All rights reserved. Trading involves risk.</p>
+              <p>© 2024 CoinGoldFX. All rights reserved. Trading involves risk.</p>
             </div>
           </div>
         </div>

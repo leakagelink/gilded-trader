@@ -118,6 +118,22 @@ export const AdminKYCManagement = () => {
     }
   };
 
+  const sendKYCNotification = async (email: string, userName: string, status: "approved" | "rejected", rejectionReason?: string) => {
+    try {
+      const { error } = await supabase.functions.invoke("send-kyc-notification", {
+        body: { email, userName, status, rejectionReason },
+      });
+
+      if (error) {
+        console.error("Failed to send KYC notification email:", error);
+      } else {
+        console.log(`KYC ${status} notification sent to ${email}`);
+      }
+    } catch (err) {
+      console.error("Error invoking send-kyc-notification:", err);
+    }
+  };
+
   const handleViewKYC = async (kyc: KYCSubmission) => {
     setSelectedKYC(kyc);
     setViewOpen(true);
@@ -126,15 +142,27 @@ export const AdminKYCManagement = () => {
 
   const handleApproveKYC = async (kycId: string) => {
     try {
+      // Find the KYC submission to get user details
+      const kyc = kycSubmissions.find(k => k.id === kycId);
+      
       const { error } = await supabase.rpc("approve_kyc", {
         kyc_id: kycId,
       });
 
       if (error) throw error;
 
+      // Send email notification
+      if (kyc?.profiles?.email) {
+        await sendKYCNotification(
+          kyc.profiles.email,
+          kyc.profiles.full_name || kyc.first_name,
+          "approved"
+        );
+      }
+
       toast({
         title: "Success",
-        description: "KYC approved successfully",
+        description: "KYC approved and notification sent",
       });
 
       fetchKYCSubmissions();
@@ -159,9 +187,19 @@ export const AdminKYCManagement = () => {
 
       if (error) throw error;
 
+      // Send email notification
+      if (selectedKYC.profiles?.email) {
+        await sendKYCNotification(
+          selectedKYC.profiles.email,
+          selectedKYC.profiles.full_name || selectedKYC.first_name,
+          "rejected",
+          rejectionReason || undefined
+        );
+      }
+
       toast({
         title: "Success",
-        description: "KYC rejected",
+        description: "KYC rejected and notification sent",
       });
 
       setRejectOpen(false);

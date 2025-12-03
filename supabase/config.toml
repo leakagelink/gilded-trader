@@ -12,6 +12,9 @@ verify_jwt = false
 [functions.fetch-forex-chart-data]
 verify_jwt = false
 
+[functions.fetch-commodities-data]
+verify_jwt = false
+
 [functions.delete-user]
 verify_jwt = true
 

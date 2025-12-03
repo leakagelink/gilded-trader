@@ -27,7 +27,14 @@ const Dashboard = () => {
     { name: "GBP/USD", symbol: "GBP", price: "1.2750", change: "-0.08%", isPositive: false, icon: "🇬🇧" },
     { name: "USD/JPY", symbol: "JPY", price: "148.50", change: "+0.22%", isPositive: true, icon: "🇯🇵" },
   ]);
+  const [commoditiesData, setCommoditiesData] = useState([
+    { name: "Gold", symbol: "XAU", price: "2050.00", change: "+1.2%", isPositive: true, icon: "🥇" },
+    { name: "Silver", symbol: "XAG", price: "24.50", change: "+0.8%", isPositive: true, icon: "🥈" },
+    { name: "Crude Oil", symbol: "WTI", price: "78.50", change: "-0.5%", isPositive: false, icon: "🛢️" },
+  ]);
   const [loading, setLoading] = useState(true);
+  const [forexLoading, setForexLoading] = useState(false);
+  const [commoditiesLoading, setCommoditiesLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
   const fetchCryptoData = async () => {
@@ -52,6 +59,7 @@ const Dashboard = () => {
 
   const fetchForexData = async () => {
     try {
+      setForexLoading(true);
       const { data, error } = await supabase.functions.invoke('fetch-forex-data');
       
       if (error) {
@@ -64,6 +72,28 @@ const Dashboard = () => {
       }
     } catch (error) {
       console.error('Error:', error);
+    } finally {
+      setForexLoading(false);
+    }
+  };
+
+  const fetchCommoditiesData = async () => {
+    try {
+      setCommoditiesLoading(true);
+      const { data, error } = await supabase.functions.invoke('fetch-commodities-data');
+      
+      if (error) {
+        console.error('Error fetching commodities data:', error);
+        return;
+      }
+      
+      if (data?.commoditiesData) {
+        setCommoditiesData(data.commoditiesData);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+    } finally {
+      setCommoditiesLoading(false);
     }
   };
 
@@ -96,12 +126,14 @@ const Dashboard = () => {
       // User is approved, continue with normal dashboard flow
       fetchCryptoData();
       fetchForexData();
+      fetchCommoditiesData();
       checkAdminStatus();
       
       // Auto-refresh every 10 seconds for real-time data
       const refreshInterval = setInterval(() => {
         fetchCryptoData();
         fetchForexData();
+        fetchCommoditiesData();
       }, 10000);
 
       return () => clearInterval(refreshInterval);
@@ -125,14 +157,6 @@ const Dashboard = () => {
     }
   };
 
-
-  const commoditiesData = [
-    { name: "Gold", symbol: "XAU", price: "$2,050.00", change: "+1.2%", isPositive: true, icon: Gem },
-    { name: "Silver", symbol: "XAG", price: "$24.50", change: "+0.8%", isPositive: true, icon: Gem },
-    { name: "Crude Oil", symbol: "WTI", price: "$78.50", change: "-0.5%", isPositive: false, icon: Droplet },
-    { name: "Natural Gas", symbol: "NG", price: "$2.85", change: "+2.1%", isPositive: true, icon: Flame },
-    { name: "Copper", symbol: "HG", price: "$3.85", change: "+1.5%", isPositive: true, icon: Coins },
-  ];
 
   const filterData = <T extends { name: string; symbol: string }>(data: T[]) => {
     if (!searchQuery.trim()) return data;
@@ -282,12 +306,17 @@ const Dashboard = () => {
               </TabsContent>
 
               <TabsContent value="forex">
-                <h2 className="text-lg sm:text-xl md:text-2xl font-semibold mb-3 sm:mb-4 md:mb-6 flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-                  <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                    Forex Markets
-                  </span>
-                </h2>
+                <div className="flex items-center justify-between mb-3 sm:mb-4 md:mb-6">
+                  <h2 className="text-lg sm:text-xl md:text-2xl font-semibold flex items-center gap-2 mb-0">
+                    <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+                    <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                      Forex Markets
+                    </span>
+                  </h2>
+                  <Button variant="ghost" size="icon" onClick={fetchForexData} aria-label="Refresh forex" title="Refresh forex">
+                    <RotateCcw className={`h-4 w-4 ${forexLoading ? "animate-spin" : ""}`} />
+                  </Button>
+                </div>
                 {filteredForexData.length > 0 ? (
                   <TradingList data={filteredForexData} />
                 ) : (
@@ -298,12 +327,17 @@ const Dashboard = () => {
               </TabsContent>
 
               <TabsContent value="commodities">
-                <h2 className="text-lg sm:text-xl md:text-2xl font-semibold mb-3 sm:mb-4 md:mb-6 flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-                  <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                    Commodities Markets
-                  </span>
-                </h2>
+                <div className="flex items-center justify-between mb-3 sm:mb-4 md:mb-6">
+                  <h2 className="text-lg sm:text-xl md:text-2xl font-semibold flex items-center gap-2 mb-0">
+                    <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+                    <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                      Commodities Markets
+                    </span>
+                  </h2>
+                  <Button variant="ghost" size="icon" onClick={fetchCommoditiesData} aria-label="Refresh commodities" title="Refresh commodities">
+                    <RotateCcw className={`h-4 w-4 ${commoditiesLoading ? "animate-spin" : ""}`} />
+                  </Button>
+                </div>
                 {filteredCommoditiesData.length > 0 ? (
                   <TradingList data={filteredCommoditiesData} />
                 ) : (

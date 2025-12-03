@@ -3,12 +3,13 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { User, Mail, TrendingUp } from "lucide-react";
+import { User, Mail, TrendingUp, FileCheck, CheckCircle, Clock, XCircle, ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import BottomNav from "@/components/BottomNav";
+import { Badge } from "@/components/ui/badge";
 
 interface Profile {
   id: string;
@@ -17,10 +18,15 @@ interface Profile {
   created_at: string;
 }
 
+interface KYCStatus {
+  status: 'pending' | 'approved' | 'rejected';
+}
+
 const Profile = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [kycStatus, setKycStatus] = useState<KYCStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [fullName, setFullName] = useState("");
@@ -49,6 +55,17 @@ const Profile = () => {
 
       setProfile(data);
       setFullName(data.full_name || "");
+
+      // Fetch KYC status
+      const { data: kycData } = await supabase
+        .from("kyc_submissions")
+        .select("status")
+        .eq("user_id", user?.id)
+        .maybeSingle();
+      
+      if (kycData) {
+        setKycStatus(kycData as KYCStatus);
+      }
     } catch (error: any) {
       console.error("Error fetching profile:", error);
       toast.error("Failed to load profile");
@@ -173,6 +190,57 @@ const Profile = () => {
               {saving ? "Saving..." : "Save Changes"}
             </Button>
           </form>
+        </Card>
+
+        {/* KYC Verification Card */}
+        <Card 
+          className="p-6 mb-6 cursor-pointer hover:bg-muted/50 transition-colors"
+          onClick={() => navigate("/kyc")}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className={`h-12 w-12 rounded-full flex items-center justify-center ${
+                kycStatus?.status === "approved" ? "bg-green-500/20" :
+                kycStatus?.status === "rejected" ? "bg-destructive/20" :
+                kycStatus?.status === "pending" ? "bg-yellow-500/20" :
+                "bg-muted"
+              }`}>
+                {kycStatus?.status === "approved" ? (
+                  <CheckCircle className="h-6 w-6 text-green-500" />
+                ) : kycStatus?.status === "rejected" ? (
+                  <XCircle className="h-6 w-6 text-destructive" />
+                ) : kycStatus?.status === "pending" ? (
+                  <Clock className="h-6 w-6 text-yellow-500" />
+                ) : (
+                  <FileCheck className="h-6 w-6 text-muted-foreground" />
+                )}
+              </div>
+              <div>
+                <h3 className="font-semibold flex items-center gap-2">
+                  KYC Verification
+                  {kycStatus && (
+                    <Badge className={
+                      kycStatus.status === "approved" ? "bg-green-500" :
+                      kycStatus.status === "rejected" ? "bg-destructive" :
+                      "bg-yellow-500"
+                    }>
+                      {kycStatus.status.charAt(0).toUpperCase() + kycStatus.status.slice(1)}
+                    </Badge>
+                  )}
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  {kycStatus?.status === "approved" 
+                    ? "Your identity is verified" 
+                    : kycStatus?.status === "pending"
+                    ? "Verification in progress"
+                    : kycStatus?.status === "rejected"
+                    ? "Please resubmit your documents"
+                    : "Complete your identity verification"}
+                </p>
+              </div>
+            </div>
+            <ChevronRight className="h-5 w-5 text-muted-foreground" />
+          </div>
         </Card>
 
         <Card className="p-6">

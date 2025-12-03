@@ -110,6 +110,74 @@ export type Database = {
           },
         ]
       }
+      kyc_submissions: {
+        Row: {
+          address: string
+          city: string
+          country: string
+          created_at: string
+          date_of_birth: string
+          document_url: string | null
+          first_name: string
+          id: string
+          id_document_type: string
+          last_name: string
+          postal_code: string
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: Database["public"]["Enums"]["kyc_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          address: string
+          city: string
+          country: string
+          created_at?: string
+          date_of_birth: string
+          document_url?: string | null
+          first_name: string
+          id?: string
+          id_document_type: string
+          last_name: string
+          postal_code: string
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["kyc_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          address?: string
+          city?: string
+          country?: string
+          created_at?: string
+          date_of_birth?: string
+          document_url?: string | null
+          first_name?: string
+          id?: string
+          id_document_type?: string
+          last_name?: string
+          postal_code?: string
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["kyc_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kyc_submissions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "admin_users_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_settings: {
         Row: {
           id: string
@@ -442,6 +510,7 @@ export type Database = {
     }
     Functions: {
       approve_deposit: { Args: { deposit_id: string }; Returns: undefined }
+      approve_kyc: { Args: { kyc_id: string }; Returns: undefined }
       approve_user: { Args: { target_user_id: string }; Returns: undefined }
       approve_withdrawal: {
         Args: { transaction_ref?: string; withdrawal_id: string }
@@ -455,6 +524,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      reject_kyc: {
+        Args: { kyc_id: string; reason?: string }
+        Returns: undefined
+      }
       reject_withdrawal: {
         Args: { reason?: string; withdrawal_id: string }
         Returns: undefined
@@ -463,6 +536,7 @@ export type Database = {
     Enums: {
       app_role: "admin" | "moderator" | "user"
       deposit_status: "pending" | "approved" | "rejected"
+      kyc_status: "pending" | "approved" | "rejected"
       payment_method: "upi" | "netbanking"
       position_status: "open" | "closed"
       position_type: "long" | "short"
@@ -597,6 +671,7 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "moderator", "user"],
       deposit_status: ["pending", "approved", "rejected"],
+      kyc_status: ["pending", "approved", "rejected"],
       payment_method: ["upi", "netbanking"],
       position_status: ["open", "closed"],
       position_type: ["long", "short"],

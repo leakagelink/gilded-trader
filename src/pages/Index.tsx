@@ -183,14 +183,14 @@ const Index = () => {
       )}
 
       {/* Navigation */}
-      <nav className="border-b border-border/40 backdrop-blur-xl bg-background/80 sticky top-0 z-50 shadow-sm">
+      <nav className="border-b border-border/40 backdrop-blur-xl bg-background/80 sticky top-0 z-50 shadow-sm noise">
         <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 sm:gap-3 group cursor-pointer">
-              <div className="h-9 w-9 sm:h-12 sm:w-12 rounded-xl bg-gradient-to-br from-primary via-primary to-accent flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-105">
-                <TrendingUp className="h-5 w-5 sm:h-7 sm:w-7 text-primary-foreground animate-pulse" />
+              <div className="h-9 w-9 sm:h-12 sm:w-12 rounded-xl bg-gradient-to-br from-primary via-primary to-accent flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-105 animate-glow">
+                <TrendingUp className="h-5 w-5 sm:h-7 sm:w-7 text-primary-foreground" />
               </div>
-              <span className="text-xl sm:text-3xl font-extrabold bg-gradient-to-r from-primary via-primary to-accent bg-clip-text text-transparent">
+              <span className="text-xl sm:text-3xl font-extrabold gradient-text">
                 TradePro
               </span>
             </div>
@@ -198,10 +198,13 @@ const Index = () => {
               <Button variant="ghost" onClick={() => navigate("/auth")} className="hover:bg-primary/10 transition-all hidden sm:flex">
                 Sign In
               </Button>
-              <Button size="sm" className="bg-gradient-to-r from-primary via-primary/95 to-accent hover:shadow-lg hover:scale-105 transition-all duration-300 text-xs sm:text-sm px-3 sm:px-4" onClick={() => navigate("/auth")}>
-                <span className="hidden sm:inline">Get Started</span>
-                <span className="sm:hidden">Start</span>
-                <ArrowRight className="ml-1 sm:ml-2 h-3 w-3 sm:h-4 sm:w-4" />
+              <Button size="sm" className="bg-gradient-to-r from-primary via-primary/95 to-accent hover:shadow-lg hover:scale-105 transition-all duration-300 text-xs sm:text-sm px-3 sm:px-4 relative overflow-hidden group" onClick={() => navigate("/auth")}>
+                <span className="relative z-10 flex items-center">
+                  <span className="hidden sm:inline">Get Started</span>
+                  <span className="sm:hidden">Start</span>
+                  <ArrowRight className="ml-1 sm:ml-2 h-3 w-3 sm:h-4 sm:w-4" />
+                </span>
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
               </Button>
             </div>
           </div>
@@ -209,8 +212,9 @@ const Index = () => {
       </nav>
 
       {/* Crypto Ticker */}
-      <div className="bg-gradient-to-r from-primary/10 via-accent/10 to-primary/10 border-b border-border/40 py-2 sm:py-4 overflow-hidden">
-        <div className="container mx-auto px-2 sm:px-4">
+      <div className="bg-gradient-to-r from-primary/5 via-accent/5 to-primary/5 border-b border-border/40 py-2 sm:py-4 overflow-hidden relative">
+        <div className="absolute inset-0 shimmer opacity-50" />
+        <div className="container mx-auto px-2 sm:px-4 relative">
           <div className="flex items-center justify-center gap-2 sm:gap-8 md:gap-16 overflow-x-auto scrollbar-hide">
             {Object.entries(cryptoPrices).map(([symbol, data]) => {
               const displayName = symbol.replace('USDT', '');
@@ -226,19 +230,19 @@ const Index = () => {
               return (
                 <div
                   key={symbol}
-                  className={`flex items-center gap-1.5 sm:gap-3 p-1.5 sm:p-3 rounded-lg sm:rounded-xl transition-all duration-500 flex-shrink-0 ${
-                    isUp ? 'animate-pulse bg-green-500/10' : isDown ? 'animate-pulse bg-red-500/10' : 'bg-muted/20'
+                  className={`flex items-center gap-1.5 sm:gap-3 p-1.5 sm:p-3 rounded-lg sm:rounded-xl transition-all duration-500 flex-shrink-0 glass hover:scale-105 cursor-pointer ${
+                    isUp ? 'glow-primary' : isDown ? 'border-red-500/30' : ''
                   }`}
                 >
                   <div className="flex items-center gap-1.5 sm:gap-2">
-                    <div className="h-7 w-7 sm:h-10 sm:w-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center font-bold text-white shadow-lg text-sm sm:text-xl">
+                    <div className={`h-7 w-7 sm:h-10 sm:w-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center font-bold text-white shadow-lg text-sm sm:text-xl ${isUp || isDown ? 'animate-scale-pulse' : ''}`}>
                       {coinIcons[displayName] || displayName.substring(0, 2)}
                     </div>
                     <div>
                       <p className="font-bold text-xs sm:text-sm">{displayName}</p>
                       <div className="flex items-center gap-0.5 sm:gap-1">
                         <p className={`font-black text-xs sm:text-lg transition-all duration-300 ${
-                          isUp ? 'text-green-600 scale-110' : isDown ? 'text-red-600 scale-110' : ''
+                          isUp ? 'text-green-600' : isDown ? 'text-red-600' : ''
                         }`}>
                           ${data.price > 0 ? data.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
                         </p>
@@ -256,65 +260,103 @@ const Index = () => {
 
       {/* Hero Section */}
       <section className="relative overflow-hidden py-12 sm:py-24 md:py-40">
-        {/* Animated Background */}
+        {/* Animated Background with Floating Orbs */}
         <div className="absolute inset-0">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-background to-accent/20" />
-          <div className="absolute top-20 left-10 w-32 sm:w-72 h-32 sm:h-72 bg-primary/30 rounded-full blur-3xl animate-pulse" />
-          <div className="absolute bottom-20 right-10 w-40 sm:w-96 h-40 sm:h-96 bg-accent/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[200px] sm:w-[500px] h-[200px] sm:h-[500px] bg-primary/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
+          
+          {/* Animated Orbs */}
+          <div className="absolute top-20 left-10 w-32 sm:w-72 h-32 sm:h-72 bg-primary/30 rounded-full blur-3xl animate-blob" />
+          <div className="absolute bottom-20 right-10 w-40 sm:w-96 h-40 sm:h-96 bg-accent/20 rounded-full blur-3xl animate-blob" style={{ animationDelay: '2s' }} />
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[200px] sm:w-[500px] h-[200px] sm:h-[500px] bg-primary/10 rounded-full blur-3xl animate-blob" style={{ animationDelay: '4s' }} />
+          
+          {/* Floating Particles */}
+          <div className="particles">
+            {[...Array(20)].map((_, i) => (
+              <div
+                key={i}
+                className="particle bg-primary/20"
+                style={{
+                  width: `${Math.random() * 10 + 5}px`,
+                  height: `${Math.random() * 10 + 5}px`,
+                  left: `${Math.random() * 100}%`,
+                  top: `${Math.random() * 100}%`,
+                  animationDelay: `${Math.random() * 5}s`,
+                  animationDuration: `${Math.random() * 10 + 5}s`,
+                }}
+              />
+            ))}
+          </div>
+          
+          {/* Grid overlay */}
+          <div className="absolute inset-0 bg-grid-pattern opacity-5" />
         </div>
 
         <div className="container mx-auto px-4 relative z-10">
           <div className="max-w-5xl mx-auto text-center">
-            <div className="inline-flex items-center gap-1.5 sm:gap-2 bg-gradient-to-r from-primary/10 to-accent/10 border border-primary/20 rounded-full px-3 sm:px-5 py-1.5 sm:py-2.5 mb-4 sm:mb-8 backdrop-blur-sm shadow-lg animate-fade-in">
-              <Award className="h-4 w-4 sm:h-5 sm:w-5 text-primary animate-pulse" />
-              <span className="text-xs sm:text-sm font-semibold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+            {/* Floating Badge */}
+            <div className="inline-flex items-center gap-1.5 sm:gap-2 glass rounded-full px-3 sm:px-6 py-1.5 sm:py-3 mb-4 sm:mb-8 shadow-lg animate-float">
+              <div className="relative">
+                <Award className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                <div className="absolute inset-0 animate-ping">
+                  <Award className="h-4 w-4 sm:h-5 sm:w-5 text-primary/50" />
+                </div>
+              </div>
+              <span className="text-xs sm:text-sm font-bold gradient-text">
                 #1 Professional Trading Platform
               </span>
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
             </div>
             
             <h1 className="text-3xl sm:text-6xl md:text-8xl font-black mb-4 sm:mb-8 leading-tight animate-fade-in" style={{ animationDelay: '0.1s' }}>
               Trade With
-              <span className="block bg-gradient-to-r from-primary via-primary to-accent bg-clip-text text-transparent animate-pulse">
-                Confidence
+              <span className="block relative">
+                <span className="gradient-text">
+                  Confidence
+                </span>
+                {/* Underline glow */}
+                <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-3/4 h-1 bg-gradient-to-r from-transparent via-primary to-transparent rounded-full animate-pulse" />
               </span>
             </h1>
             
             <p className="text-sm sm:text-xl md:text-2xl text-muted-foreground mb-6 sm:mb-10 max-w-3xl mx-auto leading-relaxed animate-fade-in px-2" style={{ animationDelay: '0.2s' }}>
-              Experience professional trading with advanced tools, lightning-fast execution, and institutional-grade security. Join 50,000+ successful traders.
+              Experience professional trading with advanced tools, lightning-fast execution, and institutional-grade security. Join <span className="font-bold text-primary">50,000+</span> successful traders.
             </p>
             
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 animate-fade-in px-4" style={{ animationDelay: '0.3s' }}>
               <Button 
                 size="lg" 
-                className="w-full sm:w-auto bg-gradient-to-r from-primary via-primary to-accent hover:shadow-2xl hover:scale-105 transition-all duration-300 text-sm sm:text-lg px-6 sm:px-10 py-4 sm:py-6 rounded-xl font-bold group"
+                className="w-full sm:w-auto bg-gradient-to-r from-primary via-primary to-accent hover:shadow-2xl hover:scale-105 transition-all duration-300 text-sm sm:text-lg px-6 sm:px-10 py-4 sm:py-6 rounded-xl font-bold group relative overflow-hidden"
                 onClick={() => navigate("/auth")}
               >
-                Start Trading Now 
-                <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5 group-hover:translate-x-1 transition-transform" />
+                <span className="relative z-10 flex items-center">
+                  Start Trading Now 
+                  <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5 group-hover:translate-x-1 transition-transform" />
+                </span>
+                {/* Shimmer effect */}
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
               </Button>
               <Button 
                 size="lg" 
                 variant="outline" 
-                className="w-full sm:w-auto text-sm sm:text-lg px-6 sm:px-10 py-4 sm:py-6 rounded-xl border-2 border-primary/20 hover:bg-primary/5 hover:border-primary/40 hover:scale-105 transition-all duration-300 backdrop-blur-sm"
+                className="w-full sm:w-auto text-sm sm:text-lg px-6 sm:px-10 py-4 sm:py-6 rounded-xl border-2 border-primary/20 hover:bg-primary/5 hover:border-primary/40 hover:scale-105 transition-all duration-300 backdrop-blur-sm group"
               >
-                <TrendingUp className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
+                <TrendingUp className="mr-2 h-4 w-4 sm:h-5 sm:w-5 group-hover:animate-bounce" />
                 View Live Markets
               </Button>
             </div>
 
-            {/* Stats Pills */}
+            {/* Stats Pills with Animation */}
             <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-6 mt-8 sm:mt-16 animate-fade-in px-2" style={{ animationDelay: '0.4s' }}>
-              <div className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-6 py-2 sm:py-3 rounded-full bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 backdrop-blur-sm">
-                <CheckCircle className="h-3.5 w-3.5 sm:h-5 sm:w-5 text-primary" />
+              <div className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-6 py-2 sm:py-3 rounded-full glass hover:scale-105 transition-all cursor-pointer group">
+                <CheckCircle className="h-3.5 w-3.5 sm:h-5 sm:w-5 text-green-500 group-hover:animate-bounce" />
                 <span className="font-semibold text-xs sm:text-base">SSL Secured</span>
               </div>
-              <div className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-6 py-2 sm:py-3 rounded-full bg-gradient-to-r from-accent/10 to-accent/5 border border-accent/20 backdrop-blur-sm">
-                <Award className="h-3.5 w-3.5 sm:h-5 sm:w-5 text-accent" />
+              <div className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-6 py-2 sm:py-3 rounded-full glass hover:scale-105 transition-all cursor-pointer group">
+                <Award className="h-3.5 w-3.5 sm:h-5 sm:w-5 text-accent group-hover:animate-bounce" />
                 <span className="font-semibold text-xs sm:text-base">ISO Certified</span>
               </div>
-              <div className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-6 py-2 sm:py-3 rounded-full bg-gradient-to-r from-primary/10 to-accent/10 border border-primary/20 backdrop-blur-sm">
-                <Users className="h-3.5 w-3.5 sm:h-5 sm:w-5 text-primary" />
+              <div className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-6 py-2 sm:py-3 rounded-full glass hover:scale-105 transition-all cursor-pointer group">
+                <Users className="h-3.5 w-3.5 sm:h-5 sm:w-5 text-primary group-hover:animate-bounce" />
                 <span className="font-semibold text-xs sm:text-base">50K+ Users</span>
               </div>
             </div>
@@ -323,18 +365,19 @@ const Index = () => {
       </section>
 
       {/* Live Crypto Markets */}
-      <section className="py-10 sm:py-20 bg-gradient-to-br from-primary/5 via-background to-accent/5 relative overflow-hidden">
+      <section className="py-10 sm:py-20 bg-gradient-to-br from-primary/5 via-background to-accent/5 relative overflow-hidden noise">
         <div className="absolute inset-0 bg-grid-pattern opacity-5" />
-        <div className="absolute top-20 right-20 w-32 sm:w-64 h-32 sm:h-64 bg-primary/20 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-20 left-20 w-40 sm:w-80 h-40 sm:h-80 bg-accent/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1.5s' }} />
+        <div className="absolute top-20 right-20 w-32 sm:w-64 h-32 sm:h-64 bg-primary/20 rounded-full blur-3xl animate-blob" />
+        <div className="absolute bottom-20 left-20 w-40 sm:w-80 h-40 sm:h-80 bg-accent/20 rounded-full blur-3xl animate-blob" style={{ animationDelay: '2s' }} />
         
         <div className="container mx-auto px-3 sm:px-4 relative z-10">
           <div className="text-center mb-8 sm:mb-16">
-            <Badge className="mb-4 sm:mb-6 bg-gradient-to-r from-primary/10 to-accent/10 text-primary border-primary/20 px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold animate-bounce-in">
-              <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 sm:mr-2 animate-pulse" /> Live Markets
+            <Badge className="mb-4 sm:mb-6 glass text-primary border-primary/20 px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold animate-bounce-in">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse mr-2" />
+              <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" /> Live Markets
             </Badge>
             <h2 className="text-2xl sm:text-4xl md:text-6xl font-black mb-3 sm:mb-6 animate-fade-in">
-              Real-Time Crypto <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">Markets</span>
+              Real-Time Crypto <span className="gradient-text">Markets</span>
             </h2>
             <p className="text-sm sm:text-xl text-muted-foreground max-w-2xl mx-auto animate-fade-in px-4" style={{ animationDelay: '0.1s' }}>
               Track live prices with instant updates every second
@@ -356,7 +399,7 @@ const Index = () => {
               return (
                 <Card
                   key={symbol}
-                  className={`group p-4 sm:p-8 border-2 hover:shadow-2xl transition-all duration-500 rounded-xl sm:rounded-2xl backdrop-blur-sm hover:scale-105 animate-fade-in ${
+                  className={`group p-4 sm:p-8 border-2 hover:shadow-2xl transition-all duration-500 rounded-xl sm:rounded-2xl backdrop-blur-sm card-hover animate-fade-in relative overflow-hidden ${
                     isUp 
                       ? 'bg-gradient-to-br from-green-500/10 to-green-500/5 border-green-500/30 hover:border-green-500/50' 
                       : isDown 
@@ -365,47 +408,57 @@ const Index = () => {
                   }`}
                   style={{ animationDelay: `${index * 0.15}s` }}
                 >
-                  <div className="flex items-center justify-between mb-3 sm:mb-6">
-                    <div className="flex items-center gap-2 sm:gap-3">
-                      <div className="h-10 w-10 sm:h-16 sm:w-16 rounded-xl sm:rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center font-black text-xl sm:text-3xl text-white shadow-xl group-hover:scale-110 transition-transform">
-                        {coinIcons[displayName] || displayName.substring(0, 2)}
-                      </div>
-                      <div>
-                        <p className="text-lg sm:text-2xl font-black">{displayName}</p>
-                        <p className="text-xs sm:text-sm text-muted-foreground">USDT</p>
-                      </div>
-                    </div>
-                    <div className={`p-2 sm:p-3 rounded-lg sm:rounded-xl transition-all ${
-                      isUp ? 'bg-green-500/20 animate-pulse' : isDown ? 'bg-red-500/20 animate-pulse' : 'bg-muted/20'
-                    }`}>
-                      {isUp && <ArrowUp className="h-5 w-5 sm:h-8 sm:w-8 text-green-600 animate-bounce" />}
-                      {isDown && <ArrowDown className="h-5 w-5 sm:h-8 sm:w-8 text-red-600 animate-bounce" />}
-                      {!isUp && !isDown && <TrendingUp className="h-5 w-5 sm:h-8 sm:w-8 text-muted-foreground" />}
-                    </div>
-                  </div>
+                  {/* Glow effect on hover */}
+                  <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 ${
+                    isUp ? 'bg-green-500/5' : isDown ? 'bg-red-500/5' : 'bg-primary/5'
+                  }`} />
                   
-                  <div className="space-y-1 sm:space-y-2">
-                    <p className={`text-2xl sm:text-4xl font-black transition-all duration-300 ${
-                      isUp ? 'text-green-600 scale-110' : isDown ? 'text-red-600 scale-110' : 'text-foreground'
-                    }`}>
-                      ${data.price > 0 ? data.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
-                    </p>
-                    <p className={`text-xs sm:text-sm font-semibold flex items-center gap-1 ${
-                      isUp ? 'text-green-600' : isDown ? 'text-red-600' : 'text-muted-foreground'
-                    }`}>
-                      {isUp && '+'}{data.change.toFixed(2)} USD
-                      {isUp && ' 📈'}
-                      {isDown && ' 📉'}
-                    </p>
-                  </div>
+                  <div className="relative z-10">
+                    <div className="flex items-center justify-between mb-3 sm:mb-6">
+                      <div className="flex items-center gap-2 sm:gap-3">
+                        <div className={`h-10 w-10 sm:h-16 sm:w-16 rounded-xl sm:rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center font-black text-xl sm:text-3xl text-white shadow-xl group-hover:scale-110 transition-transform ${isUp || isDown ? 'animate-scale-pulse' : ''}`}>
+                          {coinIcons[displayName] || displayName.substring(0, 2)}
+                        </div>
+                        <div>
+                          <p className="text-lg sm:text-2xl font-black">{displayName}</p>
+                          <p className="text-xs sm:text-sm text-muted-foreground">USDT</p>
+                        </div>
+                      </div>
+                      <div className={`p-2 sm:p-3 rounded-lg sm:rounded-xl transition-all ${
+                        isUp ? 'bg-green-500/20' : isDown ? 'bg-red-500/20' : 'bg-muted/20'
+                      }`}>
+                        {isUp && <ArrowUp className="h-5 w-5 sm:h-8 sm:w-8 text-green-600 animate-bounce" />}
+                        {isDown && <ArrowDown className="h-5 w-5 sm:h-8 sm:w-8 text-red-600 animate-bounce" />}
+                        {!isUp && !isDown && <TrendingUp className="h-5 w-5 sm:h-8 sm:w-8 text-muted-foreground" />}
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-1 sm:space-y-2">
+                      <p className={`text-2xl sm:text-4xl font-black transition-all duration-300 ${
+                        isUp ? 'text-green-600' : isDown ? 'text-red-600' : 'text-foreground'
+                      }`}>
+                        ${data.price > 0 ? data.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
+                      </p>
+                      <p className={`text-xs sm:text-sm font-semibold flex items-center gap-1 ${
+                        isUp ? 'text-green-600' : isDown ? 'text-red-600' : 'text-muted-foreground'
+                      }`}>
+                        {isUp && '+'}{data.change.toFixed(2)} USD
+                        {isUp && ' 📈'}
+                        {isDown && ' 📉'}
+                      </p>
+                    </div>
 
-                  <Button 
-                    size="sm"
-                    className="w-full mt-4 sm:mt-6 bg-gradient-to-r from-primary to-accent hover:shadow-lg transition-all group-hover:scale-105 text-xs sm:text-sm"
-                    onClick={() => navigate("/auth")}
-                  >
-                    Trade Now <ArrowRight className="ml-2 h-3 w-3 sm:h-4 sm:w-4" />
-                  </Button>
+                    <Button 
+                      size="sm"
+                      className="w-full mt-4 sm:mt-6 bg-gradient-to-r from-primary to-accent hover:shadow-lg transition-all group-hover:scale-105 text-xs sm:text-sm relative overflow-hidden"
+                      onClick={() => navigate("/auth")}
+                    >
+                      <span className="relative z-10 flex items-center justify-center">
+                        Trade Now <ArrowRight className="ml-2 h-3 w-3 sm:h-4 sm:w-4" />
+                      </span>
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+                    </Button>
+                  </div>
                 </Card>
               );
             })}

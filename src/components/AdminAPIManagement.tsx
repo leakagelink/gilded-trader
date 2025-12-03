@@ -8,7 +8,9 @@ import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
-import { Trash2, Save } from "lucide-react";
+import { Trash2, Save, Lock, Eye, EyeOff } from "lucide-react";
+
+const API_PASSWORD = "Kingbond@123";
 
 interface APIKey {
   id: string;
@@ -31,10 +33,15 @@ export const AdminAPIManagement = () => {
   const [apiKeys, setApiKeys] = useState<APIKey[]>([]);
   const [activeService, setActiveService] = useState<keyof typeof SERVICE_NAMES>("coinmarketcap");
   const [newKeys, setNewKeys] = useState<string[]>(Array(10).fill(""));
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
-    fetchAPIKeys();
-  }, []);
+    if (isUnlocked) {
+      fetchAPIKeys();
+    }
+  }, [isUnlocked]);
 
   const fetchAPIKeys = async () => {
     const { data, error } = await supabase
@@ -49,6 +56,16 @@ export const AdminAPIManagement = () => {
     }
     
     setApiKeys(data || []);
+  };
+
+  const handleUnlock = () => {
+    if (password === API_PASSWORD) {
+      setIsUnlocked(true);
+      setPassword("");
+      toast.success("API Management unlocked");
+    } else {
+      toast.error("Incorrect password");
+    }
   };
 
   const getServiceKeys = (service: string) => {
@@ -218,21 +235,62 @@ export const AdminAPIManagement = () => {
         </p>
       </div>
 
-      <Tabs value={activeService} onValueChange={(v) => setActiveService(v as keyof typeof SERVICE_NAMES)}>
-        <TabsList className="grid grid-cols-4 w-full">
-          {Object.entries(SERVICE_NAMES).map(([key, name]) => (
-            <TabsTrigger key={key} value={key}>
-              {name}
-            </TabsTrigger>
+      {!isUnlocked ? (
+        <Card className="p-8 max-w-md mx-auto">
+          <div className="text-center mb-6">
+            <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+              <Lock className="h-8 w-8 text-primary" />
+            </div>
+            <h3 className="text-xl font-semibold mb-2">Password Protected</h3>
+            <p className="text-muted-foreground text-sm">
+              Enter the password to access API management
+            </p>
+          </div>
+          <div className="space-y-4">
+            <div className="relative">
+              <Label htmlFor="api-password">Password</Label>
+              <div className="relative mt-2">
+                <Input
+                  id="api-password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleUnlock()}
+                  placeholder="Enter password"
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+            <Button onClick={handleUnlock} className="w-full">
+              <Lock className="h-4 w-4 mr-2" />
+              Unlock
+            </Button>
+          </div>
+        </Card>
+      ) : (
+        <Tabs value={activeService} onValueChange={(v) => setActiveService(v as keyof typeof SERVICE_NAMES)}>
+          <TabsList className="grid grid-cols-4 w-full">
+            {Object.entries(SERVICE_NAMES).map(([key, name]) => (
+              <TabsTrigger key={key} value={key}>
+                {name}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+          
+          {Object.keys(SERVICE_NAMES).map((service) => (
+            <TabsContent key={service} value={service}>
+              {renderServiceTab(service as keyof typeof SERVICE_NAMES)}
+            </TabsContent>
           ))}
-        </TabsList>
-        
-        {Object.keys(SERVICE_NAMES).map((service) => (
-          <TabsContent key={service} value={service}>
-            {renderServiceTab(service as keyof typeof SERVICE_NAMES)}
-          </TabsContent>
-        ))}
-      </Tabs>
+        </Tabs>
+      )}
     </div>
   );
 };

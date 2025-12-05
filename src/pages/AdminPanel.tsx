@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { 
   TrendingUp, Shield, Users, Wallet, Settings, SettingsIcon, 
-  Check, X, RefreshCw, Edit, Trash2, DollarSign, FileText, ArrowUpRight 
+  Check, X, RefreshCw, Edit, Trash2, DollarSign, FileText, ArrowUpRight, Upload, Loader2 
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -81,6 +81,7 @@ const AdminPanel = () => {
     bankName: "Demo Bank",
   });
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [uploadingQr, setUploadingQr] = useState(false);
 
   useEffect(() => {
     checkAdminStatus();
@@ -1148,29 +1149,83 @@ const AdminPanel = () => {
                       }
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="qrCodeUrl">QR Code Image URL</Label>
-                    <Input
-                      id="qrCodeUrl"
-                      placeholder="https://example.com/your-qr-code.png"
-                      value={paymentSettings.qrCodeUrl}
-                      onChange={(e) =>
-                        setPaymentSettings({ ...paymentSettings, qrCodeUrl: e.target.value })
-                      }
-                    />
+                  <div className="space-y-3">
+                    <Label>QR Code Image</Label>
+                    <div className="flex items-center gap-3">
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        disabled={uploadingQr}
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          
+                          if (file.size > 5 * 1024 * 1024) {
+                            toast({
+                              title: "Error",
+                              description: "File size must be less than 5MB",
+                              variant: "destructive",
+                            });
+                            return;
+                          }
+
+                          setUploadingQr(true);
+                          try {
+                            const fileExt = file.name.split('.').pop();
+                            const fileName = `qr-code-${Date.now()}.${fileExt}`;
+                            
+                            const { error: uploadError } = await supabase.storage
+                              .from('payment-qrcodes')
+                              .upload(fileName, file, { upsert: true });
+
+                            if (uploadError) throw uploadError;
+
+                            const { data: { publicUrl } } = supabase.storage
+                              .from('payment-qrcodes')
+                              .getPublicUrl(fileName);
+
+                            setPaymentSettings({ ...paymentSettings, qrCodeUrl: publicUrl });
+                            toast({
+                              title: "Success",
+                              description: "QR code uploaded successfully",
+                            });
+                          } catch (error: any) {
+                            toast({
+                              title: "Upload Failed",
+                              description: error.message,
+                              variant: "destructive",
+                            });
+                          } finally {
+                            setUploadingQr(false);
+                          }
+                        }}
+                        className="flex-1"
+                      />
+                      {uploadingQr && <Loader2 className="h-5 w-5 animate-spin" />}
+                    </div>
                     <p className="text-xs text-muted-foreground">
-                      Enter the URL of your custom QR code image. Leave empty to auto-generate from UPI ID.
+                      Upload your custom QR code image (max 5MB). Leave empty to auto-generate from UPI ID.
                     </p>
                     {paymentSettings.qrCodeUrl && (
-                      <div className="mt-2 p-2 border rounded-lg bg-white inline-block">
-                        <img 
-                          src={paymentSettings.qrCodeUrl} 
-                          alt="QR Code Preview" 
-                          className="w-32 h-32 object-contain"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).style.display = 'none';
-                          }}
-                        />
+                      <div className="flex items-start gap-4 mt-3">
+                        <div className="p-2 border rounded-lg bg-white">
+                          <img 
+                            src={paymentSettings.qrCodeUrl} 
+                            alt="QR Code Preview" 
+                            className="w-32 h-32 object-contain"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = '';
+                            }}
+                          />
+                        </div>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => setPaymentSettings({ ...paymentSettings, qrCodeUrl: "" })}
+                        >
+                          <Trash2 className="h-4 w-4 mr-1" />
+                          Remove
+                        </Button>
                       </div>
                     )}
                   </div>

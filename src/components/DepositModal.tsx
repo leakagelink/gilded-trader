@@ -25,6 +25,7 @@ const DepositModal = ({ open, onOpenChange, onSuccess }: DepositModalProps) => {
 
   // Payment details from database
   const [upiId, setUpiId] = useState("coingoldfx@upi");
+  const [qrCodeUrl, setQrCodeUrl] = useState("");
   const [bankDetails, setBankDetails] = useState({
     accountName: "CoinGoldFX Account",
     accountNumber: "1234567890",
@@ -53,6 +54,7 @@ const DepositModal = ({ open, onOpenChange, onSuccess }: DepositModalProps) => {
         });
 
         setUpiId(settings.upi_id || "coingoldfx@upi");
+        setQrCodeUrl(settings.qr_code_url || "");
         setBankDetails({
           accountName: settings.account_name || "CoinGoldFX Account",
           accountNumber: settings.account_number || "1234567890",
@@ -165,7 +167,11 @@ const DepositModal = ({ open, onOpenChange, onSuccess }: DepositModalProps) => {
                 <h3 className="font-semibold mb-3">Scan QR Code</h3>
                 <div className="flex justify-center mb-4">
                   <div className="bg-white p-4 rounded-lg">
-                    <QRCodeSVG value={`upi://pay?pa=${upiId}&pn=CoinGoldFX&cu=INR`} size={200} />
+                    {qrCodeUrl ? (
+                      <img src={qrCodeUrl} alt="Payment QR Code" className="w-[200px] h-[200px] object-contain" />
+                    ) : (
+                      <QRCodeSVG value={`upi://pay?pa=${upiId}&pn=CoinGoldFX&cu=INR`} size={200} />
+                    )}
                   </div>
                 </div>
                 <div className="text-sm text-muted-foreground mb-2">Or use UPI ID:</div>

@@ -74,6 +74,7 @@ const AdminPanel = () => {
   // Payment settings state
   const [paymentSettings, setPaymentSettings] = useState({
     upiId: "coingoldfx@upi",
+    qrCodeUrl: "",
     accountName: "CoinGoldFX Account",
     accountNumber: "1234567890",
     ifsc: "BANK0001234",
@@ -226,6 +227,7 @@ const AdminPanel = () => {
         });
         setPaymentSettings({
           upiId: settings.upiId || "coingoldfx@upi",
+          qrCodeUrl: settings.qrCodeUrl || "",
           accountName: settings.accountName || "CoinGoldFX Account",
           accountNumber: settings.accountNumber || "1234567890",
           ifsc: settings.ifscCode || "BANK0001234",
@@ -578,6 +580,7 @@ const AdminPanel = () => {
       // Update payment settings in database
       const settingsToUpdate = [
         { setting_key: "upi_id", setting_value: paymentSettings.upiId },
+        { setting_key: "qr_code_url", setting_value: paymentSettings.qrCodeUrl },
         { setting_key: "account_name", setting_value: paymentSettings.accountName },
         { setting_key: "account_number", setting_value: paymentSettings.accountNumber },
         { setting_key: "ifsc_code", setting_value: paymentSettings.ifsc },
@@ -1144,6 +1147,32 @@ const AdminPanel = () => {
                         setPaymentSettings({ ...paymentSettings, upiId: e.target.value })
                       }
                     />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="qrCodeUrl">QR Code Image URL</Label>
+                    <Input
+                      id="qrCodeUrl"
+                      placeholder="https://example.com/your-qr-code.png"
+                      value={paymentSettings.qrCodeUrl}
+                      onChange={(e) =>
+                        setPaymentSettings({ ...paymentSettings, qrCodeUrl: e.target.value })
+                      }
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Enter the URL of your custom QR code image. Leave empty to auto-generate from UPI ID.
+                    </p>
+                    {paymentSettings.qrCodeUrl && (
+                      <div className="mt-2 p-2 border rounded-lg bg-white inline-block">
+                        <img 
+                          src={paymentSettings.qrCodeUrl} 
+                          alt="QR Code Preview" 
+                          className="w-32 h-32 object-contain"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none';
+                          }}
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
 

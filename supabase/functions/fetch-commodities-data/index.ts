@@ -9,16 +9,25 @@ const corsHeaders = {
 // Static fallback data for commodities
 const STATIC_FALLBACK_DATA = {
   commoditiesData: [
-    { name: "Gold", symbol: "XAU", price: "2050.00", change: "+1.20%", isPositive: true, icon: "🥇", currencySymbol: "$", fullName: "Gold" },
-    { name: "Silver", symbol: "XAG", price: "24.50", change: "+0.80%", isPositive: true, icon: "🥈", currencySymbol: "$", fullName: "Silver" },
-    { name: "Crude Oil", symbol: "WTI", price: "78.50", change: "-0.50%", isPositive: false, icon: "🛢️", currencySymbol: "$", fullName: "Crude Oil WTI" },
-    { name: "Natural Gas", symbol: "NG", price: "2.85", change: "+2.10%", isPositive: true, icon: "🔥", currencySymbol: "$", fullName: "Natural Gas" },
-    { name: "Copper", symbol: "HG", price: "3.85", change: "+1.50%", isPositive: true, icon: "🔶", currencySymbol: "$", fullName: "Copper" },
+    { name: "Gold", symbol: "XAU", price: "2650.00", change: "+0.50%", isPositive: true, icon: "🥇", currencySymbol: "$", fullName: "Gold" },
+    { name: "Silver", symbol: "XAG", price: "31.50", change: "+0.80%", isPositive: true, icon: "🥈", currencySymbol: "$", fullName: "Silver" },
+    { name: "Crude Oil", symbol: "WTI", price: "71.50", change: "-0.50%", isPositive: false, icon: "🛢️", currencySymbol: "$", fullName: "Crude Oil WTI" },
+    { name: "Natural Gas", symbol: "NG", price: "3.25", change: "+2.10%", isPositive: true, icon: "🔥", currencySymbol: "$", fullName: "Natural Gas" },
+    { name: "Copper", symbol: "XCU", price: "4.15", change: "+1.50%", isPositive: true, icon: "🔶", currencySymbol: "$", fullName: "Copper" },
     { name: "Platinum", symbol: "XPT", price: "980.00", change: "+0.45%", isPositive: true, icon: "💎", currencySymbol: "$", fullName: "Platinum" },
     { name: "Palladium", symbol: "XPD", price: "1050.00", change: "-0.30%", isPositive: false, icon: "⬜", currencySymbol: "$", fullName: "Palladium" },
-    { name: "Brent Oil", symbol: "BRENT", price: "82.50", change: "+0.65%", isPositive: true, icon: "🛢️", currencySymbol: "$", fullName: "Brent Crude Oil" },
+    { name: "Brent Oil", symbol: "BRENT", price: "74.50", change: "+0.65%", isPositive: true, icon: "🛢️", currencySymbol: "$", fullName: "Brent Crude Oil" },
   ]
 };
+
+// Commodity configurations for Gold API
+const COMMODITIES_CONFIG = [
+  { name: "Gold", symbol: "XAU", apiSymbol: "XAU", icon: "🥇", fullName: "Gold" },
+  { name: "Silver", symbol: "XAG", apiSymbol: "XAG", icon: "🥈", fullName: "Silver" },
+  { name: "Platinum", symbol: "XPT", apiSymbol: "XPT", icon: "💎", fullName: "Platinum" },
+  { name: "Palladium", symbol: "XPD", apiSymbol: "XPD", icon: "⬜", fullName: "Palladium" },
+  { name: "Copper", symbol: "XCU", apiSymbol: "XCU", icon: "🔶", fullName: "Copper" },
+];
 
 async function getActiveApiKey(serviceName: string) {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -55,6 +64,34 @@ async function markKeyAsInactive(serviceName: string, apiKey: string) {
   }
 }
 
+async function fetchCommodityPrice(apiKey: string, symbol: string): Promise<any> {
+  try {
+    const response = await fetch(`https://www.goldapi.io/api/${symbol}/USD`, {
+      headers: {
+        'x-access-token': apiKey,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      console.log(`Fetched ${symbol} price:`, data.price);
+      return { success: true, data };
+    }
+
+    if (response.status === 429) {
+      return { success: false, rateLimited: true };
+    }
+
+    const errorText = await response.text();
+    console.error(`Error fetching ${symbol}:`, response.status, errorText);
+    return { success: false, error: errorText };
+  } catch (error) {
+    console.error(`Exception fetching ${symbol}:`, error);
+    return { success: false, error };
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -63,7 +100,6 @@ serve(async (req) => {
   try {
     let attempts = 0;
     const MAX_ATTEMPTS = 10;
-    let lastError: any = null;
 
     while (attempts < MAX_ATTEMPTS) {
       attempts++;
@@ -77,50 +113,54 @@ serve(async (req) => {
       console.log(`Attempt ${attempts}: Using Gold API key`);
       
       try {
-        // Fetch gold price
-        const goldResponse = await fetch('https://www.goldapi.io/api/XAU/USD', {
-          headers: {
-            'x-access-token': apiKey,
-            'Content-Type': 'application/json'
-          }
-        });
+        const commoditiesData: any[] = [];
+        let rateLimited = false;
 
-        if (goldResponse.ok) {
-          const goldData = await goldResponse.json();
+        // Fetch each commodity price from Gold API
+        for (const commodity of COMMODITIES_CONFIG) {
+          const result = await fetchCommodityPrice(apiKey, commodity.apiSymbol);
           
-          // Generate realistic variations based on gold price
-          const goldPrice = goldData.price || 2050;
-          const goldChange = goldData.ch || 0;
-          const goldChangePercent = goldData.chp || 0;
+          if (result.rateLimited) {
+            rateLimited = true;
+            break;
+          }
+
+          if (result.success && result.data) {
+            const price = result.data.price || 0;
+            const changePercent = result.data.chp || 0;
+            
+            commoditiesData.push({
+              name: commodity.name,
+              symbol: commodity.symbol,
+              price: price.toFixed(2),
+              change: `${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(2)}%`,
+              isPositive: changePercent >= 0,
+              icon: commodity.icon,
+              currencySymbol: "$",
+              fullName: commodity.fullName
+            });
+          }
           
-          // Generate mock data with realistic variations
-          const commoditiesData = [
-            {
-              name: "Gold",
-              symbol: "XAU",
-              price: goldPrice.toFixed(2),
-              change: `${goldChangePercent >= 0 ? '+' : ''}${goldChangePercent.toFixed(2)}%`,
-              isPositive: goldChangePercent >= 0,
-              icon: "🥇",
-              currencySymbol: "$",
-              fullName: "Gold"
-            },
-            {
-              name: "Silver",
-              symbol: "XAG",
-              price: (goldPrice / 84).toFixed(2), // Approximate gold/silver ratio
-              change: `${(Math.random() - 0.5) * 2 >= 0 ? '+' : ''}${((Math.random() - 0.5) * 2).toFixed(2)}%`,
-              isPositive: Math.random() > 0.5,
-              icon: "🥈",
-              currencySymbol: "$",
-              fullName: "Silver"
-            },
+          // Small delay between requests to avoid rate limiting
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        if (rateLimited) {
+          console.log('Rate limited, marking key as inactive');
+          await markKeyAsInactive('goldapi', apiKey);
+          continue;
+        }
+
+        // If we got at least gold price, add static data for oil/gas (not available on Gold API)
+        if (commoditiesData.length > 0) {
+          // Add static data for commodities not available on Gold API
+          commoditiesData.push(
             {
               name: "Crude Oil",
               symbol: "WTI",
-              price: (75 + Math.random() * 10).toFixed(2),
-              change: `${(Math.random() - 0.5) * 2 >= 0 ? '+' : ''}${((Math.random() - 0.5) * 2).toFixed(2)}%`,
-              isPositive: Math.random() > 0.5,
+              price: "71.50",
+              change: "+0.35%",
+              isPositive: true,
               icon: "🛢️",
               currencySymbol: "$",
               fullName: "Crude Oil WTI"
@@ -128,78 +168,34 @@ serve(async (req) => {
             {
               name: "Natural Gas",
               symbol: "NG",
-              price: (2.5 + Math.random() * 1).toFixed(2),
-              change: `${(Math.random() - 0.5) * 3 >= 0 ? '+' : ''}${((Math.random() - 0.5) * 3).toFixed(2)}%`,
-              isPositive: Math.random() > 0.5,
+              price: "3.25",
+              change: "+1.20%",
+              isPositive: true,
               icon: "🔥",
               currencySymbol: "$",
               fullName: "Natural Gas"
             },
             {
-              name: "Copper",
-              symbol: "HG",
-              price: (3.7 + Math.random() * 0.3).toFixed(2),
-              change: `${(Math.random() - 0.5) * 2 >= 0 ? '+' : ''}${((Math.random() - 0.5) * 2).toFixed(2)}%`,
-              isPositive: Math.random() > 0.5,
-              icon: "🔶",
-              currencySymbol: "$",
-              fullName: "Copper"
-            },
-            {
-              name: "Platinum",
-              symbol: "XPT",
-              price: (goldPrice * 0.48).toFixed(2),
-              change: `${(Math.random() - 0.5) * 2 >= 0 ? '+' : ''}${((Math.random() - 0.5) * 2).toFixed(2)}%`,
-              isPositive: Math.random() > 0.5,
-              icon: "💎",
-              currencySymbol: "$",
-              fullName: "Platinum"
-            },
-            {
-              name: "Palladium",
-              symbol: "XPD",
-              price: (goldPrice * 0.52).toFixed(2),
-              change: `${(Math.random() - 0.5) * 2 >= 0 ? '+' : ''}${((Math.random() - 0.5) * 2).toFixed(2)}%`,
-              isPositive: Math.random() > 0.5,
-              icon: "⬜",
-              currencySymbol: "$",
-              fullName: "Palladium"
-            },
-            {
               name: "Brent Oil",
               symbol: "BRENT",
-              price: (80 + Math.random() * 8).toFixed(2),
-              change: `${(Math.random() - 0.5) * 2 >= 0 ? '+' : ''}${((Math.random() - 0.5) * 2).toFixed(2)}%`,
-              isPositive: Math.random() > 0.5,
+              price: "74.50",
+              change: "+0.45%",
+              isPositive: true,
               icon: "🛢️",
               currencySymbol: "$",
               fullName: "Brent Crude Oil"
             }
-          ];
+          );
 
+          console.log(`Successfully fetched ${commoditiesData.length} commodities`);
           return new Response(
             JSON.stringify({ commoditiesData }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
 
-        // Check if rate limit error
-        if (goldResponse.status === 429) {
-          const errorText = await goldResponse.text();
-          console.error(`Rate limit hit for Gold API key, status ${goldResponse.status}:`, errorText);
-          await markKeyAsInactive('goldapi', apiKey);
-          console.log('Trying next available API key...');
-          continue;
-        }
-
-        // Other errors
-        const errorText = await goldResponse.text();
-        lastError = `Gold API error ${goldResponse.status}: ${errorText}`;
-        console.error(lastError);
         break;
-
       } catch (error) {
-        lastError = error;
         console.error(`Error with key attempt ${attempts}:`, error);
         break;
       }

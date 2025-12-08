@@ -895,21 +895,43 @@ const Index = () => {
       <footer className="border-t border-border/40 bg-muted/30 py-8 sm:py-12">
         <div className="container mx-auto px-3 sm:px-4">
           <div className="max-w-6xl mx-auto">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4 sm:gap-6">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-                  <TrendingUp className="h-4 w-4 sm:h-6 sm:w-6 text-primary-foreground" />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
+              {/* Logo & Brand */}
+              <div className="flex flex-col items-center md:items-start gap-3">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+                    <TrendingUp className="h-4 w-4 sm:h-6 sm:w-6 text-primary-foreground" />
+                  </div>
+                  <span className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                    CoinGoldFX
+                  </span>
                 </div>
-                <span className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                  CoinGoldFX
-                </span>
+                <p className="text-xs sm:text-sm text-muted-foreground text-center md:text-left">
+                  Your trusted platform for crypto, forex & commodities trading.
+                </p>
               </div>
-              <div className="flex items-center gap-4 sm:gap-8 text-xs sm:text-sm text-muted-foreground">
-                <a href="#" className="hover:text-primary transition-colors">Privacy Policy</a>
-                <a href="#" className="hover:text-primary transition-colors">Terms of Service</a>
-                <a href="#" className="hover:text-primary transition-colors">Support</a>
+
+              {/* Office Address */}
+              <div className="flex flex-col items-center md:items-start gap-2">
+                <h4 className="text-sm sm:text-base font-semibold text-foreground">Office Address</h4>
+                <div className="text-xs sm:text-sm text-muted-foreground text-center md:text-left space-y-1">
+                  <p>1079, Sector 11</p>
+                  <p>Panchkula, Haryana 134117</p>
+                  <p>India</p>
+                </div>
+              </div>
+
+              {/* Quick Links */}
+              <div className="flex flex-col items-center md:items-start gap-2">
+                <h4 className="text-sm sm:text-base font-semibold text-foreground">Quick Links</h4>
+                <div className="flex flex-col items-center md:items-start gap-2 text-xs sm:text-sm text-muted-foreground">
+                  <a href="#" className="hover:text-primary transition-colors">Privacy Policy</a>
+                  <a href="#" className="hover:text-primary transition-colors">Terms of Service</a>
+                  <a href="#" className="hover:text-primary transition-colors">Support</a>
+                </div>
               </div>
             </div>
+            
             <div className="mt-6 sm:mt-8 pt-6 sm:pt-8 border-t border-border/40 text-center text-xs sm:text-sm text-muted-foreground">
               <p>© 2024 CoinGoldFX. All rights reserved. Trading involves risk.</p>
             </div>

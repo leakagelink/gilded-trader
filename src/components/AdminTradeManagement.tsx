@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { TrendingUp, TrendingDown, Edit, X, ArrowUp, ArrowDown } from "lucide-react";
+import { TrendingUp, TrendingDown, Edit, X, ArrowUp, ArrowDown, Plus, Minus } from "lucide-react";
 
 interface User {
   id: string;
@@ -471,24 +471,25 @@ export const AdminTradeManagement = () => {
       return;
     }
 
-    const position = positions.find(p => p.id === adjustPnlPositionId);
+    await adjustPnlForPosition(adjustPnlPositionId, parseFloat(targetPnlPercent));
+    setAdjustPnlPositionId(null);
+    setTargetPnlPercent("");
+  };
+
+  const adjustPnlForPosition = async (positionId: string, pnlPercent: number) => {
+    const position = positions.find(p => p.id === positionId);
     if (!position) return;
 
     try {
-      const targetPnl = (parseFloat(targetPnlPercent) / 100) * position.margin;
+      const targetPnl = (pnlPercent / 100) * position.margin;
       let newCurrentPrice: number;
 
       if (position.position_type === 'long') {
-        // For long: pnl = (current_price - entry_price) * amount * leverage
-        // Solve for current_price: current_price = entry_price + (pnl / (amount * leverage))
         newCurrentPrice = position.entry_price + (targetPnl / (position.amount * position.leverage));
       } else {
-        // For short: pnl = (entry_price - current_price) * amount * leverage
-        // Solve for current_price: current_price = entry_price - (pnl / (amount * leverage))
         newCurrentPrice = position.entry_price - (targetPnl / (position.amount * position.leverage));
       }
 
-      // Update position with new current_price
       const { error } = await supabase
         .from('positions')
         .update({
@@ -496,13 +497,11 @@ export const AdminTradeManagement = () => {
           pnl: targetPnl,
           updated_at: new Date().toISOString()
         })
-        .eq('id', adjustPnlPositionId);
+        .eq('id', positionId);
 
       if (error) throw error;
 
-      toast.success(`PnL adjusted to ${targetPnlPercent}%`);
-      setAdjustPnlPositionId(null);
-      setTargetPnlPercent("");
+      toast.success(`PnL adjusted to ${pnlPercent.toFixed(2)}%`);
       fetchPositions();
     } catch (error: any) {
       toast.error(error.message);
@@ -616,29 +615,49 @@ export const AdminTradeManagement = () => {
                     </div>
                   </TableCell>
                   <TableCell>
-                    {adjustPnlPositionId === position.id ? (
-                      <div className="flex items-center gap-2">
-                        <Input
-                          type="number"
-                          placeholder="PnL %"
-                          value={targetPnlPercent}
-                          onChange={(e) => setTargetPnlPercent(e.target.value)}
-                          className="w-20 h-8"
-                        />
-                        <Button size="sm" onClick={handleAdjustPnl}>OK</Button>
-                        <Button size="sm" variant="outline" onClick={() => setAdjustPnlPositionId(null)}>Cancel</Button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          setAdjustPnlPositionId(position.id);
-                          setTargetPnlPercent(pnlPercent.toFixed(2));
-                        }}
-                        className={`font-semibold ${isProfit ? 'text-green-500' : 'text-red-500'}`}
+                    <div className="flex items-center gap-1">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 w-7 p-0"
+                        onClick={() => adjustPnlForPosition(position.id, pnlPercent - 1)}
                       >
-                        {isProfit ? '+' : ''}{pnlPercent.toFixed(2)}%
-                      </button>
-                    )}
+                        <Minus className="h-3 w-3" />
+                      </Button>
+                      
+                      {adjustPnlPositionId === position.id ? (
+                        <div className="flex items-center gap-1">
+                          <Input
+                            type="number"
+                            placeholder="PnL %"
+                            value={targetPnlPercent}
+                            onChange={(e) => setTargetPnlPercent(e.target.value)}
+                            className="w-16 h-7 text-xs"
+                          />
+                          <Button size="sm" className="h-7 px-2" onClick={handleAdjustPnl}>OK</Button>
+                          <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => setAdjustPnlPositionId(null)}>X</Button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            setAdjustPnlPositionId(position.id);
+                            setTargetPnlPercent(pnlPercent.toFixed(2));
+                          }}
+                          className={`font-semibold min-w-[60px] text-center ${isProfit ? 'text-green-500' : 'text-red-500'}`}
+                        >
+                          {isProfit ? '+' : ''}{pnlPercent.toFixed(2)}%
+                        </button>
+                      )}
+                      
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 w-7 p-0"
+                        onClick={() => adjustPnlForPosition(position.id, pnlPercent + 1)}
+                      >
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                    </div>
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-2">

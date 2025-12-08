@@ -9,6 +9,12 @@ import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
+// Certificate images
+import certificate1 from "@/assets/certificate-1.png";
+import certificate2 from "@/assets/certificate-2.png";
+import certificate3 from "@/assets/certificate-3.png";
+import certificate4 from "@/assets/certificate-4.png";
+
 const Index = () => {
   const navigate = useNavigate();
   const [recentActivities, setRecentActivities] = useState<Array<{
@@ -887,6 +893,55 @@ const Index = () => {
                 </AccordionContent>
               </AccordionItem>
             </Accordion>
+          </div>
+        </div>
+      </section>
+
+      {/* Certificates Section */}
+      <section className="py-12 sm:py-20 bg-gradient-to-b from-background to-muted/30">
+        <div className="container mx-auto px-3 sm:px-4">
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center mb-8 sm:mb-12">
+              <Badge className="mb-4 bg-primary/10 text-primary border-primary/20 px-3 py-1 text-xs sm:text-sm">
+                <Award className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                Certified Platform
+              </Badge>
+              <h2 className="text-2xl sm:text-4xl font-bold mb-3 sm:mb-4">
+                Our{" "}
+                <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                  Certifications
+                </span>
+              </h2>
+              <p className="text-sm sm:text-lg text-muted-foreground max-w-2xl mx-auto">
+                CoinGoldFX is a certified and authorized trading platform with official licenses and certifications
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+              {[
+                { img: certificate1, title: "Trading License Certificate" },
+                { img: certificate2, title: "Crypto Trading Authorization" },
+                { img: certificate3, title: "Forex Trading Certificate" },
+                { img: certificate4, title: "Commodities Trading Certification" },
+              ].map((cert, index) => (
+                <div 
+                  key={index}
+                  className="group relative overflow-hidden rounded-xl sm:rounded-2xl border-2 border-border/50 bg-card/50 backdrop-blur-sm hover:border-primary/50 transition-all duration-300 hover:shadow-lg hover:shadow-primary/10"
+                >
+                  <div className="aspect-[16/11] overflow-hidden">
+                    <img 
+                      src={cert.img} 
+                      alt={cert.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                  </div>
+                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-background/95 via-background/80 to-transparent p-3 sm:p-4">
+                    <h3 className="text-sm sm:text-base font-semibold text-foreground">{cert.title}</h3>
+                    <p className="text-xs text-muted-foreground">CoinGoldFX Official Certificate</p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </section>

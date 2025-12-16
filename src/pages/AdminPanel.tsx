@@ -958,7 +958,8 @@ const AdminPanel = () => {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">
-                            {new Date(request.created_at).toLocaleDateString()}
+                            <div>{new Date(request.created_at).toLocaleDateString()}</div>
+                            <div className="text-xs">{new Date(request.created_at).toLocaleTimeString()}</div>
                           </TableCell>
                           <TableCell>
                             {request.status === "pending" && (
@@ -1078,7 +1079,8 @@ const AdminPanel = () => {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">
-                            {new Date(request.created_at).toLocaleDateString()}
+                            <div>{new Date(request.created_at).toLocaleDateString()}</div>
+                            <div className="text-xs">{new Date(request.created_at).toLocaleTimeString()}</div>
                           </TableCell>
                           <TableCell>
                             {request.status === "pending" && (

@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp, Mail, Lock, User } from "lucide-react";
+import { TrendingUp, Mail, Lock, User, Phone, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
@@ -18,12 +18,15 @@ const signInSchema = z.object({
 const signUpSchema = z.object({
   fullName: z.string().min(2, "Name must be at least 2 characters"),
   email: z.string().email("Invalid email address"),
+  mobileNumber: z.string().min(10, "Mobile number must be at least 10 digits"),
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
 const Auth = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState("");
 
   useEffect(() => {
     // Check if user is already logged in
@@ -81,10 +84,11 @@ const Auth = () => {
     const formData = new FormData(e.currentTarget);
     const fullName = formData.get("name") as string;
     const email = formData.get("email") as string;
+    const mobileNumber = formData.get("mobile") as string;
     const password = formData.get("password") as string;
 
     try {
-      signUpSchema.parse({ fullName, email, password });
+      signUpSchema.parse({ fullName, email, mobileNumber, password });
 
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -92,6 +96,7 @@ const Auth = () => {
         options: {
           data: {
             full_name: fullName,
+            mobile_number: mobileNumber,
           },
           emailRedirectTo: `${window.location.origin}/`,
         },
@@ -120,6 +125,84 @@ const Auth = () => {
       setIsLoading(false);
     }
   };
+
+  const handleForgotPassword = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(forgotPasswordEmail, {
+        redirectTo: `${window.location.origin}/auth?reset=true`,
+      });
+
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+
+      toast.success("Password reset email sent! Please check your inbox.");
+      setShowForgotPassword(false);
+      setForgotPasswordEmail("");
+    } catch (error) {
+      toast.error("An error occurred. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (showForgotPassword) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md p-8">
+          <div className="flex items-center justify-center gap-2 mb-8">
+            <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+              <TrendingUp className="h-7 w-7 text-primary-foreground" />
+            </div>
+            <span className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+              CoinGoldFX
+            </span>
+          </div>
+
+          <h2 className="text-xl font-semibold text-center mb-6">Reset Password</h2>
+          <p className="text-muted-foreground text-center text-sm mb-6">
+            Enter your email address and we'll send you a link to reset your password.
+          </p>
+
+          <form onSubmit={handleForgotPassword} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="reset-email">Email</Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="reset-email"
+                  type="email"
+                  placeholder="your@email.com"
+                  className="pl-10"
+                  value={forgotPasswordEmail}
+                  onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+            <Button
+              type="submit"
+              className="w-full bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary"
+              disabled={isLoading}
+            >
+              {isLoading ? "Sending..." : "Send Reset Link"}
+            </Button>
+          </form>
+
+          <div className="mt-6 text-center">
+            <Button variant="link" onClick={() => setShowForgotPassword(false)}>
+              <ArrowLeft className="h-4 w-4 mr-1" />
+              Back to Sign In
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 flex items-center justify-center p-4">
@@ -170,6 +253,16 @@ const Auth = () => {
                   />
                 </div>
               </div>
+              <div className="text-right">
+                <Button
+                  type="button"
+                  variant="link"
+                  className="text-sm p-0 h-auto"
+                  onClick={() => setShowForgotPassword(true)}
+                >
+                  Forgot Password?
+                </Button>
+              </div>
               <Button
                 type="submit"
                 className="w-full bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary"
@@ -194,6 +287,21 @@ const Auth = () => {
                     className="pl-10"
                     required
                     minLength={2}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="mobile">Mobile Number</Label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="mobile"
+                    name="mobile"
+                    type="tel"
+                    placeholder="+91 9876543210"
+                    className="pl-10"
+                    required
+                    minLength={10}
                   />
                 </div>
               </div>

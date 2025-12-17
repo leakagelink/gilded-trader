@@ -239,8 +239,8 @@ const Dashboard = () => {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 p-3 sm:p-4 md:p-6 pb-20">
-          <div className="max-w-7xl mx-auto">
+        <main className="flex-1 p-3 sm:p-4 md:p-6 pb-20 overflow-x-hidden">
+          <div className="max-w-7xl mx-auto w-full overflow-hidden">
             <div className="mb-4 sm:mb-6 md:mb-8">
               <h1 className="text-2xl sm:text-3xl font-bold mb-1 sm:mb-2">Trading Dashboard</h1>
               <p className="text-sm sm:text-base text-muted-foreground">Monitor and trade across multiple markets</p>

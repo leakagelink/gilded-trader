@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { 
   TrendingUp, Shield, Users, Wallet, Settings, SettingsIcon, 
-  Check, X, RefreshCw, Edit, Trash2, DollarSign, FileText, ArrowUpRight, Upload, Loader2, Lock, Phone 
+  Check, X, RefreshCw, Edit, Trash2, DollarSign, FileText, ArrowUpRight, Upload, Loader2, Lock, Phone, Search, ChevronLeft, ChevronRight 
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -59,6 +59,11 @@ const AdminPanel = () => {
   const [balanceAmount, setBalanceAmount] = useState("");
   const [deleteUserOpen, setDeleteUserOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<any>(null);
+  
+  // User search and pagination
+  const [userSearchQuery, setUserSearchQuery] = useState("");
+  const [userCurrentPage, setUserCurrentPage] = useState(1);
+  const USERS_PER_PAGE = 20;
   
   // Password change state
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
@@ -856,7 +861,7 @@ const AdminPanel = () => {
           <TabsContent value="users">
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
                     <CardTitle className="flex items-center gap-2">
                       <Users className="h-5 w-5" />
@@ -864,85 +869,186 @@ const AdminPanel = () => {
                     </CardTitle>
                     <CardDescription>View and manage all registered users</CardDescription>
                   </div>
-                  <Button onClick={fetchAllData} variant="outline" size="icon">
-                    <RefreshCw className="h-4 w-4" />
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <div className="relative flex-1 sm:w-64">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search by name, email, mobile..."
+                        value={userSearchQuery}
+                        onChange={(e) => {
+                          setUserSearchQuery(e.target.value);
+                          setUserCurrentPage(1); // Reset to first page on search
+                        }}
+                        className="pl-9"
+                      />
+                    </div>
+                    <Button onClick={fetchAllData} variant="outline" size="icon">
+                      <RefreshCw className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
                 {loading ? (
                   <p className="text-center py-8 text-muted-foreground">Loading users...</p>
-                ) : users.length === 0 ? (
-                  <p className="text-center py-8 text-muted-foreground">No users found</p>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Mobile</TableHead>
-                        <TableHead>Balance (USD)</TableHead>
-                        <TableHead>Created</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {users.map((user) => (
-                        <TableRow key={user.id}>
-                          <TableCell className="font-medium">
-                            {user.full_name || "N/A"}
-                          </TableCell>
-                          <TableCell>{user.email}</TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-1">
-                              <Phone className="h-3 w-3 text-muted-foreground" />
-                              {user.mobile_number || "N/A"}
-                            </div>
-                          </TableCell>
-                          <TableCell className="font-semibold">
-                            ${getUserBalance(user.id)}
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {new Date(user.created_at).toLocaleDateString()}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex gap-2 flex-wrap">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleEditBalance(user)}
-                              >
-                                <Edit className="h-4 w-4 mr-1" />
-                                Balance
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => {
-                                  setPasswordUser(user);
-                                  setChangePasswordOpen(true);
-                                }}
-                              >
-                                <Lock className="h-4 w-4 mr-1" />
-                                Password
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => {
-                                  setUserToDelete(user);
-                                  setDeleteUserOpen(true);
-                                }}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
+                ) : (() => {
+                  // Filter users based on search query
+                  const filteredUsers = users.filter(user => {
+                    if (!userSearchQuery.trim()) return true;
+                    const query = userSearchQuery.toLowerCase();
+                    return (
+                      (user.full_name?.toLowerCase().includes(query)) ||
+                      (user.email?.toLowerCase().includes(query)) ||
+                      (user.mobile_number?.toLowerCase().includes(query))
+                    );
+                  });
+
+                  // Pagination
+                  const totalPages = Math.ceil(filteredUsers.length / USERS_PER_PAGE);
+                  const startIndex = (userCurrentPage - 1) * USERS_PER_PAGE;
+                  const paginatedUsers = filteredUsers.slice(startIndex, startIndex + USERS_PER_PAGE);
+
+                  if (filteredUsers.length === 0) {
+                    return (
+                      <p className="text-center py-8 text-muted-foreground">
+                        {userSearchQuery ? `No users found matching "${userSearchQuery}"` : "No users found"}
+                      </p>
+                    );
+                  }
+
+                  return (
+                    <div className="space-y-4">
+                      {/* Results info */}
+                      <div className="flex items-center justify-between text-sm text-muted-foreground">
+                        <span>
+                          Showing {startIndex + 1}-{Math.min(startIndex + USERS_PER_PAGE, filteredUsers.length)} of {filteredUsers.length} users
+                        </span>
+                        {totalPages > 1 && (
+                          <span>Page {userCurrentPage} of {totalPages}</span>
+                        )}
+                      </div>
+
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Name</TableHead>
+                              <TableHead>Email</TableHead>
+                              <TableHead>Mobile</TableHead>
+                              <TableHead>Balance (USD)</TableHead>
+                              <TableHead>Created</TableHead>
+                              <TableHead>Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {paginatedUsers.map((user) => (
+                              <TableRow key={user.id}>
+                                <TableCell className="font-medium">
+                                  {user.full_name || "N/A"}
+                                </TableCell>
+                                <TableCell>{user.email}</TableCell>
+                                <TableCell>
+                                  <div className="flex items-center gap-1">
+                                    <Phone className="h-3 w-3 text-muted-foreground" />
+                                    {user.mobile_number || "N/A"}
+                                  </div>
+                                </TableCell>
+                                <TableCell className="font-semibold">
+                                  ${getUserBalance(user.id)}
+                                </TableCell>
+                                <TableCell className="text-sm text-muted-foreground">
+                                  {new Date(user.created_at).toLocaleDateString()}
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex gap-2 flex-wrap">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleEditBalance(user)}
+                                    >
+                                      <Edit className="h-4 w-4 mr-1" />
+                                      Balance
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => {
+                                        setPasswordUser(user);
+                                        setChangePasswordOpen(true);
+                                      }}
+                                    >
+                                      <Lock className="h-4 w-4 mr-1" />
+                                      Password
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="destructive"
+                                      onClick={() => {
+                                        setUserToDelete(user);
+                                        setDeleteUserOpen(true);
+                                      }}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+
+                      {/* Pagination controls */}
+                      {totalPages > 1 && (
+                        <div className="flex items-center justify-center gap-2 pt-4">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setUserCurrentPage(prev => Math.max(1, prev - 1))}
+                            disabled={userCurrentPage === 1}
+                          >
+                            <ChevronLeft className="h-4 w-4 mr-1" />
+                            Previous
+                          </Button>
+                          <div className="flex items-center gap-1">
+                            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                              let pageNum;
+                              if (totalPages <= 5) {
+                                pageNum = i + 1;
+                              } else if (userCurrentPage <= 3) {
+                                pageNum = i + 1;
+                              } else if (userCurrentPage >= totalPages - 2) {
+                                pageNum = totalPages - 4 + i;
+                              } else {
+                                pageNum = userCurrentPage - 2 + i;
+                              }
+                              return (
+                                <Button
+                                  key={pageNum}
+                                  variant={userCurrentPage === pageNum ? "default" : "outline"}
+                                  size="sm"
+                                  onClick={() => setUserCurrentPage(pageNum)}
+                                  className="w-8 h-8 p-0"
+                                >
+                                  {pageNum}
+                                </Button>
+                              );
+                            })}
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setUserCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                            disabled={userCurrentPage === totalPages}
+                          >
+                            Next
+                            <ChevronRight className="h-4 w-4 ml-1" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </CardContent>
             </Card>
           </TabsContent>

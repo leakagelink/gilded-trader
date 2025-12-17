@@ -294,15 +294,13 @@ const Dashboard = () => {
                     <RotateCcw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
                   </Button>
                 </div>
-                <div className="max-h-[600px] overflow-y-auto scrollbar-hide">
-                  {filteredCryptoData.length > 0 ? (
-                    <TradingList data={filteredCryptoData} />
-                  ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      No cryptocurrencies found matching "{searchQuery}"
-                    </div>
-                  )}
-                </div>
+                {filteredCryptoData.length > 0 ? (
+                  <TradingList data={filteredCryptoData} />
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No cryptocurrencies found matching "{searchQuery}"
+                  </div>
+                )}
               </TabsContent>
 
               <TabsContent value="forex">

@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { 
   TrendingUp, Shield, Users, Wallet, Settings, SettingsIcon, 
-  Check, X, RefreshCw, Edit, Trash2, DollarSign, FileText, ArrowUpRight, Upload, Loader2 
+  Check, X, RefreshCw, Edit, Trash2, DollarSign, FileText, ArrowUpRight, Upload, Loader2, Lock, Phone 
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -59,6 +59,12 @@ const AdminPanel = () => {
   const [balanceAmount, setBalanceAmount] = useState("");
   const [deleteUserOpen, setDeleteUserOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<any>(null);
+  
+  // Password change state
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [passwordUser, setPasswordUser] = useState<any>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [changingPassword, setChangingPassword] = useState(false);
 
   // Deposits state
   const [depositRequests, setDepositRequests] = useState<any[]>([]);
@@ -565,6 +571,43 @@ const AdminPanel = () => {
     }
   };
 
+  const handleChangePassword = async () => {
+    if (!passwordUser || !newPassword) return;
+    
+    setChangingPassword(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("Not authenticated");
+
+      const { data, error } = await supabase.functions.invoke("admin-reset-password", {
+        body: {
+          userId: passwordUser.id,
+          newPassword: newPassword,
+        },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast({
+        title: "Success",
+        description: `Password updated for ${passwordUser.full_name || passwordUser.email}`,
+      });
+
+      setChangePasswordOpen(false);
+      setPasswordUser(null);
+      setNewPassword("");
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
   const getTimeRemaining = (createdAt: string) => {
     const created = new Date(createdAt).getTime();
     const now = Date.now();
@@ -715,6 +758,7 @@ const AdminPanel = () => {
                             <TableRow>
                               <TableHead>Name</TableHead>
                               <TableHead>Email</TableHead>
+                              <TableHead>Mobile</TableHead>
                               <TableHead>Signup Date</TableHead>
                               <TableHead>Time Remaining</TableHead>
                               <TableHead>Actions</TableHead>
@@ -727,6 +771,12 @@ const AdminPanel = () => {
                                   {user.full_name || "N/A"}
                                 </TableCell>
                                 <TableCell>{user.email}</TableCell>
+                                <TableCell>
+                                  <div className="flex items-center gap-1">
+                                    <Phone className="h-3 w-3 text-muted-foreground" />
+                                    {user.mobile_number || "N/A"}
+                                  </div>
+                                </TableCell>
                                 <TableCell className="text-sm text-muted-foreground">
                                   {new Date(user.created_at).toLocaleString()}
                                 </TableCell>
@@ -760,6 +810,7 @@ const AdminPanel = () => {
                           <TableRow>
                             <TableHead>Name</TableHead>
                             <TableHead>Email</TableHead>
+                            <TableHead>Mobile</TableHead>
                             <TableHead>Activated Date</TableHead>
                             <TableHead>Actions</TableHead>
                           </TableRow>
@@ -771,6 +822,12 @@ const AdminPanel = () => {
                                 {user.full_name || "N/A"}
                               </TableCell>
                               <TableCell>{user.email}</TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-1">
+                                  <Phone className="h-3 w-3 text-muted-foreground" />
+                                  {user.mobile_number || "N/A"}
+                                </div>
+                              </TableCell>
                               <TableCell className="text-sm text-muted-foreground">
                                 {user.approved_at ? new Date(user.approved_at).toLocaleString() : "N/A"}
                               </TableCell>
@@ -823,6 +880,7 @@ const AdminPanel = () => {
                       <TableRow>
                         <TableHead>Name</TableHead>
                         <TableHead>Email</TableHead>
+                        <TableHead>Mobile</TableHead>
                         <TableHead>Balance (USD)</TableHead>
                         <TableHead>Created</TableHead>
                         <TableHead>Actions</TableHead>
@@ -835,6 +893,12 @@ const AdminPanel = () => {
                             {user.full_name || "N/A"}
                           </TableCell>
                           <TableCell>{user.email}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <Phone className="h-3 w-3 text-muted-foreground" />
+                              {user.mobile_number || "N/A"}
+                            </div>
+                          </TableCell>
                           <TableCell className="font-semibold">
                             ${getUserBalance(user.id)}
                           </TableCell>
@@ -842,14 +906,25 @@ const AdminPanel = () => {
                             {new Date(user.created_at).toLocaleDateString()}
                           </TableCell>
                           <TableCell>
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 flex-wrap">
                               <Button
                                 size="sm"
                                 variant="outline"
                                 onClick={() => handleEditBalance(user)}
                               >
                                 <Edit className="h-4 w-4 mr-1" />
-                                Edit Balance
+                                Balance
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setPasswordUser(user);
+                                  setChangePasswordOpen(true);
+                                }}
+                              >
+                                <Lock className="h-4 w-4 mr-1" />
+                                Password
                               </Button>
                               <Button
                                 size="sm"
@@ -1414,6 +1489,56 @@ const AdminPanel = () => {
             </Button>
             <Button onClick={handleRejectWithdrawal} variant="destructive">
               Reject Withdrawal
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Change Password Dialog */}
+      <Dialog open={changePasswordOpen} onOpenChange={setChangePasswordOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Change User Password</DialogTitle>
+            <DialogDescription>
+              Set a new password for {passwordUser?.full_name || passwordUser?.email}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="newPassword">New Password</Label>
+              <Input
+                id="newPassword"
+                type="password"
+                placeholder="Enter new password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                minLength={6}
+              />
+              <p className="text-xs text-muted-foreground">
+                Password must be at least 6 characters
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setChangePasswordOpen(false);
+              setPasswordUser(null);
+              setNewPassword("");
+            }}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleChangePassword} 
+              disabled={changingPassword || newPassword.length < 6}
+            >
+              {changingPassword ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                "Update Password"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

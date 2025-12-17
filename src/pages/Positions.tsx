@@ -407,22 +407,22 @@ const Positions = () => {
           const pnlPercentage = totalMargin > 0 ? (totalPnL / totalMargin) * 100 : 0;
 
           return (
-            <Card className={`mb-6 p-6 border-2 ${isProfit ? 'bg-green-500/5 border-green-500/20' : 'bg-red-500/5 border-red-500/20'}`}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground mb-1">Total Portfolio P&L</h3>
-                  <div className="flex items-baseline gap-2">
-                    <p className={`text-3xl font-bold ${isProfit ? 'text-green-500' : 'text-red-500'}`}>
+            <Card className={`mb-6 p-4 sm:p-6 border-2 ${isProfit ? 'bg-green-500/5 border-green-500/20' : 'bg-red-500/5 border-red-500/20'}`}>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-xs sm:text-sm font-medium text-muted-foreground mb-1">Total Portfolio P&L</h3>
+                  <div className="flex flex-wrap items-baseline gap-1 sm:gap-2">
+                    <p className={`text-2xl sm:text-3xl font-bold ${isProfit ? 'text-green-500' : 'text-red-500'}`}>
                       {isProfit ? '+' : ''}${totalPnL.toFixed(2)}
                     </p>
-                    <span className={`text-lg font-semibold ${isProfit ? 'text-green-500' : 'text-red-500'}`}>
+                    <span className={`text-sm sm:text-lg font-semibold ${isProfit ? 'text-green-500' : 'text-red-500'}`}>
                       ({isProfit ? '+' : ''}{pnlPercentage.toFixed(2)}%)
                     </span>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-sm text-muted-foreground mb-1">Total Margin</p>
-                  <p className="text-xl font-semibold">${totalMargin.toFixed(2)}</p>
+                <div className="text-left sm:text-right flex-shrink-0">
+                  <p className="text-xs sm:text-sm text-muted-foreground mb-1">Total Margin</p>
+                  <p className="text-lg sm:text-xl font-semibold">${totalMargin.toFixed(2)}</p>
                 </div>
               </div>
               <div className="mt-4 pt-4 border-t border-border/50">

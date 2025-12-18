@@ -105,29 +105,46 @@ const DepositModal = ({ open, onOpenChange, onSuccess }: DepositModalProps) => {
   };
 
   const generateUpiLink = (appScheme: string) => {
-    const amountInr = parseFloat(amount);
-    const encodedUpiId = encodeURIComponent(upiId);
-    const encodedName = encodeURIComponent("CoinGoldFX");
-    const encodedNote = encodeURIComponent(`Deposit ${amountInr} INR`);
+    const amountInr = parseFloat(amount).toFixed(2);
+    // Use UPI ID directly without extra encoding that might break the format
+    const upiParams = new URLSearchParams();
+    upiParams.set('pa', upiId);
+    upiParams.set('pn', 'CoinGoldFX');
+    upiParams.set('am', amountInr);
+    upiParams.set('cu', 'INR');
+    upiParams.set('tn', `Deposit ${amountInr} INR`);
+    upiParams.set('mode', '02'); // Intent mode for better compatibility
+    
+    const queryString = upiParams.toString();
     
     // Different schemes for different apps
     if (appScheme === "phonepe") {
-      return `phonepe://pay?pa=${encodedUpiId}&pn=${encodedName}&am=${amountInr}&cu=INR&tn=${encodedNote}`;
+      return `phonepe://pay?${queryString}`;
     } else if (appScheme === "tez") {
-      return `tez://upi/pay?pa=${encodedUpiId}&pn=${encodedName}&am=${amountInr}&cu=INR&tn=${encodedNote}`;
+      return `tez://upi/pay?${queryString}`;
     } else if (appScheme === "paytmmp") {
-      return `paytmmp://pay?pa=${encodedUpiId}&pn=${encodedName}&am=${amountInr}&cu=INR&tn=${encodedNote}`;
+      return `paytmmp://pay?${queryString}`;
     } else {
-      // Generic UPI intent
-      return `upi://pay?pa=${encodedUpiId}&pn=${encodedName}&am=${amountInr}&cu=INR&tn=${encodedNote}`;
+      // Generic UPI intent - works best on Android
+      return `upi://pay?${queryString}`;
     }
   };
 
   const handleUpiAppSelect = (app: UpiApp) => {
     const upiLink = generateUpiLink(app.scheme);
     
-    // Open the UPI app
-    window.location.href = upiLink;
+    // Try to open the UPI app using multiple methods for better compatibility
+    const link = document.createElement('a');
+    link.href = upiLink;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    // Fallback: Also try window.open for some browsers
+    setTimeout(() => {
+      window.open(upiLink, '_self');
+    }, 100);
     
     // Mark payment as initiated and show transaction ID input
     setPaymentInitiated(true);

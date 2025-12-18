@@ -106,45 +106,37 @@ const DepositModal = ({ open, onOpenChange, onSuccess }: DepositModalProps) => {
 
   const generateUpiLink = (appScheme: string) => {
     const amountInr = parseFloat(amount).toFixed(2);
-    // Use UPI ID directly without extra encoding that might break the format
-    const upiParams = new URLSearchParams();
-    upiParams.set('pa', upiId);
-    upiParams.set('pn', 'CoinGoldFX');
-    upiParams.set('am', amountInr);
-    upiParams.set('cu', 'INR');
-    upiParams.set('tn', `Deposit ${amountInr} INR`);
-    upiParams.set('mode', '02'); // Intent mode for better compatibility
     
-    const queryString = upiParams.toString();
+    // Build UPI params manually without URL encoding to preserve @ symbol in UPI ID
+    // PhonePe and other apps require the UPI ID to be unencoded
+    const pa = upiId; // Keep UPI ID as-is (e.g., "merchant@upi")
+    const pn = encodeURIComponent('CoinGoldFX');
+    const tn = encodeURIComponent(`Deposit INR ${amountInr}`);
+    
+    // Simple query string - only encode text fields, not UPI ID
+    const params = `pa=${pa}&pn=${pn}&am=${amountInr}&cu=INR&tn=${tn}`;
     
     // Different schemes for different apps
     if (appScheme === "phonepe") {
-      return `phonepe://pay?${queryString}`;
+      // PhonePe specific format
+      return `phonepe://pay?${params}`;
     } else if (appScheme === "tez") {
-      return `tez://upi/pay?${queryString}`;
+      // Google Pay format
+      return `tez://upi/pay?${params}`;
     } else if (appScheme === "paytmmp") {
-      return `paytmmp://pay?${queryString}`;
+      // Paytm format
+      return `paytmmp://pay?${params}`;
     } else {
-      // Generic UPI intent - works best on Android
-      return `upi://pay?${queryString}`;
+      // Generic UPI intent for BHIM and other apps
+      return `upi://pay?${params}`;
     }
   };
 
   const handleUpiAppSelect = (app: UpiApp) => {
     const upiLink = generateUpiLink(app.scheme);
     
-    // Try to open the UPI app using multiple methods for better compatibility
-    const link = document.createElement('a');
-    link.href = upiLink;
-    link.style.display = 'none';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    // Fallback: Also try window.open for some browsers
-    setTimeout(() => {
-      window.open(upiLink, '_self');
-    }, 100);
+    // Use window.location.href - most reliable for UPI deep links on mobile
+    window.location.href = upiLink;
     
     // Mark payment as initiated and show transaction ID input
     setPaymentInitiated(true);

@@ -103,11 +103,16 @@ export const AdminTradeManagement = () => {
           positions.map(async (position) => {
             let currentPrice = position.current_price;
 
-            // Check if this is a manual trade
+            // Check if this is a manual or edited trade
             if (position.price_mode === 'manual') {
-              // Generate fake momentum between 1-5% for manual trades
+              // Generate fake momentum between 1-5% for manual trades around entry price
               const randomPercent = (Math.random() * 4 + 1) * (Math.random() > 0.5 ? 1 : -1);
               currentPrice = position.entry_price * (1 + randomPercent / 100);
+            } else if (position.price_mode === 'edited') {
+              // For edited trades, fluctuate ±1-7% around current price (not entry price)
+              // This keeps the PnL near the admin's edited value
+              const randomPercent = (Math.random() * 6 + 1) * (Math.random() > 0.5 ? 1 : -1);
+              currentPrice = position.current_price * (1 + randomPercent / 100);
             } else {
               // For live trades, use real market prices
               const isForex = position.symbol.includes('/');
@@ -588,18 +593,20 @@ export const AdminTradeManagement = () => {
       }
 
       // Update local state immediately so UI reflects the change
+      // Mark as 'edited' so it won't follow live market prices anymore
       setPositions(prev => prev.map(p => 
         p.id === positionId 
-          ? { ...p, current_price: newCurrentPrice, pnl: targetPnl }
+          ? { ...p, current_price: newCurrentPrice, pnl: targetPnl, price_mode: 'edited' }
           : p
       ));
 
-      // Update database in background
+      // Update database in background - mark as 'edited' price mode
       const { error } = await supabase
         .from('positions')
         .update({
           current_price: newCurrentPrice,
           pnl: targetPnl,
+          price_mode: 'edited',
           updated_at: new Date().toISOString()
         })
         .eq('id', positionId);

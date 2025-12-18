@@ -791,7 +791,10 @@ export const AdminTradeManagement = () => {
                     </TableHeader>
                     <TableBody>
                       {paginatedTrades.map((position) => {
-                        const pnl = calculatePnL(position);
+                        // Use stored PnL for edited/manual trades, calculate only for live trades
+                        const pnl = (position.price_mode === 'edited' || position.price_mode === 'manual') && position.pnl !== null && position.pnl !== undefined
+                          ? position.pnl
+                          : calculatePnL(position);
                         const isProfit = pnl >= 0;
                         const pnlPercent = (pnl / position.margin) * 100;
                         

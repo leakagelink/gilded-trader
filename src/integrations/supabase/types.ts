@@ -278,6 +278,7 @@ export type Database = {
           approved_at: string | null
           approved_by: string | null
           avatar_url: string | null
+          client_id: string | null
           created_at: string
           email: string | null
           full_name: string | null
@@ -290,6 +291,7 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           avatar_url?: string | null
+          client_id?: string | null
           created_at?: string
           email?: string | null
           full_name?: string | null
@@ -302,6 +304,7 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           avatar_url?: string | null
+          client_id?: string | null
           created_at?: string
           email?: string | null
           full_name?: string | null
@@ -519,6 +522,7 @@ export type Database = {
         Args: { transaction_ref?: string; withdrawal_id: string }
         Returns: undefined
       }
+      generate_client_id: { Args: never; Returns: string }
       get_active_api_key: { Args: { p_service_name: string }; Returns: string }
       has_role: {
         Args: {

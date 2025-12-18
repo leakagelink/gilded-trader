@@ -411,7 +411,10 @@ export const AdminTradeManagement = () => {
       }
 
       const lev = parseInt(leverage);
-      const margin = (tradeAmount * price) / lev;
+      // The amount entered IS the margin (USD investment amount), not units
+      const margin = tradeAmount;
+      // Calculate position size in units from margin
+      const positionSize = (margin * lev) / price;
 
       // Check user wallet balance
       const { data: wallet } = await supabase
@@ -440,11 +443,11 @@ export const AdminTradeManagement = () => {
         user_id: selectedUser,
         symbol: symbol.toUpperCase(),
         position_type: positionType,
-        amount: tradeAmount,
+        amount: positionSize, // Units of asset being traded
         entry_price: price,
         current_price: price,
         leverage: lev,
-        margin: margin,
+        margin: margin, // USD investment amount
         status: 'open',
         price_mode: priceMode
       });

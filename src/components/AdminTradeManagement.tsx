@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "sonner";
 import { TrendingUp, TrendingDown, Edit, X, ArrowUp, ArrowDown, Plus, Minus, Search, ChevronLeft, ChevronRight, Users, Eye, History } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 
 interface User {
   id: string;
@@ -775,7 +776,23 @@ export const AdminTradeManagement = () => {
                         
                         return (
                           <TableRow key={position.id}>
-                            <TableCell className="font-medium">{position.symbol}</TableCell>
+                            <TableCell className="font-medium">
+                              <div className="flex items-center gap-2">
+                                {position.symbol}
+                                <Badge 
+                                  variant={position.price_mode === 'edited' ? 'destructive' : position.price_mode === 'manual' ? 'secondary' : 'outline'}
+                                  className={`text-[10px] px-1.5 py-0 ${
+                                    position.price_mode === 'edited' 
+                                      ? 'bg-orange-500/20 text-orange-500 border-orange-500/30' 
+                                      : position.price_mode === 'manual' 
+                                        ? 'bg-purple-500/20 text-purple-500 border-purple-500/30' 
+                                        : 'bg-green-500/20 text-green-500 border-green-500/30'
+                                  }`}
+                                >
+                                  {position.price_mode === 'edited' ? 'Edited' : position.price_mode === 'manual' ? 'Manual' : 'Live'}
+                                </Badge>
+                              </div>
+                            </TableCell>
                             <TableCell>
                               <div className={`flex items-center gap-1 ${position.position_type === 'long' ? 'text-green-500' : 'text-red-500'}`}>
                                 {position.position_type === 'long' ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
@@ -957,7 +974,23 @@ export const AdminTradeManagement = () => {
                         
                         return (
                           <TableRow key={position.id}>
-                            <TableCell className="font-medium">{position.symbol}</TableCell>
+                            <TableCell className="font-medium">
+                              <div className="flex items-center gap-2">
+                                {position.symbol}
+                                <Badge 
+                                  variant={position.price_mode === 'edited' ? 'destructive' : position.price_mode === 'manual' ? 'secondary' : 'outline'}
+                                  className={`text-[10px] px-1.5 py-0 ${
+                                    position.price_mode === 'edited' 
+                                      ? 'bg-orange-500/20 text-orange-500 border-orange-500/30' 
+                                      : position.price_mode === 'manual' 
+                                        ? 'bg-purple-500/20 text-purple-500 border-purple-500/30' 
+                                        : 'bg-green-500/20 text-green-500 border-green-500/30'
+                                  }`}
+                                >
+                                  {position.price_mode === 'edited' ? 'Edited' : position.price_mode === 'manual' ? 'Manual' : 'Live'}
+                                </Badge>
+                              </div>
+                            </TableCell>
                             <TableCell>
                               <div className={`flex items-center gap-1 ${position.position_type === 'long' ? 'text-green-500' : 'text-red-500'}`}>
                                 {position.position_type === 'long' ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}

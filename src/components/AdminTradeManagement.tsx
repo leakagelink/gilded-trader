@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { TrendingUp, TrendingDown, Edit, X, ArrowUp, ArrowDown, Plus, Minus } from "lucide-react";
+import { TrendingUp, TrendingDown, Edit, X, ArrowUp, ArrowDown, Plus, Minus, Search, ChevronLeft, ChevronRight, Users, Eye } from "lucide-react";
 
 interface User {
   id: string;
@@ -35,6 +35,16 @@ interface Position {
   };
 }
 
+interface UserWithTrades {
+  id: string;
+  full_name: string;
+  email: string;
+  tradeCount: number;
+  totalPnL: number;
+}
+
+const TRADES_PER_PAGE = 10;
+
 export const AdminTradeManagement = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [positions, setPositions] = useState<Position[]>([]);
@@ -44,6 +54,11 @@ export const AdminTradeManagement = () => {
   const [selectedPosition, setSelectedPosition] = useState<Position | null>(null);
   const [priceChanges, setPriceChanges] = useState<Record<string, { direction: 'up' | 'down' | 'none'; flash: boolean }>>({});
   const previousPricesRef = useRef<Record<string, number>>({});
+  
+  // View state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [viewingUserId, setViewingUserId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
   
   // Trade form fields
   const [symbol, setSymbol] = useState("");
@@ -196,6 +211,50 @@ export const AdminTradeManagement = () => {
       setPositions(positionsWithProfiles as any);
     }
   };
+
+  // Get users with active trades
+  const usersWithTrades: UserWithTrades[] = useMemo(() => {
+    const userTradeMap = new Map<string, UserWithTrades>();
+    
+    positions.forEach(position => {
+      const existing = userTradeMap.get(position.user_id);
+      const pnl = calculatePnL(position);
+      
+      if (existing) {
+        existing.tradeCount += 1;
+        existing.totalPnL += pnl;
+      } else {
+        userTradeMap.set(position.user_id, {
+          id: position.user_id,
+          full_name: position.profiles?.full_name || 'Unknown',
+          email: position.profiles?.email || '',
+          tradeCount: 1,
+          totalPnL: pnl
+        });
+      }
+    });
+    
+    return Array.from(userTradeMap.values());
+  }, [positions]);
+
+  // Filter users by search
+  const filteredUsers = usersWithTrades.filter(user => 
+    user.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    user.email.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Get trades for selected user with pagination
+  const selectedUserTrades = viewingUserId 
+    ? positions.filter(p => p.user_id === viewingUserId)
+    : [];
+  
+  const totalPages = Math.ceil(selectedUserTrades.length / TRADES_PER_PAGE);
+  const paginatedTrades = selectedUserTrades.slice(
+    (currentPage - 1) * TRADES_PER_PAGE,
+    currentPage * TRADES_PER_PAGE
+  );
+
+  const selectedUserInfo = usersWithTrades.find(u => u.id === viewingUserId);
 
   const handleOpenTrade = async () => {
     // Validate based on price mode
@@ -516,6 +575,16 @@ export const AdminTradeManagement = () => {
     }
   };
 
+  const handleViewUserTrades = (userId: string) => {
+    setViewingUserId(userId);
+    setCurrentPage(1);
+  };
+
+  const handleBackToUsers = () => {
+    setViewingUserId(null);
+    setCurrentPage(1);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -525,164 +594,268 @@ export const AdminTradeManagement = () => {
         </Button>
       </div>
 
-      <Card className="p-6">
-        <h3 className="text-lg font-semibold mb-4">Active Positions</h3>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>User</TableHead>
-              <TableHead>Symbol</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Amount</TableHead>
-              <TableHead>Entry Price</TableHead>
-              <TableHead>Current Price</TableHead>
-              <TableHead>Leverage</TableHead>
-              <TableHead>PnL</TableHead>
-              <TableHead>PnL %</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {positions.map((position) => {
-              const pnl = calculatePnL(position);
-              const isProfit = pnl >= 0;
-              const pnlPercent = (pnl / position.margin) * 100;
-              
-              return (
-                <TableRow key={position.id}>
-                  <TableCell>
-                    <div>
-                      <div className="font-medium">{position.profiles?.full_name}</div>
-                      <div className="text-xs text-muted-foreground">{position.profiles?.email}</div>
+      {/* Search Input */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Search by user name or email..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-10"
+        />
+      </div>
+
+      {!viewingUserId ? (
+        // Users List View
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            <Users className="h-5 w-5" />
+            Users with Active Trades ({filteredUsers.length})
+          </h3>
+          
+          {filteredUsers.length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">
+              {searchQuery ? "No users found matching your search" : "No active trades"}
+            </p>
+          ) : (
+            <div className="grid gap-3">
+              {filteredUsers.map((user) => (
+                <div 
+                  key={user.id}
+                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                >
+                  <div className="flex-1">
+                    <div className="font-medium">{user.full_name}</div>
+                    <div className="text-sm text-muted-foreground">{user.email}</div>
+                  </div>
+                  <div className="flex items-center gap-6">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold">{user.tradeCount}</div>
+                      <div className="text-xs text-muted-foreground">Trades</div>
                     </div>
-                  </TableCell>
-                  <TableCell>{position.symbol}</TableCell>
-                  <TableCell>
-                    <div className={`flex items-center gap-1 ${position.position_type === 'long' ? 'text-green-500' : 'text-red-500'}`}>
-                      {position.position_type === 'long' ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
-                      {position.position_type.toUpperCase()}
+                    <div className="text-center min-w-[100px]">
+                      <div className={`text-lg font-semibold ${user.totalPnL >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                        {user.totalPnL >= 0 ? '+' : ''}${user.totalPnL.toFixed(2)}
+                      </div>
+                      <div className="text-xs text-muted-foreground">Total PnL</div>
                     </div>
-                  </TableCell>
-                  <TableCell>{position.amount}</TableCell>
-                  <TableCell>${position.entry_price.toFixed(2)}</TableCell>
-                  <TableCell>
-                    <div className={`flex items-center gap-1 transition-all duration-300 ${
-                      priceChanges[position.id]?.flash 
-                        ? priceChanges[position.id].direction === 'up' 
-                          ? 'text-green-500 animate-pulse' 
-                          : 'text-red-500 animate-pulse'
-                        : ''
-                    }`}>
-                      <span className={`px-2 py-1 rounded transition-all duration-300 ${
-                        priceChanges[position.id]?.flash
-                          ? priceChanges[position.id].direction === 'up'
-                            ? 'bg-green-500/20'
-                            : 'bg-red-500/20'
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleViewUserTrades(user.id)}
+                    >
+                      <Eye className="h-4 w-4 mr-2" />
+                      View Trades
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      ) : (
+        // User's Trades View
+        <Card className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-4">
+              <Button variant="ghost" size="sm" onClick={handleBackToUsers}>
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                Back
+              </Button>
+              <div>
+                <h3 className="text-lg font-semibold">{selectedUserInfo?.full_name}'s Trades</h3>
+                <p className="text-sm text-muted-foreground">
+                  {selectedUserTrades.length} active trades • Total PnL: 
+                  <span className={`ml-1 font-medium ${(selectedUserInfo?.totalPnL || 0) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                    {(selectedUserInfo?.totalPnL || 0) >= 0 ? '+' : ''}${(selectedUserInfo?.totalPnL || 0).toFixed(2)}
+                  </span>
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Symbol</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Amount</TableHead>
+                <TableHead>Entry Price</TableHead>
+                <TableHead>Current Price</TableHead>
+                <TableHead>Leverage</TableHead>
+                <TableHead>PnL</TableHead>
+                <TableHead>PnL %</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {paginatedTrades.map((position) => {
+                const pnl = calculatePnL(position);
+                const isProfit = pnl >= 0;
+                const pnlPercent = (pnl / position.margin) * 100;
+                
+                return (
+                  <TableRow key={position.id}>
+                    <TableCell className="font-medium">{position.symbol}</TableCell>
+                    <TableCell>
+                      <div className={`flex items-center gap-1 ${position.position_type === 'long' ? 'text-green-500' : 'text-red-500'}`}>
+                        {position.position_type === 'long' ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
+                        {position.position_type.toUpperCase()}
+                      </div>
+                    </TableCell>
+                    <TableCell>{position.amount}</TableCell>
+                    <TableCell>${position.entry_price.toFixed(2)}</TableCell>
+                    <TableCell>
+                      <div className={`flex items-center gap-1 transition-all duration-300 ${
+                        priceChanges[position.id]?.flash 
+                          ? priceChanges[position.id].direction === 'up' 
+                            ? 'text-green-500 animate-pulse' 
+                            : 'text-red-500 animate-pulse'
                           : ''
                       }`}>
-                        ${position.current_price.toFixed(2)}
-                      </span>
-                      {priceChanges[position.id]?.direction === 'up' && (
-                        <ArrowUp className="h-4 w-4 text-green-500" />
-                      )}
-                      {priceChanges[position.id]?.direction === 'down' && (
-                        <ArrowDown className="h-4 w-4 text-red-500" />
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>{position.leverage}x</TableCell>
-                  <TableCell>
-                    <div className={`flex items-center gap-1 transition-all duration-300 ${
-                      priceChanges[position.id]?.flash 
-                        ? 'animate-pulse'
-                        : ''
-                    } ${isProfit ? 'text-green-500' : 'text-red-500'}`}>
-                      <span className={`px-2 py-1 rounded ${
-                        priceChanges[position.id]?.flash
-                          ? isProfit
-                            ? 'bg-green-500/20'
-                            : 'bg-red-500/20'
+                        <span className={`px-2 py-1 rounded transition-all duration-300 ${
+                          priceChanges[position.id]?.flash
+                            ? priceChanges[position.id].direction === 'up'
+                              ? 'bg-green-500/20'
+                              : 'bg-red-500/20'
+                            : ''
+                        }`}>
+                          ${position.current_price.toFixed(2)}
+                        </span>
+                        {priceChanges[position.id]?.direction === 'up' && (
+                          <ArrowUp className="h-4 w-4 text-green-500" />
+                        )}
+                        {priceChanges[position.id]?.direction === 'down' && (
+                          <ArrowDown className="h-4 w-4 text-red-500" />
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>{position.leverage}x</TableCell>
+                    <TableCell>
+                      <div className={`flex items-center gap-1 transition-all duration-300 ${
+                        priceChanges[position.id]?.flash 
+                          ? 'animate-pulse'
                           : ''
-                      }`}>
-                        {isProfit ? '+' : ''}${pnl.toFixed(2)}
-                      </span>
-                      {priceChanges[position.id]?.direction === 'up' && (
-                        <ArrowUp className="h-4 w-4 text-green-500" />
-                      )}
-                      {priceChanges[position.id]?.direction === 'down' && (
-                        <ArrowDown className="h-4 w-4 text-red-500" />
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 w-7 p-0"
-                        onClick={() => adjustPnlForPosition(position.id, pnlPercent - 1)}
-                      >
-                        <Minus className="h-3 w-3" />
-                      </Button>
-                      
-                      {adjustPnlPositionId === position.id ? (
-                        <div className="flex items-center gap-1">
-                          <Input
-                            type="number"
-                            placeholder="PnL %"
-                            value={targetPnlPercent}
-                            onChange={(e) => setTargetPnlPercent(e.target.value)}
-                            className="w-16 h-7 text-xs"
-                          />
-                          <Button size="sm" className="h-7 px-2" onClick={handleAdjustPnl}>OK</Button>
-                          <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => setAdjustPnlPositionId(null)}>X</Button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => {
-                            setAdjustPnlPositionId(position.id);
-                            setTargetPnlPercent(pnlPercent.toFixed(2));
-                          }}
-                          className={`font-semibold min-w-[60px] text-center ${isProfit ? 'text-green-500' : 'text-red-500'}`}
+                      } ${isProfit ? 'text-green-500' : 'text-red-500'}`}>
+                        <span className={`px-2 py-1 rounded ${
+                          priceChanges[position.id]?.flash
+                            ? isProfit
+                              ? 'bg-green-500/20'
+                              : 'bg-red-500/20'
+                            : ''
+                        }`}>
+                          {isProfit ? '+' : ''}${pnl.toFixed(2)}
+                        </span>
+                        {priceChanges[position.id]?.direction === 'up' && (
+                          <ArrowUp className="h-4 w-4 text-green-500" />
+                        )}
+                        {priceChanges[position.id]?.direction === 'down' && (
+                          <ArrowDown className="h-4 w-4 text-red-500" />
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 w-7 p-0"
+                          onClick={() => adjustPnlForPosition(position.id, pnlPercent - 1)}
                         >
-                          {isProfit ? '+' : ''}{pnlPercent.toFixed(2)}%
-                        </button>
-                      )}
-                      
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 w-7 p-0"
-                        onClick={() => adjustPnlForPosition(position.id, pnlPercent + 1)}
-                      >
-                        <Plus className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => openEditDialog(position)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => handleCloseTrade(position)}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </Card>
+                          <Minus className="h-3 w-3" />
+                        </Button>
+                        
+                        {adjustPnlPositionId === position.id ? (
+                          <div className="flex items-center gap-1">
+                            <Input
+                              type="number"
+                              placeholder="PnL %"
+                              value={targetPnlPercent}
+                              onChange={(e) => setTargetPnlPercent(e.target.value)}
+                              className="w-16 h-7 text-xs"
+                            />
+                            <Button size="sm" className="h-7 px-2" onClick={handleAdjustPnl}>OK</Button>
+                            <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => setAdjustPnlPositionId(null)}>X</Button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              setAdjustPnlPositionId(position.id);
+                              setTargetPnlPercent(pnlPercent.toFixed(2));
+                            }}
+                            className={`font-semibold min-w-[60px] text-center ${isProfit ? 'text-green-500' : 'text-red-500'}`}
+                          >
+                            {isProfit ? '+' : ''}{pnlPercent.toFixed(2)}%
+                          </button>
+                        )}
+                        
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 w-7 p-0"
+                          onClick={() => adjustPnlForPosition(position.id, pnlPercent + 1)}
+                        >
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openEditDialog(position)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleCloseTrade(position)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-4 pt-4 border-t">
+              <p className="text-sm text-muted-foreground">
+                Showing {((currentPage - 1) * TRADES_PER_PAGE) + 1} to {Math.min(currentPage * TRADES_PER_PAGE, selectedUserTrades.length)} of {selectedUserTrades.length} trades
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Previous
+                </Button>
+                <span className="text-sm px-3">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </Card>
+      )}
 
       {/* Open Trade Dialog */}
       <Dialog open={openTradeDialog} onOpenChange={setOpenTradeDialog}>

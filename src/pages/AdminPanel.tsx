@@ -60,6 +60,12 @@ const AdminPanel = () => {
   const [deleteUserOpen, setDeleteUserOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<any>(null);
   
+  // Add fund state
+  const [addFundOpen, setAddFundOpen] = useState(false);
+  const [addFundUser, setAddFundUser] = useState<any>(null);
+  const [addFundAmount, setAddFundAmount] = useState("");
+  const [addingFund, setAddingFund] = useState(false);
+  
   // User search and pagination
   const [userSearchQuery, setUserSearchQuery] = useState("");
   const [userCurrentPage, setUserCurrentPage] = useState(1);
@@ -297,6 +303,56 @@ const AdminPanel = () => {
         description: error.message,
         variant: "destructive",
       });
+    }
+  };
+
+  const handleAddFund = async () => {
+    if (!addFundUser || !addFundAmount) return;
+
+    setAddingFund(true);
+    try {
+      const amountToAdd = parseFloat(addFundAmount);
+      const currentBalance = parseFloat(getUserBalance(addFundUser.id));
+      const newBalance = currentBalance + amountToAdd;
+
+      const { error } = await supabase
+        .from("user_wallets")
+        .upsert({
+          user_id: addFundUser.id,
+          currency: "USD",
+          balance: newBalance,
+        }, {
+          onConflict: "user_id,currency",
+        });
+
+      if (error) throw error;
+
+      // Create transaction record
+      await supabase.from("wallet_transactions").insert({
+        user_id: addFundUser.id,
+        type: "deposit",
+        amount: amountToAdd,
+        currency: "USD",
+        status: "Completed",
+      });
+
+      toast({
+        title: "Success",
+        description: `$${amountToAdd.toFixed(2)} added to ${addFundUser.full_name || addFundUser.email}'s wallet`,
+      });
+
+      setAddFundOpen(false);
+      setAddFundUser(null);
+      setAddFundAmount("");
+      fetchAllData();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setAddingFund(false);
     }
   };
 
@@ -961,6 +1017,18 @@ const AdminPanel = () => {
                                 </TableCell>
                                 <TableCell>
                                   <div className="flex gap-2 flex-wrap">
+                                    <Button
+                                      size="sm"
+                                      className="bg-green-600 hover:bg-green-700"
+                                      onClick={() => {
+                                        setAddFundUser(user);
+                                        setAddFundAmount("");
+                                        setAddFundOpen(true);
+                                      }}
+                                    >
+                                      <DollarSign className="h-4 w-4 mr-1" />
+                                      Add Fund
+                                    </Button>
                                     <Button
                                       size="sm"
                                       variant="outline"
@@ -1644,6 +1712,73 @@ const AdminPanel = () => {
                 </>
               ) : (
                 "Update Password"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Fund Dialog */}
+      <Dialog open={addFundOpen} onOpenChange={setAddFundOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-green-600" />
+              Add Fund to User Wallet
+            </DialogTitle>
+            <DialogDescription>
+              Add funds to {addFundUser?.full_name || addFundUser?.email}'s wallet
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="p-3 bg-muted rounded-lg">
+              <p className="text-sm text-muted-foreground">Current Balance</p>
+              <p className="text-2xl font-bold">${addFundUser ? getUserBalance(addFundUser.id) : "0.00"}</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="addFundAmount">Amount to Add (USD)</Label>
+              <Input
+                id="addFundAmount"
+                type="number"
+                placeholder="Enter amount"
+                value={addFundAmount}
+                onChange={(e) => setAddFundAmount(e.target.value)}
+                min="0.01"
+                step="0.01"
+              />
+            </div>
+            {addFundAmount && parseFloat(addFundAmount) > 0 && (
+              <div className="p-3 bg-green-600/10 border border-green-600/20 rounded-lg">
+                <p className="text-sm text-muted-foreground">New Balance</p>
+                <p className="text-xl font-bold text-green-600">
+                  ${(parseFloat(getUserBalance(addFundUser?.id || "")) + parseFloat(addFundAmount || "0")).toFixed(2)}
+                </p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setAddFundOpen(false);
+              setAddFundUser(null);
+              setAddFundAmount("");
+            }}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleAddFund} 
+              disabled={addingFund || !addFundAmount || parseFloat(addFundAmount) <= 0}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {addingFund ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                  Adding...
+                </>
+              ) : (
+                <>
+                  <DollarSign className="h-4 w-4 mr-1" />
+                  Add Fund
+                </>
               )}
             </Button>
           </DialogFooter>

@@ -178,7 +178,7 @@ export const AdminTradeManagement = () => {
     };
 
     updatePrices();
-    const interval = setInterval(updatePrices, 1000);
+    const interval = setInterval(updatePrices, 5000); // 5 seconds for admin to edit trades
 
     return () => clearInterval(interval);
   }, [positions.length]);
@@ -491,11 +491,11 @@ export const AdminTradeManagement = () => {
 
   const handleCloseTrade = async (position: Position) => {
     try {
-      const pnl = position.position_type === 'long' 
-        ? (position.current_price - position.entry_price) * position.amount * position.leverage
-        : (position.entry_price - position.current_price) * position.amount * position.leverage;
+      // Use the current displayed PnL (which may have been edited by admin)
+      // instead of recalculating from prices
+      const pnl = position.pnl ?? calculatePnL(position);
 
-      // Close position
+      // Close position with the current PnL value
       await supabase
         .from('positions')
         .update({
@@ -587,6 +587,14 @@ export const AdminTradeManagement = () => {
         newCurrentPrice = position.entry_price - (targetPnl / (position.amount * position.leverage));
       }
 
+      // Update local state immediately so UI reflects the change
+      setPositions(prev => prev.map(p => 
+        p.id === positionId 
+          ? { ...p, current_price: newCurrentPrice, pnl: targetPnl }
+          : p
+      ));
+
+      // Update database in background
       const { error } = await supabase
         .from('positions')
         .update({
@@ -596,10 +604,13 @@ export const AdminTradeManagement = () => {
         })
         .eq('id', positionId);
 
-      if (error) throw error;
+      if (error) {
+        // Revert local state on error
+        fetchPositions();
+        throw error;
+      }
 
       toast.success(`PnL adjusted to ${pnlPercent.toFixed(2)}%`);
-      fetchPositions();
     } catch (error: any) {
       toast.error(error.message);
     }

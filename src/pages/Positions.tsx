@@ -399,7 +399,7 @@ const Positions = () => {
       </header>
 
       <main className="container mx-auto p-4">
-        {/* Total Portfolio P&L Card */}
+        {/* Total Portfolio P&L Card - Sticky */}
         {openPositions.length > 0 && (() => {
           const totalPnL = openPositions.reduce((sum, pos) => sum + calculatePnL(pos), 0);
           const isProfit = totalPnL >= 0;
@@ -407,45 +407,47 @@ const Positions = () => {
           const pnlPercentage = totalMargin > 0 ? (totalPnL / totalMargin) * 100 : 0;
 
           return (
-            <Card className={`mb-6 p-4 sm:p-6 border-2 ${isProfit ? 'bg-green-500/5 border-green-500/20' : 'bg-red-500/5 border-red-500/20'}`}>
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-xs sm:text-sm font-medium text-muted-foreground mb-1">Total Portfolio P&L</h3>
-                  <div className="flex flex-wrap items-baseline gap-1 sm:gap-2">
-                    <p className={`text-2xl sm:text-3xl font-bold ${isProfit ? 'text-green-500' : 'text-red-500'}`}>
-                      {isProfit ? '+' : ''}${totalPnL.toFixed(2)}
-                    </p>
-                    <span className={`text-sm sm:text-lg font-semibold ${isProfit ? 'text-green-500' : 'text-red-500'}`}>
-                      ({isProfit ? '+' : ''}{pnlPercentage.toFixed(2)}%)
-                    </span>
+            <div className="sticky top-16 z-40 -mx-4 px-4 pb-4 pt-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+              <Card className={`p-4 sm:p-6 border-2 ${isProfit ? 'bg-green-500/5 border-green-500/20' : 'bg-red-500/5 border-red-500/20'}`}>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-xs sm:text-sm font-medium text-muted-foreground mb-1">Total Portfolio P&L</h3>
+                    <div className="flex flex-wrap items-baseline gap-1 sm:gap-2">
+                      <p className={`text-2xl sm:text-3xl font-bold ${isProfit ? 'text-green-500' : 'text-red-500'}`}>
+                        {isProfit ? '+' : ''}${totalPnL.toFixed(2)}
+                      </p>
+                      <span className={`text-sm sm:text-lg font-semibold ${isProfit ? 'text-green-500' : 'text-red-500'}`}>
+                        ({isProfit ? '+' : ''}{pnlPercentage.toFixed(2)}%)
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-left sm:text-right flex-shrink-0">
+                    <p className="text-xs sm:text-sm text-muted-foreground mb-1">Total Margin</p>
+                    <p className="text-lg sm:text-xl font-semibold">${totalMargin.toFixed(2)}</p>
                   </div>
                 </div>
-                <div className="text-left sm:text-right flex-shrink-0">
-                  <p className="text-xs sm:text-sm text-muted-foreground mb-1">Total Margin</p>
-                  <p className="text-lg sm:text-xl font-semibold">${totalMargin.toFixed(2)}</p>
-                </div>
-              </div>
-              <div className="mt-4 pt-4 border-t border-border/50">
-                <div className="grid grid-cols-3 gap-4 text-center">
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">Open Positions</p>
-                    <p className="text-lg font-semibold">{openPositions.length}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">Long</p>
-                    <p className="text-lg font-semibold text-green-500">
-                      {openPositions.filter(p => p.position_type === 'long').length}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">Short</p>
-                    <p className="text-lg font-semibold text-red-500">
-                      {openPositions.filter(p => p.position_type === 'short').length}
-                    </p>
+                <div className="mt-4 pt-4 border-t border-border/50">
+                  <div className="grid grid-cols-3 gap-4 text-center">
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Open Positions</p>
+                      <p className="text-lg font-semibold">{openPositions.length}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Long</p>
+                      <p className="text-lg font-semibold text-green-500">
+                        {openPositions.filter(p => p.position_type === 'long').length}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Short</p>
+                      <p className="text-lg font-semibold text-red-500">
+                        {openPositions.filter(p => p.position_type === 'short').length}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </Card>
+              </Card>
+            </div>
           );
         })()}
 

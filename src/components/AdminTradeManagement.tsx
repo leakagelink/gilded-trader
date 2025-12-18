@@ -242,6 +242,14 @@ export const AdminTradeManagement = () => {
     }
   };
 
+  const calculatePnL = (position: Position) => {
+    if (position.position_type === 'long') {
+      return (position.current_price - position.entry_price) * position.amount * position.leverage;
+    } else {
+      return (position.entry_price - position.current_price) * position.amount * position.leverage;
+    }
+  };
+
   // Get users with active trades
   const usersWithTrades: UserWithTrades[] = useMemo(() => {
     const userTradeMap = new Map<string, UserWithTrades>();
@@ -594,14 +602,6 @@ export const AdminTradeManagement = () => {
       fetchPositions();
     } catch (error: any) {
       toast.error(error.message);
-    }
-  };
-
-  const calculatePnL = (position: Position) => {
-    if (position.position_type === 'long') {
-      return (position.current_price - position.entry_price) * position.amount * position.leverage;
-    } else {
-      return (position.entry_price - position.current_price) * position.amount * position.leverage;
     }
   };
 

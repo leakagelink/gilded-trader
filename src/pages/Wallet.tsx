@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowUpRight, ArrowDownLeft, Wallet as WalletIcon, TrendingUp } from "lucide-react";
+import { ArrowUpRight, ArrowDownLeft, Wallet as WalletIcon, TrendingUp, Gift, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -105,6 +105,44 @@ const Wallet = () => {
           </h1>
           <p className="text-muted-foreground">Manage your funds and transactions</p>
         </div>
+
+        {/* Christmas Offer Banner */}
+        <Card className="mb-8 p-6 bg-gradient-to-r from-red-600 via-green-600 to-red-600 text-white overflow-hidden relative">
+          <div className="absolute inset-0 opacity-20">
+            <div className="absolute top-2 left-10 text-4xl">❄️</div>
+            <div className="absolute top-4 right-20 text-3xl">🎄</div>
+            <div className="absolute bottom-2 left-1/4 text-3xl">🎅</div>
+            <div className="absolute bottom-3 right-10 text-4xl">❄️</div>
+            <div className="absolute top-1/2 left-1/2 text-3xl">🎁</div>
+          </div>
+          <div className="relative z-10">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="h-12 w-12 rounded-full bg-white/20 flex items-center justify-center">
+                <Gift className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold flex items-center gap-2">
+                  <Sparkles className="h-5 w-5" />
+                  Christmas Special Offer!
+                  <Sparkles className="h-5 w-5" />
+                </h3>
+                <p className="text-white/90 text-sm">Limited time offer - Don't miss out!</p>
+              </div>
+            </div>
+            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 mt-4">
+              <div className="text-center">
+                <p className="text-3xl font-bold mb-1">30% DEPOSIT BONUS</p>
+                <p className="text-white/90 text-sm">
+                  Deposit between <span className="font-bold">$200 - $2000</span> and get <span className="font-bold">30% extra</span> in your wallet!
+                </p>
+                <div className="flex items-center justify-center gap-4 mt-3 text-sm">
+                  <span className="bg-white/20 px-3 py-1 rounded-full">Min: $200</span>
+                  <span className="bg-white/20 px-3 py-1 rounded-full">Max Bonus: $600</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Card>
 
         {/* Wallet Balances */}
         <div className="grid md:grid-cols-3 gap-6 mb-8">

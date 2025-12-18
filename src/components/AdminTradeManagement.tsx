@@ -8,7 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { TrendingUp, TrendingDown, Edit, X, ArrowUp, ArrowDown, Plus, Minus, Search, ChevronLeft, ChevronRight, Users, Eye } from "lucide-react";
+import { TrendingUp, TrendingDown, Edit, X, ArrowUp, ArrowDown, Plus, Minus, Search, ChevronLeft, ChevronRight, Users, Eye, History } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface User {
   id: string;
@@ -29,6 +30,8 @@ interface Position {
   status: 'open' | 'closed';
   price_mode?: string;
   pnl?: number;
+  closed_at?: string;
+  close_price?: number;
   profiles?: {
     full_name?: string;
     email?: string;
@@ -59,6 +62,8 @@ export const AdminTradeManagement = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [viewingUserId, setViewingUserId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [tradeViewTab, setTradeViewTab] = useState<'open' | 'closed'>('open');
+  const [closedPositions, setClosedPositions] = useState<Position[]>([]);
   
   // Trade form fields
   const [symbol, setSymbol] = useState("");
@@ -209,6 +214,31 @@ export const AdminTradeManagement = () => {
       }));
       
       setPositions(positionsWithProfiles as any);
+    }
+  };
+
+  const fetchClosedPositions = async (userId: string) => {
+    const { data } = await supabase
+      .from("positions")
+      .select("*")
+      .eq("status", "closed")
+      .eq("user_id", userId)
+      .order("closed_at", { ascending: false });
+    
+    if (data) {
+      // Fetch user profile
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .eq("id", userId)
+        .maybeSingle();
+      
+      const positionsWithProfiles = data.map(position => ({
+        ...position,
+        profiles: profile || undefined
+      }));
+      
+      setClosedPositions(positionsWithProfiles as any);
     }
   };
 
@@ -578,12 +608,29 @@ export const AdminTradeManagement = () => {
   const handleViewUserTrades = (userId: string) => {
     setViewingUserId(userId);
     setCurrentPage(1);
+    setTradeViewTab('open');
+    fetchClosedPositions(userId);
   };
 
   const handleBackToUsers = () => {
     setViewingUserId(null);
     setCurrentPage(1);
+    setTradeViewTab('open');
+    setClosedPositions([]);
   };
+
+  const handleTabChange = (tab: string) => {
+    setTradeViewTab(tab as 'open' | 'closed');
+    setCurrentPage(1);
+  };
+
+  // Get trades for display based on active tab
+  const displayTrades = tradeViewTab === 'open' ? selectedUserTrades : closedPositions;
+  const displayTotalPages = Math.ceil(displayTrades.length / TRADES_PER_PAGE);
+  const displayPaginatedTrades = displayTrades.slice(
+    (currentPage - 1) * TRADES_PER_PAGE,
+    currentPage * TRADES_PER_PAGE
+  );
 
   return (
     <div className="space-y-6">
@@ -665,195 +712,307 @@ export const AdminTradeManagement = () => {
               <div>
                 <h3 className="text-lg font-semibold">{selectedUserInfo?.full_name}'s Trades</h3>
                 <p className="text-sm text-muted-foreground">
-                  {selectedUserTrades.length} active trades • Total PnL: 
-                  <span className={`ml-1 font-medium ${(selectedUserInfo?.totalPnL || 0) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                    {(selectedUserInfo?.totalPnL || 0) >= 0 ? '+' : ''}${(selectedUserInfo?.totalPnL || 0).toFixed(2)}
-                  </span>
+                  {selectedUserTrades.length} open • {closedPositions.length} closed
                 </p>
               </div>
             </div>
           </div>
 
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Symbol</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Entry Price</TableHead>
-                <TableHead>Current Price</TableHead>
-                <TableHead>Leverage</TableHead>
-                <TableHead>PnL</TableHead>
-                <TableHead>PnL %</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {paginatedTrades.map((position) => {
-                const pnl = calculatePnL(position);
-                const isProfit = pnl >= 0;
-                const pnlPercent = (pnl / position.margin) * 100;
-                
-                return (
-                  <TableRow key={position.id}>
-                    <TableCell className="font-medium">{position.symbol}</TableCell>
-                    <TableCell>
-                      <div className={`flex items-center gap-1 ${position.position_type === 'long' ? 'text-green-500' : 'text-red-500'}`}>
-                        {position.position_type === 'long' ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
-                        {position.position_type.toUpperCase()}
-                      </div>
-                    </TableCell>
-                    <TableCell>{position.amount}</TableCell>
-                    <TableCell>${position.entry_price.toFixed(2)}</TableCell>
-                    <TableCell>
-                      <div className={`flex items-center gap-1 transition-all duration-300 ${
-                        priceChanges[position.id]?.flash 
-                          ? priceChanges[position.id].direction === 'up' 
-                            ? 'text-green-500 animate-pulse' 
-                            : 'text-red-500 animate-pulse'
-                          : ''
-                      }`}>
-                        <span className={`px-2 py-1 rounded transition-all duration-300 ${
-                          priceChanges[position.id]?.flash
-                            ? priceChanges[position.id].direction === 'up'
-                              ? 'bg-green-500/20'
-                              : 'bg-red-500/20'
-                            : ''
-                        }`}>
-                          ${position.current_price.toFixed(2)}
-                        </span>
-                        {priceChanges[position.id]?.direction === 'up' && (
-                          <ArrowUp className="h-4 w-4 text-green-500" />
-                        )}
-                        {priceChanges[position.id]?.direction === 'down' && (
-                          <ArrowDown className="h-4 w-4 text-red-500" />
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>{position.leverage}x</TableCell>
-                    <TableCell>
-                      <div className={`flex items-center gap-1 transition-all duration-300 ${
-                        priceChanges[position.id]?.flash 
-                          ? 'animate-pulse'
-                          : ''
-                      } ${isProfit ? 'text-green-500' : 'text-red-500'}`}>
-                        <span className={`px-2 py-1 rounded ${
-                          priceChanges[position.id]?.flash
-                            ? isProfit
-                              ? 'bg-green-500/20'
-                              : 'bg-red-500/20'
-                            : ''
-                        }`}>
-                          {isProfit ? '+' : ''}${pnl.toFixed(2)}
-                        </span>
-                        {priceChanges[position.id]?.direction === 'up' && (
-                          <ArrowUp className="h-4 w-4 text-green-500" />
-                        )}
-                        {priceChanges[position.id]?.direction === 'down' && (
-                          <ArrowDown className="h-4 w-4 text-red-500" />
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 w-7 p-0"
-                          onClick={() => adjustPnlForPosition(position.id, pnlPercent - 1)}
-                        >
-                          <Minus className="h-3 w-3" />
-                        </Button>
-                        
-                        {adjustPnlPositionId === position.id ? (
-                          <div className="flex items-center gap-1">
-                            <Input
-                              type="number"
-                              placeholder="PnL %"
-                              value={targetPnlPercent}
-                              onChange={(e) => setTargetPnlPercent(e.target.value)}
-                              className="w-16 h-7 text-xs"
-                            />
-                            <Button size="sm" className="h-7 px-2" onClick={handleAdjustPnl}>OK</Button>
-                            <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => setAdjustPnlPositionId(null)}>X</Button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => {
-                              setAdjustPnlPositionId(position.id);
-                              setTargetPnlPercent(pnlPercent.toFixed(2));
-                            }}
-                            className={`font-semibold min-w-[60px] text-center ${isProfit ? 'text-green-500' : 'text-red-500'}`}
-                          >
-                            {isProfit ? '+' : ''}{pnlPercent.toFixed(2)}%
-                          </button>
-                        )}
-                        
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 w-7 p-0"
-                          onClick={() => adjustPnlForPosition(position.id, pnlPercent + 1)}
-                        >
-                          <Plus className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => openEditDialog(position)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => handleCloseTrade(position)}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+          <Tabs value={tradeViewTab} onValueChange={handleTabChange} className="w-full">
+            <TabsList className="mb-4">
+              <TabsTrigger value="open" className="flex items-center gap-2">
+                <TrendingUp className="h-4 w-4" />
+                Open Trades ({selectedUserTrades.length})
+              </TabsTrigger>
+              <TabsTrigger value="closed" className="flex items-center gap-2">
+                <History className="h-4 w-4" />
+                Trade History ({closedPositions.length})
+              </TabsTrigger>
+            </TabsList>
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between mt-4 pt-4 border-t">
-              <p className="text-sm text-muted-foreground">
-                Showing {((currentPage - 1) * TRADES_PER_PAGE) + 1} to {Math.min(currentPage * TRADES_PER_PAGE, selectedUserTrades.length)} of {selectedUserTrades.length} trades
-              </p>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                  Previous
-                </Button>
-                <span className="text-sm px-3">
-                  Page {currentPage} of {totalPages}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                >
-                  Next
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          )}
+            <TabsContent value="open">
+              {selectedUserTrades.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">No open trades</p>
+              ) : (
+                <>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Symbol</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Amount</TableHead>
+                        <TableHead>Entry Price</TableHead>
+                        <TableHead>Current Price</TableHead>
+                        <TableHead>Leverage</TableHead>
+                        <TableHead>PnL</TableHead>
+                        <TableHead>PnL %</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {paginatedTrades.map((position) => {
+                        const pnl = calculatePnL(position);
+                        const isProfit = pnl >= 0;
+                        const pnlPercent = (pnl / position.margin) * 100;
+                        
+                        return (
+                          <TableRow key={position.id}>
+                            <TableCell className="font-medium">{position.symbol}</TableCell>
+                            <TableCell>
+                              <div className={`flex items-center gap-1 ${position.position_type === 'long' ? 'text-green-500' : 'text-red-500'}`}>
+                                {position.position_type === 'long' ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
+                                {position.position_type.toUpperCase()}
+                              </div>
+                            </TableCell>
+                            <TableCell>{position.amount}</TableCell>
+                            <TableCell>${position.entry_price.toFixed(2)}</TableCell>
+                            <TableCell>
+                              <div className={`flex items-center gap-1 transition-all duration-300 ${
+                                priceChanges[position.id]?.flash 
+                                  ? priceChanges[position.id].direction === 'up' 
+                                    ? 'text-green-500 animate-pulse' 
+                                    : 'text-red-500 animate-pulse'
+                                  : ''
+                              }`}>
+                                <span className={`px-2 py-1 rounded transition-all duration-300 ${
+                                  priceChanges[position.id]?.flash
+                                    ? priceChanges[position.id].direction === 'up'
+                                      ? 'bg-green-500/20'
+                                      : 'bg-red-500/20'
+                                    : ''
+                                }`}>
+                                  ${position.current_price.toFixed(2)}
+                                </span>
+                                {priceChanges[position.id]?.direction === 'up' && (
+                                  <ArrowUp className="h-4 w-4 text-green-500" />
+                                )}
+                                {priceChanges[position.id]?.direction === 'down' && (
+                                  <ArrowDown className="h-4 w-4 text-red-500" />
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>{position.leverage}x</TableCell>
+                            <TableCell>
+                              <div className={`flex items-center gap-1 transition-all duration-300 ${
+                                priceChanges[position.id]?.flash 
+                                  ? 'animate-pulse'
+                                  : ''
+                              } ${isProfit ? 'text-green-500' : 'text-red-500'}`}>
+                                <span className={`px-2 py-1 rounded ${
+                                  priceChanges[position.id]?.flash
+                                    ? isProfit
+                                      ? 'bg-green-500/20'
+                                      : 'bg-red-500/20'
+                                    : ''
+                                }`}>
+                                  {isProfit ? '+' : ''}${pnl.toFixed(2)}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 w-7 p-0"
+                                  onClick={() => adjustPnlForPosition(position.id, pnlPercent - 1)}
+                                >
+                                  <Minus className="h-3 w-3" />
+                                </Button>
+                                
+                                {adjustPnlPositionId === position.id ? (
+                                  <div className="flex items-center gap-1">
+                                    <Input
+                                      type="number"
+                                      placeholder="PnL %"
+                                      value={targetPnlPercent}
+                                      onChange={(e) => setTargetPnlPercent(e.target.value)}
+                                      className="w-16 h-7 text-xs"
+                                    />
+                                    <Button size="sm" className="h-7 px-2" onClick={handleAdjustPnl}>OK</Button>
+                                    <Button size="sm" variant="outline" className="h-7 px-2" onClick={() => setAdjustPnlPositionId(null)}>X</Button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    onClick={() => {
+                                      setAdjustPnlPositionId(position.id);
+                                      setTargetPnlPercent(pnlPercent.toFixed(2));
+                                    }}
+                                    className={`font-semibold min-w-[60px] text-center ${isProfit ? 'text-green-500' : 'text-red-500'}`}
+                                  >
+                                    {isProfit ? '+' : ''}{pnlPercent.toFixed(2)}%
+                                  </button>
+                                )}
+                                
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 w-7 p-0"
+                                  onClick={() => adjustPnlForPosition(position.id, pnlPercent + 1)}
+                                >
+                                  <Plus className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => openEditDialog(position)}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => handleCloseTrade(position)}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+
+                  {/* Pagination for open trades */}
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                      <p className="text-sm text-muted-foreground">
+                        Showing {((currentPage - 1) * TRADES_PER_PAGE) + 1} to {Math.min(currentPage * TRADES_PER_PAGE, selectedUserTrades.length)} of {selectedUserTrades.length} trades
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                          disabled={currentPage === 1}
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                          Previous
+                        </Button>
+                        <span className="text-sm px-3">
+                          Page {currentPage} of {totalPages}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                          disabled={currentPage === totalPages}
+                        >
+                          Next
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </TabsContent>
+
+            <TabsContent value="closed">
+              {closedPositions.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">No closed trades</p>
+              ) : (
+                <>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Symbol</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Amount</TableHead>
+                        <TableHead>Entry Price</TableHead>
+                        <TableHead>Close Price</TableHead>
+                        <TableHead>Leverage</TableHead>
+                        <TableHead>Final PnL</TableHead>
+                        <TableHead>Closed At</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {displayPaginatedTrades.map((position) => {
+                        const pnl = position.pnl || 0;
+                        const isProfit = pnl >= 0;
+                        const pnlPercent = (pnl / position.margin) * 100;
+                        
+                        return (
+                          <TableRow key={position.id}>
+                            <TableCell className="font-medium">{position.symbol}</TableCell>
+                            <TableCell>
+                              <div className={`flex items-center gap-1 ${position.position_type === 'long' ? 'text-green-500' : 'text-red-500'}`}>
+                                {position.position_type === 'long' ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
+                                {position.position_type.toUpperCase()}
+                              </div>
+                            </TableCell>
+                            <TableCell>{position.amount}</TableCell>
+                            <TableCell>${position.entry_price.toFixed(2)}</TableCell>
+                            <TableCell>${(position.close_price || position.current_price).toFixed(2)}</TableCell>
+                            <TableCell>{position.leverage}x</TableCell>
+                            <TableCell>
+                              <div className="flex flex-col">
+                                <span className={`font-semibold ${isProfit ? 'text-green-500' : 'text-red-500'}`}>
+                                  {isProfit ? '+' : ''}${pnl.toFixed(2)}
+                                </span>
+                                <span className={`text-xs ${isProfit ? 'text-green-500/70' : 'text-red-500/70'}`}>
+                                  {isProfit ? '+' : ''}{pnlPercent.toFixed(2)}%
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="text-sm">
+                                {position.closed_at && (
+                                  <>
+                                    <div>{new Date(position.closed_at).toLocaleDateString()}</div>
+                                    <div className="text-xs text-muted-foreground">
+                                      {new Date(position.closed_at).toLocaleTimeString()}
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+
+                  {/* Pagination for closed trades */}
+                  {displayTotalPages > 1 && (
+                    <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                      <p className="text-sm text-muted-foreground">
+                        Showing {((currentPage - 1) * TRADES_PER_PAGE) + 1} to {Math.min(currentPage * TRADES_PER_PAGE, closedPositions.length)} of {closedPositions.length} trades
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                          disabled={currentPage === 1}
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                          Previous
+                        </Button>
+                        <span className="text-sm px-3">
+                          Page {currentPage} of {displayTotalPages}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentPage(p => Math.min(displayTotalPages, p + 1))}
+                          disabled={currentPage === displayTotalPages}
+                        >
+                          Next
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </TabsContent>
+          </Tabs>
         </Card>
       )}
 

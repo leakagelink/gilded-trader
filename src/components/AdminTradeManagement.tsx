@@ -75,6 +75,28 @@ export const AdminTradeManagement = () => {
   const [priceMode, setPriceMode] = useState<'live' | 'manual'>('live');
   const [adjustPnlPositionId, setAdjustPnlPositionId] = useState<string | null>(null);
   const [targetPnlPercent, setTargetPnlPercent] = useState("");
+  const [selectedUserBalance, setSelectedUserBalance] = useState<number | null>(null);
+
+  // Fetch user balance when user is selected for trade
+  const fetchUserBalance = async (userId: string) => {
+    if (!userId) {
+      setSelectedUserBalance(null);
+      return;
+    }
+    const { data: wallet } = await supabase
+      .from('user_wallets')
+      .select('balance')
+      .eq('user_id', userId)
+      .eq('currency', 'USD')
+      .single();
+    
+    setSelectedUserBalance(wallet?.balance ?? 0);
+  };
+
+  const handleUserSelect = (userId: string) => {
+    setSelectedUser(userId);
+    fetchUserBalance(userId);
+  };
 
   useEffect(() => {
     fetchUsers();
@@ -583,6 +605,7 @@ export const AdminTradeManagement = () => {
     setEntryPrice("");
     setLeverage("1");
     setPriceMode("live");
+    setSelectedUserBalance(null);
   };
 
   const handleSymbolChange = (value: string) => {
@@ -1113,7 +1136,7 @@ export const AdminTradeManagement = () => {
 
             <div>
               <Label>Select User</Label>
-              <Select value={selectedUser} onValueChange={setSelectedUser}>
+              <Select value={selectedUser} onValueChange={handleUserSelect}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select user" />
                 </SelectTrigger>
@@ -1125,6 +1148,11 @@ export const AdminTradeManagement = () => {
                   ))}
                 </SelectContent>
               </Select>
+              {selectedUser && selectedUserBalance !== null && (
+                <p className="text-sm text-muted-foreground mt-1">
+                  Available Balance: <span className="font-semibold text-green-500">${selectedUserBalance.toFixed(2)}</span>
+                </p>
+              )}
             </div>
 
             <div>

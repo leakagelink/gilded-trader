@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { User, Mail, TrendingUp, FileCheck, CheckCircle, Clock, XCircle, ChevronRight } from "lucide-react";
+import { User, Mail, TrendingUp, FileCheck, CheckCircle, Clock, XCircle, ChevronRight, Phone, Hash, Copy } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -15,6 +15,8 @@ interface Profile {
   id: string;
   full_name: string | null;
   email: string | null;
+  mobile_number: string | null;
+  client_id: string | null;
   created_at: string;
 }
 
@@ -139,6 +141,36 @@ const Profile = () => {
           <p className="text-muted-foreground">Manage your account information</p>
         </div>
 
+        {/* Client ID Card */}
+        {profile?.client_id && (
+          <Card className="p-4 mb-6 bg-gradient-to-r from-primary/10 to-accent/10 border-primary/20">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center">
+                  <Hash className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Your Client ID</p>
+                  <p className="text-xl font-bold text-primary">{profile.client_id}</p>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                  navigator.clipboard.writeText(profile.client_id || "");
+                  toast.success("Client ID copied!");
+                }}
+              >
+                <Copy className="h-4 w-4" />
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              Use this ID to login along with email or mobile number
+            </p>
+          </Card>
+        )}
+
         <Card className="p-6 mb-6">
           <div className="flex items-center gap-4 mb-6">
             <div className="h-20 w-20 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center">
@@ -180,6 +212,20 @@ const Profile = () => {
                 />
               </div>
               <p className="text-xs text-muted-foreground">Email cannot be changed</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="mobile">Mobile Number</Label>
+              <div className="relative">
+                <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="mobile"
+                  type="tel"
+                  value={profile?.mobile_number || ""}
+                  className="pl-10"
+                  disabled
+                />
+              </div>
             </div>
 
             <Button
@@ -246,6 +292,10 @@ const Profile = () => {
         <Card className="p-6">
           <h3 className="text-xl font-semibold mb-4">Account Information</h3>
           <div className="space-y-3">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Client ID:</span>
+              <span className="font-mono font-bold text-primary">{profile?.client_id || "N/A"}</span>
+            </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Account ID:</span>
               <span className="font-mono text-sm">{user?.id.slice(0, 8)}...</span>

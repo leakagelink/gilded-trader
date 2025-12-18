@@ -5,13 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp, Mail, Lock, User, Phone, ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { TrendingUp, Mail, Lock, User, Phone, ArrowLeft, Eye, EyeOff, Hash } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
 
 const signInSchema = z.object({
-  email: z.string().email("Invalid email address"),
+  identifier: z.string().min(1, "Email, Mobile or Client ID is required"),
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
@@ -44,11 +44,37 @@ const Auth = () => {
     setIsLoading(true);
     
     const formData = new FormData(e.currentTarget);
-    const email = formData.get("email") as string;
+    const identifier = (formData.get("identifier") as string).trim();
     const password = formData.get("password") as string;
 
     try {
-      signInSchema.parse({ email, password });
+      signInSchema.parse({ identifier, password });
+
+      let email = identifier;
+
+      // Check if identifier is not an email (could be mobile or client ID)
+      if (!identifier.includes("@")) {
+        // Try to find user by mobile number or client ID
+        const { data: profileData, error: profileError } = await supabase
+          .from("profiles")
+          .select("email")
+          .or(`mobile_number.eq.${identifier},client_id.eq.${identifier.toUpperCase()}`)
+          .maybeSingle();
+
+        if (profileError) {
+          toast.error("Error looking up account");
+          setIsLoading(false);
+          return;
+        }
+
+        if (!profileData || !profileData.email) {
+          toast.error("No account found with this mobile number or client ID");
+          setIsLoading(false);
+          return;
+        }
+
+        email = profileData.email;
+      }
 
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -57,7 +83,7 @@ const Auth = () => {
 
       if (error) {
         if (error.message.includes("Invalid login credentials")) {
-          toast.error("Invalid email or password");
+          toast.error("Invalid credentials. Please check your password.");
         } else {
           toast.error(error.message);
         }
@@ -227,18 +253,21 @@ const Auth = () => {
           <TabsContent value="signin">
             <form onSubmit={handleSignIn} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="identifier">Email / Mobile / Client ID</Label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Hash className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    placeholder="your@email.com"
+                    id="identifier"
+                    name="identifier"
+                    type="text"
+                    placeholder="Email, Mobile or Client ID (e.g. CGF123456)"
                     className="pl-10"
                     required
                   />
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  Login using your email, mobile number, or Client ID
+                </p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>

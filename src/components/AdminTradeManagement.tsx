@@ -150,24 +150,45 @@ export const AdminTradeManagement = () => {
             
             previousPricesRef.current[position.id] = currentPrice;
 
-            // Calculate new PnL
-            const pnl = position.position_type === 'long'
-              ? (currentPrice - position.entry_price) * position.amount * position.leverage
-              : (position.entry_price - currentPrice) * position.amount * position.leverage;
+            // For edited trades, keep the stored PnL and only fluctuate around it
+            // DO NOT recalculate PnL for edited trades
+            let pnl: number;
+            if (position.price_mode === 'edited' || position.price_mode === 'manual') {
+              // Keep the existing PnL from database, don't recalculate
+              pnl = position.pnl || 0;
+              
+              // Only update current_price in database (not pnl) for edited/manual trades
+              supabase
+                .from('positions')
+                .update({ 
+                  current_price: currentPrice,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', position.id)
+                .eq('status', 'open')
+                .then(({ error }) => {
+                  if (error) console.error('Error updating position:', error);
+                });
+            } else {
+              // Calculate new PnL only for live trades
+              pnl = position.position_type === 'long'
+                ? (currentPrice - position.entry_price) * position.amount * position.leverage
+                : (position.entry_price - currentPrice) * position.amount * position.leverage;
 
-            // Update database in background
-            supabase
-              .from('positions')
-              .update({ 
-                current_price: currentPrice,
-                pnl: pnl,
-                updated_at: new Date().toISOString()
-              })
-              .eq('id', position.id)
-              .eq('status', 'open')
-              .then(({ error }) => {
-                if (error) console.error('Error updating position:', error);
-              });
+              // Update database with both price and pnl for live trades
+              supabase
+                .from('positions')
+                .update({ 
+                  current_price: currentPrice,
+                  pnl: pnl,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', position.id)
+                .eq('status', 'open')
+                .then(({ error }) => {
+                  if (error) console.error('Error updating position:', error);
+                });
+            }
 
             return {
               ...position,

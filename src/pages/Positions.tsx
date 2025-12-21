@@ -76,21 +76,56 @@ const Positions = () => {
         const updatedPositions = await Promise.all(
           openPositions.map(async (position) => {
             let currentPrice = position.current_price;
+            let pnl: number;
 
-            // Check if this is a manual trade
-            if (position.price_mode === 'manual') {
+            // Check if this is an edited trade (admin adjusted PnL)
+            if (position.price_mode === 'edited') {
+              // For edited trades: use stored PnL and add momentum ±5-7% in the PnL direction
+              const storedPnl = position.pnl || 0;
+              const isPositivePnl = storedPnl >= 0;
+              
+              // Calculate base PnL percentage from margin
+              const basePnlPercent = position.margin > 0 ? (storedPnl / position.margin) * 100 : 0;
+              
+              // Add momentum: fluctuate between 5-7% in the direction of the PnL
+              const momentumRange = 5 + Math.random() * 2; // 5-7%
+              const momentumPercent = isPositivePnl 
+                ? basePnlPercent + (Math.random() * momentumRange - momentumRange / 2) // fluctuate around positive
+                : basePnlPercent + (Math.random() * momentumRange - momentumRange / 2); // fluctuate around negative
+              
+              // Keep momentum in the same direction as the base PnL
+              const adjustedPnlPercent = isPositivePnl 
+                ? Math.max(basePnlPercent - 7, Math.min(basePnlPercent + 7, momentumPercent))
+                : Math.min(basePnlPercent + 7, Math.max(basePnlPercent - 7, momentumPercent));
+              
+              // Calculate new PnL from adjusted percentage
+              pnl = (adjustedPnlPercent / 100) * position.margin;
+              
+              // Calculate current price from PnL
+              if (position.position_type === 'long') {
+                currentPrice = position.entry_price + (pnl / (position.amount * position.leverage));
+              } else {
+                currentPrice = position.entry_price - (pnl / (position.amount * position.leverage));
+              }
+              
+              // Ensure price doesn't go negative
+              currentPrice = Math.max(0.0001, currentPrice);
+            } else if (position.price_mode === 'manual') {
               // Generate fake momentum between 1-5% for manual trades
-              const randomPercent = (Math.random() * 4 + 1) * (Math.random() > 0.5 ? 1 : -1); // 1-5% up or down
+              const randomPercent = (Math.random() * 4 + 1) * (Math.random() > 0.5 ? 1 : -1);
               currentPrice = position.entry_price * (1 + randomPercent / 100);
+              
+              // Calculate PnL for manual trades
+              pnl = position.position_type === 'long'
+                ? (currentPrice - position.entry_price) * position.amount * position.leverage
+                : (position.entry_price - currentPrice) * position.amount * position.leverage;
             } else {
               // For live trades, use real market prices
               const isForex = position.symbol.includes('/');
               
               if (!isForex && cryptoPrices[position.symbol.toUpperCase()]) {
-                // For crypto, use real CoinMarketCap price
                 currentPrice = cryptoPrices[position.symbol.toUpperCase()];
               } else if (isForex) {
-                // For forex, use forex data
                 try {
                   const { data, error } = await supabase.functions.invoke('fetch-forex-data', {
                     body: { symbol: position.symbol }
@@ -105,6 +140,11 @@ const Positions = () => {
               }
 
               if (currentPrice <= 0) return position;
+              
+              // Calculate PnL for live trades
+              pnl = position.position_type === 'long'
+                ? (currentPrice - position.entry_price) * position.amount * position.leverage
+                : (position.entry_price - currentPrice) * position.amount * position.leverage;
             }
 
             // Track price changes for visual indicators
@@ -113,35 +153,41 @@ const Positions = () => {
               const direction = currentPrice > previousPrice ? 'up' : 'down';
               setPriceChanges(prev => ({ ...prev, [position.id]: { direction, flash: true } }));
               
-              // Remove flash effect after animation
               setTimeout(() => {
                 setPriceChanges(prev => ({ ...prev, [position.id]: { ...prev[position.id], flash: false } }));
               }, 500);
             }
             
-            // Store current price for next comparison
             previousPricesRef.current[position.id] = currentPrice;
 
-            // Calculate new PnL
-            const pnl = position.position_type === 'long'
-              ? (currentPrice - position.entry_price) * position.amount * position.leverage
-              : (position.entry_price - currentPrice) * position.amount * position.leverage;
+            // Update database - for edited trades, only update current_price (keep base pnl)
+            if (position.price_mode === 'edited') {
+              supabase
+                .from('positions')
+                .update({ 
+                  current_price: currentPrice,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', position.id)
+                .eq('status', 'open')
+                .then(({ error }) => {
+                  if (error) console.error('Error updating position:', error);
+                });
+            } else {
+              supabase
+                .from('positions')
+                .update({ 
+                  current_price: currentPrice,
+                  pnl: pnl,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', position.id)
+                .eq('status', 'open')
+                .then(({ error }) => {
+                  if (error) console.error('Error updating position:', error);
+                });
+            }
 
-            // Update database in background
-            supabase
-              .from('positions')
-              .update({ 
-                current_price: currentPrice,
-                pnl: pnl,
-                updated_at: new Date().toISOString()
-              })
-              .eq('id', position.id)
-              .eq('status', 'open')
-              .then(({ error }) => {
-                if (error) console.error('Error updating position:', error);
-              });
-
-            // Return updated position for immediate UI update
             return {
               ...position,
               current_price: currentPrice,

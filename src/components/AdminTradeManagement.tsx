@@ -122,20 +122,54 @@ export const AdminTradeManagement = () => {
           console.error('Error fetching crypto prices:', err);
         }
         
-        const updatedPositions = await Promise.all(
+          const updatedPositions = await Promise.all(
           positions.map(async (position) => {
             let currentPrice = position.current_price;
+            let pnl: number;
 
-            // Check if this is a manual or edited trade
-            if (position.price_mode === 'manual') {
+            // Check if this is an edited trade (admin adjusted PnL)
+            if (position.price_mode === 'edited') {
+              // For edited trades: use stored PnL and add momentum ±5-7% in the PnL direction
+              const storedPnl = position.pnl || 0;
+              const isPositivePnl = storedPnl >= 0;
+              
+              // Calculate base PnL percentage from margin
+              const basePnlPercent = position.margin > 0 ? (storedPnl / position.margin) * 100 : 0;
+              
+              // Add momentum: fluctuate between 5-7% in the direction of the PnL
+              const momentumRange = 5 + Math.random() * 2; // 5-7%
+              const momentumPercent = isPositivePnl 
+                ? basePnlPercent + (Math.random() * momentumRange - momentumRange / 2)
+                : basePnlPercent + (Math.random() * momentumRange - momentumRange / 2);
+              
+              // Keep momentum in the same direction as the base PnL
+              const adjustedPnlPercent = isPositivePnl 
+                ? Math.max(basePnlPercent - 7, Math.min(basePnlPercent + 7, momentumPercent))
+                : Math.min(basePnlPercent + 7, Math.max(basePnlPercent - 7, momentumPercent));
+              
+              // Calculate new PnL from adjusted percentage
+              pnl = (adjustedPnlPercent / 100) * position.margin;
+              
+              // Calculate current price from PnL
+              if (position.position_type === 'long') {
+                currentPrice = position.entry_price + (pnl / (position.amount * position.leverage));
+              } else {
+                currentPrice = position.entry_price - (pnl / (position.amount * position.leverage));
+              }
+              
+              // Ensure price doesn't go negative
+              currentPrice = Math.max(0.0001, currentPrice);
+              
+              // Update UI but don't save calculated pnl to DB (keep base pnl)
+              return {
+                ...position,
+                current_price: currentPrice,
+                pnl: pnl
+              };
+            } else if (position.price_mode === 'manual') {
               // Generate fake momentum between 1-5% for manual trades around entry price
               const randomPercent = (Math.random() * 4 + 1) * (Math.random() > 0.5 ? 1 : -1);
               currentPrice = position.entry_price * (1 + randomPercent / 100);
-            } else if (position.price_mode === 'edited') {
-              // For edited trades, fluctuate ±1-7% around current price (not entry price)
-              // This keeps the PnL near the admin's edited value
-              const randomPercent = (Math.random() * 6 + 1) * (Math.random() > 0.5 ? 1 : -1);
-              currentPrice = position.current_price * (1 + randomPercent / 100);
             } else {
               // For live trades, use real market prices
               const isForex = position.symbol.includes('/');
@@ -172,18 +206,18 @@ export const AdminTradeManagement = () => {
             
             previousPricesRef.current[position.id] = currentPrice;
 
-            // For edited trades, keep the stored PnL and only fluctuate around it
-            // DO NOT recalculate PnL for edited trades
-            let pnl: number;
-            if (position.price_mode === 'edited' || position.price_mode === 'manual') {
-              // Keep the existing PnL from database, don't recalculate
-              pnl = position.pnl || 0;
-              
-              // Only update current_price in database (not pnl) for edited/manual trades
+            // Calculate PnL for manual and live trades
+            pnl = position.position_type === 'long'
+              ? (currentPrice - position.entry_price) * position.amount * position.leverage
+              : (position.entry_price - currentPrice) * position.amount * position.leverage;
+
+            // Update database
+            if (position.price_mode === 'manual') {
               supabase
                 .from('positions')
                 .update({ 
                   current_price: currentPrice,
+                  pnl: pnl,
                   updated_at: new Date().toISOString()
                 })
                 .eq('id', position.id)
@@ -192,12 +226,7 @@ export const AdminTradeManagement = () => {
                   if (error) console.error('Error updating position:', error);
                 });
             } else {
-              // Calculate new PnL only for live trades
-              pnl = position.position_type === 'long'
-                ? (currentPrice - position.entry_price) * position.amount * position.leverage
-                : (position.entry_price - currentPrice) * position.amount * position.leverage;
-
-              // Update database with both price and pnl for live trades
+              // Live trades
               supabase
                 .from('positions')
                 .update({ 

@@ -45,6 +45,12 @@ const Positions = () => {
   const [closePositionId, setClosePositionId] = useState<string | null>(null);
   const [priceChanges, setPriceChanges] = useState<Record<string, { direction: 'up' | 'down' | 'none'; flash: boolean }>>({});
   const previousPricesRef = useRef<Record<string, number>>({});
+  const positionsRef = useRef<Position[]>([]);
+  
+  // Keep ref in sync with state
+  useEffect(() => {
+    positionsRef.current = openPositions;
+  }, [openPositions]);
 
   useEffect(() => {
     if (!user) {
@@ -60,6 +66,10 @@ const Positions = () => {
 
     const updatePrices = async () => {
       try {
+        // Always get fresh positions from ref
+        const currentPositions = positionsRef.current;
+        if (currentPositions.length === 0) return;
+
         // Fetch real crypto prices from CoinMarketCap for live trades
         let cryptoPrices: Record<string, number> = {};
         try {
@@ -74,29 +84,30 @@ const Positions = () => {
         }
         
         const updatedPositions = await Promise.all(
-          openPositions.map(async (position) => {
+          currentPositions.map(async (position) => {
             let currentPrice = position.current_price;
             let pnl: number;
 
             // Check if this is an edited trade (admin adjusted PnL)
             if (position.price_mode === 'edited') {
-              // For edited trades: use stored PnL and add momentum ±5-7% in the PnL direction
+              // For edited trades: use stored PnL from database and add momentum ±5-7% around it
               const storedPnl = position.pnl || 0;
               const isPositivePnl = storedPnl >= 0;
               
               // Calculate base PnL percentage from margin
               const basePnlPercent = position.margin > 0 ? (storedPnl / position.margin) * 100 : 0;
               
-              // Add momentum: fluctuate between 5-7% in the direction of the PnL
+              // Add momentum: fluctuate between 5-7% around the base PnL
               const momentumRange = 5 + Math.random() * 2; // 5-7%
-              const momentumPercent = isPositivePnl 
-                ? basePnlPercent + (Math.random() * momentumRange - momentumRange / 2) // fluctuate around positive
-                : basePnlPercent + (Math.random() * momentumRange - momentumRange / 2); // fluctuate around negative
+              const momentumOffset = (Math.random() * momentumRange - momentumRange / 2);
               
               // Keep momentum in the same direction as the base PnL
-              const adjustedPnlPercent = isPositivePnl 
-                ? Math.max(basePnlPercent - 7, Math.min(basePnlPercent + 7, momentumPercent))
-                : Math.min(basePnlPercent + 7, Math.max(basePnlPercent - 7, momentumPercent));
+              let adjustedPnlPercent = basePnlPercent + momentumOffset;
+              if (isPositivePnl && adjustedPnlPercent < 0) {
+                adjustedPnlPercent = Math.abs(momentumOffset);
+              } else if (!isPositivePnl && adjustedPnlPercent > 0) {
+                adjustedPnlPercent = -Math.abs(momentumOffset);
+              }
               
               // Calculate new PnL from adjusted percentage
               pnl = (adjustedPnlPercent / 100) * position.margin;
@@ -110,6 +121,26 @@ const Positions = () => {
               
               // Ensure price doesn't go negative
               currentPrice = Math.max(0.0001, currentPrice);
+              
+              // DO NOT update database for edited trades - just update UI
+              // Track price changes for visual indicators
+              const previousPrice = previousPricesRef.current[position.id];
+              if (previousPrice !== undefined && previousPrice !== currentPrice) {
+                const direction = currentPrice > previousPrice ? 'up' : 'down';
+                setPriceChanges(prev => ({ ...prev, [position.id]: { direction, flash: true } }));
+                
+                setTimeout(() => {
+                  setPriceChanges(prev => ({ ...prev, [position.id]: { ...prev[position.id], flash: false } }));
+                }, 500);
+              }
+              
+              previousPricesRef.current[position.id] = currentPrice;
+              
+              return {
+                ...position,
+                current_price: currentPrice,
+                pnl: pnl
+              };
             } else if (position.price_mode === 'manual') {
               // Generate fake momentum between 1-5% for manual trades
               const randomPercent = (Math.random() * 4 + 1) * (Math.random() > 0.5 ? 1 : -1);
@@ -147,33 +178,21 @@ const Positions = () => {
                 : (position.entry_price - currentPrice) * position.amount * position.leverage;
             }
 
-            // Track price changes for visual indicators
-            const previousPrice = previousPricesRef.current[position.id];
-            if (previousPrice !== undefined && previousPrice !== currentPrice) {
-              const direction = currentPrice > previousPrice ? 'up' : 'down';
-              setPriceChanges(prev => ({ ...prev, [position.id]: { direction, flash: true } }));
+            // Track price changes for visual indicators (for non-edited trades)
+            if (position.price_mode !== 'edited') {
+              const previousPrice = previousPricesRef.current[position.id];
+              if (previousPrice !== undefined && previousPrice !== currentPrice) {
+                const direction = currentPrice > previousPrice ? 'up' : 'down';
+                setPriceChanges(prev => ({ ...prev, [position.id]: { direction, flash: true } }));
+                
+                setTimeout(() => {
+                  setPriceChanges(prev => ({ ...prev, [position.id]: { ...prev[position.id], flash: false } }));
+                }, 500);
+              }
               
-              setTimeout(() => {
-                setPriceChanges(prev => ({ ...prev, [position.id]: { ...prev[position.id], flash: false } }));
-              }, 500);
-            }
-            
-            previousPricesRef.current[position.id] = currentPrice;
+              previousPricesRef.current[position.id] = currentPrice;
 
-            // Update database - for edited trades, only update current_price (keep base pnl)
-            if (position.price_mode === 'edited') {
-              supabase
-                .from('positions')
-                .update({ 
-                  current_price: currentPrice,
-                  updated_at: new Date().toISOString()
-                })
-                .eq('id', position.id)
-                .eq('status', 'open')
-                .then(({ error }) => {
-                  if (error) console.error('Error updating position:', error);
-                });
-            } else {
+              // Update database only for non-edited trades
               supabase
                 .from('positions')
                 .update({ 
@@ -209,6 +228,41 @@ const Positions = () => {
 
     return () => clearInterval(interval);
   }, [user, openPositions.length]);
+
+  // Subscribe to real-time updates for position changes (when admin edits a trade)
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('positions-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'positions',
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload) => {
+          const updatedPosition = payload.new as Position;
+          console.log('Position updated via realtime:', updatedPosition.id, 'price_mode:', updatedPosition.price_mode);
+          
+          // Update the position in state with new data from database
+          setOpenPositions(prev => 
+            prev.map(p => 
+              p.id === updatedPosition.id 
+                ? { ...p, ...updatedPosition }
+                : p
+            )
+          );
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
 
   const fetchPositions = async () => {
     try {

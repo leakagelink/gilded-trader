@@ -8,9 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { TrendingUp, TrendingDown, Edit, X, ArrowUp, ArrowDown, Plus, Minus, Search, ChevronLeft, ChevronRight, Users, Eye, History } from "lucide-react";
+import { TrendingUp, TrendingDown, Edit, X, ArrowUp, ArrowDown, Plus, Minus, Search, ChevronLeft, ChevronRight, Users, Eye, History, Coins } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface User {
   id: string;
@@ -47,7 +48,49 @@ interface UserWithTrades {
   totalPnL: number;
 }
 
+interface AssetOption {
+  symbol: string;
+  name: string;
+  price?: number;
+}
+
 const TRADES_PER_PAGE = 10;
+
+// Predefined asset lists
+const CRYPTO_ASSETS: AssetOption[] = [
+  { symbol: "BTC", name: "Bitcoin" },
+  { symbol: "ETH", name: "Ethereum" },
+  { symbol: "BNB", name: "Binance Coin" },
+  { symbol: "XRP", name: "Ripple" },
+  { symbol: "SOL", name: "Solana" },
+  { symbol: "ADA", name: "Cardano" },
+  { symbol: "DOGE", name: "Dogecoin" },
+  { symbol: "MATIC", name: "Polygon" },
+  { symbol: "DOT", name: "Polkadot" },
+  { symbol: "AVAX", name: "Avalanche" },
+];
+
+const FOREX_ASSETS: AssetOption[] = [
+  { symbol: "EUR/USD", name: "Euro / US Dollar" },
+  { symbol: "GBP/USD", name: "British Pound / US Dollar" },
+  { symbol: "USD/JPY", name: "US Dollar / Japanese Yen" },
+  { symbol: "USD/CHF", name: "US Dollar / Swiss Franc" },
+  { symbol: "AUD/USD", name: "Australian Dollar / US Dollar" },
+  { symbol: "USD/CAD", name: "US Dollar / Canadian Dollar" },
+  { symbol: "NZD/USD", name: "New Zealand Dollar / US Dollar" },
+  { symbol: "EUR/GBP", name: "Euro / British Pound" },
+];
+
+const COMMODITIES_ASSETS: AssetOption[] = [
+  { symbol: "XAU", name: "Gold" },
+  { symbol: "XAG", name: "Silver" },
+  { symbol: "CRUDE", name: "Crude Oil" },
+  { symbol: "BRENT", name: "Brent Oil" },
+  { symbol: "NATGAS", name: "Natural Gas" },
+  { symbol: "COPPER", name: "Copper" },
+  { symbol: "PLATINUM", name: "Platinum" },
+  { symbol: "PALLADIUM", name: "Palladium" },
+];
 
 export const AdminTradeManagement = () => {
   const [users, setUsers] = useState<User[]>([]);
@@ -67,6 +110,7 @@ export const AdminTradeManagement = () => {
   const [closedPositions, setClosedPositions] = useState<Position[]>([]);
   
   // Trade form fields
+  const [assetType, setAssetType] = useState<'crypto' | 'forex' | 'commodities'>('crypto');
   const [symbol, setSymbol] = useState("");
   const [positionType, setPositionType] = useState<'long' | 'short'>('long');
   const [amount, setAmount] = useState("");
@@ -76,6 +120,38 @@ export const AdminTradeManagement = () => {
   const [adjustPnlPositionId, setAdjustPnlPositionId] = useState<string | null>(null);
   const [targetPnlPercent, setTargetPnlPercent] = useState("");
   const [selectedUserBalance, setSelectedUserBalance] = useState<number | null>(null);
+  const [userSearchQuery, setUserSearchQuery] = useState("");
+
+  // Get available assets based on asset type
+  const availableAssets = useMemo(() => {
+    switch (assetType) {
+      case 'crypto':
+        return CRYPTO_ASSETS;
+      case 'forex':
+        return FOREX_ASSETS;
+      case 'commodities':
+        return COMMODITIES_ASSETS;
+      default:
+        return CRYPTO_ASSETS;
+    }
+  }, [assetType]);
+
+  // Calculate margin based on amount and leverage
+  const calculatedMargin = useMemo(() => {
+    const amountNum = parseFloat(amount);
+    if (isNaN(amountNum) || amountNum <= 0) return null;
+    return amountNum; // Amount is the margin (investment amount)
+  }, [amount]);
+
+  // Filter users for search in dialog
+  const filteredUsersForDialog = useMemo(() => {
+    if (!userSearchQuery.trim()) return users;
+    const query = userSearchQuery.toLowerCase();
+    return users.filter(user => 
+      (user.full_name?.toLowerCase() || '').includes(query) ||
+      (user.email?.toLowerCase() || '').includes(query)
+    );
+  }, [users, userSearchQuery]);
 
   // Fetch user balance when user is selected for trade
   const fetchUserBalance = async (userId: string) => {
@@ -1147,8 +1223,16 @@ export const AdminTradeManagement = () => {
       )}
 
       {/* Open Trade Dialog */}
-      <Dialog open={openTradeDialog} onOpenChange={setOpenTradeDialog}>
-        <DialogContent>
+      <Dialog open={openTradeDialog} onOpenChange={(open) => {
+        setOpenTradeDialog(open);
+        if (!open) {
+          setUserSearchQuery("");
+          setSymbol("");
+          setAmount("");
+          setEntryPrice("");
+        }
+      }}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Open Trade for User</DialogTitle>
           </DialogHeader>
@@ -1173,11 +1257,31 @@ export const AdminTradeManagement = () => {
                   <SelectValue placeholder="Select user" />
                 </SelectTrigger>
                 <SelectContent>
-                  {users.map((user) => (
-                    <SelectItem key={user.id} value={user.id}>
-                      {user.full_name} ({user.email})
-                    </SelectItem>
-                  ))}
+                  <div className="px-2 py-2 sticky top-0 bg-popover z-10">
+                    <div className="relative">
+                      <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search users..."
+                        value={userSearchQuery}
+                        onChange={(e) => setUserSearchQuery(e.target.value)}
+                        className="pl-8 h-8"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
+                  </div>
+                  <ScrollArea className="max-h-[200px]">
+                    {filteredUsersForDialog.length === 0 ? (
+                      <div className="py-4 text-center text-muted-foreground text-sm">
+                        No users found
+                      </div>
+                    ) : (
+                      filteredUsersForDialog.map((user) => (
+                        <SelectItem key={user.id} value={user.id}>
+                          {user.full_name || 'No Name'} ({user.email})
+                        </SelectItem>
+                      ))
+                    )}
+                  </ScrollArea>
                 </SelectContent>
               </Select>
               {selectedUser && selectedUserBalance !== null && (
@@ -1188,12 +1292,51 @@ export const AdminTradeManagement = () => {
             </div>
 
             <div>
-              <Label>Symbol</Label>
-              <Input
-                placeholder="BTC, ETH, EUR/USD, etc."
-                value={symbol}
-                onChange={(e) => handleSymbolChange(e.target.value)}
-              />
+              <Label>Asset Type</Label>
+              <Select value={assetType} onValueChange={(v) => {
+                setAssetType(v as 'crypto' | 'forex' | 'commodities');
+                setSymbol(""); // Reset symbol when changing asset type
+              }}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="crypto">
+                    <div className="flex items-center gap-2">
+                      <Coins className="h-4 w-4" />
+                      Crypto
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="forex">
+                    <div className="flex items-center gap-2">
+                      <span>💱</span>
+                      Forex
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="commodities">
+                    <div className="flex items-center gap-2">
+                      <span>🥇</span>
+                      Commodities
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Select Asset</Label>
+              <Select value={symbol} onValueChange={(v) => handleSymbolChange(v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select asset" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableAssets.map((asset) => (
+                    <SelectItem key={asset.symbol} value={asset.symbol}>
+                      {asset.name} ({asset.symbol})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div>
@@ -1203,8 +1346,8 @@ export const AdminTradeManagement = () => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="long">Long</SelectItem>
-                  <SelectItem value="short">Short</SelectItem>
+                  <SelectItem value="long">Long (Buy)</SelectItem>
+                  <SelectItem value="short">Short (Sell)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1222,13 +1365,25 @@ export const AdminTradeManagement = () => {
             )}
 
             <div>
-              <Label>Amount</Label>
+              <Label>Amount (Investment in USD)</Label>
               <Input
                 type="number"
                 placeholder="0.00"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
               />
+              {calculatedMargin !== null && (
+                <div className="mt-2 p-2 bg-muted/50 rounded-lg border">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Margin Required:</span>
+                    <span className="font-semibold text-primary">${calculatedMargin.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm mt-1">
+                    <span className="text-muted-foreground">Position Size ({leverage}x):</span>
+                    <span className="font-semibold">${(calculatedMargin * parseInt(leverage)).toFixed(2)}</span>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div>

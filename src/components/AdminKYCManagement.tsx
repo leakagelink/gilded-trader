@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Check, X, RefreshCw, FileCheck, Eye, Download, FileImage, ExternalLink } from "lucide-react";
+import { Check, X, RefreshCw, FileCheck, Eye, Download, FileImage, ExternalLink, UserPlus, Search, Upload } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -23,6 +24,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface KYCSubmission {
   id: string;
@@ -46,6 +55,12 @@ interface KYCSubmission {
   };
 }
 
+interface UserWithoutKYC {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+}
+
 export const AdminKYCManagement = () => {
   const { toast } = useToast();
   const [kycSubmissions, setKycSubmissions] = useState<KYCSubmission[]>([]);
@@ -56,6 +71,33 @@ export const AdminKYCManagement = () => {
   const [rejectionReason, setRejectionReason] = useState("");
   const [documentUrl, setDocumentUrl] = useState<string | null>(null);
   const [loadingDocument, setLoadingDocument] = useState(false);
+  
+  // Manual KYC state
+  const [manualKycOpen, setManualKycOpen] = useState(false);
+  const [usersWithoutKyc, setUsersWithoutKyc] = useState<UserWithoutKYC[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState("");
+  const [userSearchQuery, setUserSearchQuery] = useState("");
+  const [manualKycForm, setManualKycForm] = useState({
+    first_name: "",
+    last_name: "",
+    date_of_birth: "",
+    country: "",
+    address: "",
+    city: "",
+    postal_code: "",
+    id_document_type: "passport"
+  });
+  const [uploading, setUploading] = useState(false);
+  const [uploadedDocumentPath, setUploadedDocumentPath] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Filter users for search in manual KYC dialog
+  const filteredUsersForManualKyc = userSearchQuery.trim() 
+    ? usersWithoutKyc.filter(user => 
+        (user.full_name?.toLowerCase() || '').includes(userSearchQuery.toLowerCase()) ||
+        (user.email?.toLowerCase() || '').includes(userSearchQuery.toLowerCase())
+      )
+    : usersWithoutKyc;
 
   useEffect(() => {
     fetchKYCSubmissions();
@@ -93,6 +135,138 @@ export const AdminKYCManagement = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchUsersWithoutKYC = async () => {
+    try {
+      // First, get all users
+      const { data: allProfiles, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id, full_name, email");
+
+      if (profilesError) throw profilesError;
+
+      // Get users who already have KYC submissions
+      const { data: kycUsers, error: kycError } = await supabase
+        .from("kyc_submissions")
+        .select("user_id");
+
+      if (kycError) throw kycError;
+
+      const kycUserIds = new Set(kycUsers?.map(k => k.user_id) || []);
+      
+      // Filter out users who already have KYC
+      const usersWithoutKyc = allProfiles?.filter(p => !kycUserIds.has(p.id)) || [];
+      setUsersWithoutKyc(usersWithoutKyc);
+    } catch (error: any) {
+      console.error("Error fetching users without KYC:", error);
+    }
+  };
+
+  const handleOpenManualKyc = () => {
+    fetchUsersWithoutKYC();
+    setManualKycOpen(true);
+    setSelectedUserId("");
+    setUserSearchQuery("");
+    setManualKycForm({
+      first_name: "",
+      last_name: "",
+      date_of_birth: "",
+      country: "",
+      address: "",
+      city: "",
+      postal_code: "",
+      id_document_type: "passport"
+    });
+    setUploadedDocumentPath(null);
+  };
+
+  const handleDocumentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedUserId) return;
+
+    try {
+      setUploading(true);
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${selectedUserId}/${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('kyc-documents')
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      setUploadedDocumentPath(fileName);
+      toast({
+        title: "Success",
+        description: "Document uploaded successfully",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleSubmitManualKyc = async () => {
+    if (!selectedUserId) {
+      toast({
+        title: "Error",
+        description: "Please select a user",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!manualKycForm.first_name || !manualKycForm.last_name || !manualKycForm.date_of_birth || 
+        !manualKycForm.country || !manualKycForm.address || !manualKycForm.city || !manualKycForm.postal_code) {
+      toast({
+        title: "Error",
+        description: "Please fill all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Create KYC submission with approved status
+      const { error } = await supabase
+        .from("kyc_submissions")
+        .insert({
+          user_id: selectedUserId,
+          first_name: manualKycForm.first_name,
+          last_name: manualKycForm.last_name,
+          date_of_birth: manualKycForm.date_of_birth,
+          country: manualKycForm.country,
+          address: manualKycForm.address,
+          city: manualKycForm.city,
+          postal_code: manualKycForm.postal_code,
+          id_document_type: manualKycForm.id_document_type,
+          document_url: uploadedDocumentPath,
+          status: "approved",
+          reviewed_at: new Date().toISOString()
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "KYC submitted and approved successfully",
+      });
+
+      setManualKycOpen(false);
+      fetchKYCSubmissions();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
     }
   };
 
@@ -242,15 +416,21 @@ export const AdminKYCManagement = () => {
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
         <CardTitle className="flex items-center gap-2">
           <FileCheck className="h-5 w-5" />
           KYC Submissions
         </CardTitle>
-        <Button variant="outline" size="sm" onClick={fetchKYCSubmissions}>
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Refresh
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="default" size="sm" onClick={handleOpenManualKyc}>
+            <UserPlus className="h-4 w-4 mr-2" />
+            Manual KYC
+          </Button>
+          <Button variant="outline" size="sm" onClick={fetchKYCSubmissions}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         {loading ? (
@@ -495,6 +675,85 @@ export const AdminKYCManagement = () => {
             </Button>
             <Button variant="destructive" onClick={handleRejectKYC}>
               Reject KYC
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Manual KYC Dialog */}
+      <Dialog open={manualKycOpen} onOpenChange={setManualKycOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Manual KYC Submission</DialogTitle>
+            <DialogDescription>
+              Submit KYC for a user who can't complete it themselves
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Select User</Label>
+              <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select user" />
+                </SelectTrigger>
+                <SelectContent>
+                  <div className="px-2 py-2 sticky top-0 bg-popover z-10">
+                    <Input
+                      placeholder="Search users..."
+                      value={userSearchQuery}
+                      onChange={(e) => setUserSearchQuery(e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </div>
+                  <ScrollArea className="max-h-[200px]">
+                    {filteredUsersForManualKyc.map((user) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {user.full_name || 'No Name'} ({user.email})
+                      </SelectItem>
+                    ))}
+                  </ScrollArea>
+                </SelectContent>
+              </Select>
+            </div>
+            {selectedUserId && (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div><Label>First Name</Label><Input value={manualKycForm.first_name} onChange={(e) => setManualKycForm(p => ({...p, first_name: e.target.value}))} /></div>
+                  <div><Label>Last Name</Label><Input value={manualKycForm.last_name} onChange={(e) => setManualKycForm(p => ({...p, last_name: e.target.value}))} /></div>
+                </div>
+                <div><Label>Date of Birth</Label><Input type="date" value={manualKycForm.date_of_birth} onChange={(e) => setManualKycForm(p => ({...p, date_of_birth: e.target.value}))} /></div>
+                <div><Label>Country</Label><Input value={manualKycForm.country} onChange={(e) => setManualKycForm(p => ({...p, country: e.target.value}))} /></div>
+                <div><Label>Address</Label><Input value={manualKycForm.address} onChange={(e) => setManualKycForm(p => ({...p, address: e.target.value}))} /></div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div><Label>City</Label><Input value={manualKycForm.city} onChange={(e) => setManualKycForm(p => ({...p, city: e.target.value}))} /></div>
+                  <div><Label>Postal Code</Label><Input value={manualKycForm.postal_code} onChange={(e) => setManualKycForm(p => ({...p, postal_code: e.target.value}))} /></div>
+                </div>
+                <div>
+                  <Label>Document Type</Label>
+                  <Select value={manualKycForm.id_document_type} onValueChange={(v) => setManualKycForm(p => ({...p, id_document_type: v}))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="passport">Passport</SelectItem>
+                      <SelectItem value="aadhar">Aadhar Card</SelectItem>
+                      <SelectItem value="pan">PAN Card</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Upload Document</Label>
+                  <input ref={fileInputRef} type="file" accept="image/*,.pdf" onChange={handleDocumentUpload} className="hidden" />
+                  <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+                    <Upload className="h-4 w-4 mr-2" />{uploading ? "Uploading..." : "Choose File"}
+                  </Button>
+                  {uploadedDocumentPath && <Badge className="ml-2 bg-green-500">Uploaded</Badge>}
+                </div>
+              </>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setManualKycOpen(false)}>Cancel</Button>
+            <Button onClick={handleSubmitManualKyc} disabled={!selectedUserId} className="bg-green-600 hover:bg-green-700">
+              <Check className="h-4 w-4 mr-2" />Submit & Approve
             </Button>
           </DialogFooter>
         </DialogContent>

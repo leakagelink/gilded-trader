@@ -1298,6 +1298,55 @@ export const AdminTradeManagement = () => {
                 value={symbol}
                 onChange={(e) => setSymbol(e.target.value.toUpperCase())}
               />
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {/* Crypto */}
+                {['BTC', 'ETH', 'SOL', 'XRP', 'BNB', 'DOGE'].map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setSymbol(s)}
+                    className={`px-2 py-1 text-xs rounded-full border transition-colors ${
+                      symbol === s 
+                        ? 'bg-primary text-primary-foreground border-primary' 
+                        : 'bg-muted/50 hover:bg-muted border-border'
+                    }`}
+                  >
+                    {s}
+                  </button>
+                ))}
+                <span className="text-muted-foreground text-xs px-1">|</span>
+                {/* Commodities */}
+                {['XAU', 'XAG', 'CRUDE'].map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setSymbol(s)}
+                    className={`px-2 py-1 text-xs rounded-full border transition-colors ${
+                      symbol === s 
+                        ? 'bg-amber-500 text-white border-amber-500' 
+                        : 'bg-muted/50 hover:bg-muted border-border'
+                    }`}
+                  >
+                    {s}
+                  </button>
+                ))}
+                <span className="text-muted-foreground text-xs px-1">|</span>
+                {/* Forex */}
+                {['EUR/USD', 'GBP/USD', 'USD/JPY'].map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setSymbol(s)}
+                    className={`px-2 py-1 text-xs rounded-full border transition-colors ${
+                      symbol === s 
+                        ? 'bg-blue-500 text-white border-blue-500' 
+                        : 'bg-muted/50 hover:bg-muted border-border'
+                    }`}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div>

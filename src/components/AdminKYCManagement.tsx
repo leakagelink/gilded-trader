@@ -234,6 +234,9 @@ export const AdminKYCManagement = () => {
     }
 
     try {
+      // Get current admin user
+      const { data: { user } } = await supabase.auth.getUser();
+      
       // Create KYC submission with approved status
       const { error } = await supabase
         .from("kyc_submissions")
@@ -249,7 +252,8 @@ export const AdminKYCManagement = () => {
           id_document_type: manualKycForm.id_document_type,
           document_url: uploadedDocumentPath,
           status: "approved",
-          reviewed_at: new Date().toISOString()
+          reviewed_at: new Date().toISOString(),
+          reviewed_by: user?.id
         });
 
       if (error) throw error;

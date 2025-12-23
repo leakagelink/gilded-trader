@@ -1292,51 +1292,12 @@ export const AdminTradeManagement = () => {
             </div>
 
             <div>
-              <Label>Asset Type</Label>
-              <Select value={assetType} onValueChange={(v) => {
-                setAssetType(v as 'crypto' | 'forex' | 'commodities');
-                setSymbol(""); // Reset symbol when changing asset type
-              }}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="crypto">
-                    <div className="flex items-center gap-2">
-                      <Coins className="h-4 w-4" />
-                      Crypto
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="forex">
-                    <div className="flex items-center gap-2">
-                      <span>💱</span>
-                      Forex
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="commodities">
-                    <div className="flex items-center gap-2">
-                      <span>🥇</span>
-                      Commodities
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label>Select Asset</Label>
-              <Select value={symbol} onValueChange={(v) => handleSymbolChange(v)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select asset" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableAssets.map((asset) => (
-                    <SelectItem key={asset.symbol} value={asset.symbol}>
-                      {asset.name} ({asset.symbol})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Symbol</Label>
+              <Input
+                placeholder="e.g. BTC, ETH, XAU, EUR/USD"
+                value={symbol}
+                onChange={(e) => setSymbol(e.target.value.toUpperCase())}
+              />
             </div>
 
             <div>

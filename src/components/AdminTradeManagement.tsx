@@ -1292,61 +1292,51 @@ export const AdminTradeManagement = () => {
             </div>
 
             <div>
-              <Label>Symbol</Label>
-              <Input
-                placeholder="e.g. BTC, ETH, XAU, EUR/USD"
-                value={symbol}
-                onChange={(e) => setSymbol(e.target.value.toUpperCase())}
-              />
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                {/* Crypto */}
-                {['BTC', 'ETH', 'SOL', 'XRP', 'BNB', 'DOGE'].map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => setSymbol(s)}
-                    className={`px-2 py-1 text-xs rounded-full border transition-colors ${
-                      symbol === s 
-                        ? 'bg-primary text-primary-foreground border-primary' 
-                        : 'bg-muted/50 hover:bg-muted border-border'
-                    }`}
-                  >
-                    {s}
-                  </button>
-                ))}
-                <span className="text-muted-foreground text-xs px-1">|</span>
-                {/* Commodities */}
-                {['XAU', 'XAG', 'CRUDE'].map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => setSymbol(s)}
-                    className={`px-2 py-1 text-xs rounded-full border transition-colors ${
-                      symbol === s 
-                        ? 'bg-amber-500 text-white border-amber-500' 
-                        : 'bg-muted/50 hover:bg-muted border-border'
-                    }`}
-                  >
-                    {s}
-                  </button>
-                ))}
-                <span className="text-muted-foreground text-xs px-1">|</span>
-                {/* Forex */}
-                {['EUR/USD', 'GBP/USD', 'USD/JPY'].map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => setSymbol(s)}
-                    className={`px-2 py-1 text-xs rounded-full border transition-colors ${
-                      symbol === s 
-                        ? 'bg-blue-500 text-white border-blue-500' 
-                        : 'bg-muted/50 hover:bg-muted border-border'
-                    }`}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
+              <Label>Asset Type</Label>
+              <Select value={assetType} onValueChange={(v) => {
+                setAssetType(v as 'crypto' | 'forex' | 'commodities');
+                setSymbol("");
+              }}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select asset type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="crypto">
+                    <div className="flex items-center gap-2">
+                      <Coins className="h-4 w-4" />
+                      Crypto
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="forex">
+                    <div className="flex items-center gap-2">
+                      <span>💱</span>
+                      Forex
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="commodities">
+                    <div className="flex items-center gap-2">
+                      <span>🥇</span>
+                      Commodities
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Select Asset</Label>
+              <Select value={symbol} onValueChange={setSymbol}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select asset" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableAssets.map((asset) => (
+                    <SelectItem key={asset.symbol} value={asset.symbol}>
+                      {asset.name} ({asset.symbol})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div>

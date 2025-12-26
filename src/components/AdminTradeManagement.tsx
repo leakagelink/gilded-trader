@@ -84,12 +84,12 @@ const FOREX_ASSETS: AssetOption[] = [
 const COMMODITIES_ASSETS: AssetOption[] = [
   { symbol: "XAU", name: "Gold" },
   { symbol: "XAG", name: "Silver" },
-  { symbol: "CRUDE", name: "Crude Oil" },
+  { symbol: "WTI", name: "Crude Oil" },
   { symbol: "BRENT", name: "Brent Oil" },
-  { symbol: "NATGAS", name: "Natural Gas" },
-  { symbol: "COPPER", name: "Copper" },
-  { symbol: "PLATINUM", name: "Platinum" },
-  { symbol: "PALLADIUM", name: "Palladium" },
+  { symbol: "NG", name: "Natural Gas" },
+  { symbol: "XCU", name: "Copper" },
+  { symbol: "XPT", name: "Platinum" },
+  { symbol: "XPD", name: "Palladium" },
 ];
 
 export const AdminTradeManagement = () => {
@@ -470,44 +470,117 @@ export const AdminTradeManagement = () => {
       let tradeAmount: number;
 
       if (priceMode === 'live') {
-        // Fetch real-time market price
-        console.log('Fetching live market price for symbol:', symbol);
-        const { data: priceData, error: priceError } = await supabase.functions.invoke('fetch-crypto-data');
+        // Fetch real-time market price based on asset type
+        console.log('Fetching live market price for symbol:', symbol, 'asset type:', assetType);
         
-        console.log('Price data response:', priceData, 'Error:', priceError);
+        let priceData: any;
+        let priceError: any;
         
-        if (priceError) {
-          console.error('Error fetching price:', priceError);
-          toast.error("Failed to fetch live market price: " + priceError.message);
+        if (assetType === 'crypto') {
+          // Fetch crypto prices
+          const response = await supabase.functions.invoke('fetch-crypto-data');
+          priceData = response.data;
+          priceError = response.error;
+          
+          if (priceError) {
+            console.error('Error fetching crypto price:', priceError);
+            toast.error("Failed to fetch live market price: " + priceError.message);
+            return;
+          }
+
+          if (!priceData || !priceData.cryptoData || !Array.isArray(priceData.cryptoData)) {
+            console.error('Invalid crypto price data format:', priceData);
+            toast.error("Invalid price data received");
+            return;
+          }
+
+          const symbolData = priceData.cryptoData.find((coin: any) => {
+            const coinSymbol = coin.symbol?.toUpperCase() || '';
+            const searchSymbol = symbol.toUpperCase().trim();
+            return coinSymbol === searchSymbol;
+          });
+
+          if (!symbolData || !symbolData.price) {
+            console.error('Crypto symbol not found:', symbol);
+            toast.error(`Symbol ${symbol} not found. Please check symbol name.`);
+            return;
+          }
+
+          price = parseFloat(symbolData.price);
+          
+        } else if (assetType === 'commodities') {
+          // Fetch commodities prices
+          const response = await supabase.functions.invoke('fetch-commodities-data');
+          priceData = response.data;
+          priceError = response.error;
+          
+          if (priceError) {
+            console.error('Error fetching commodities price:', priceError);
+            toast.error("Failed to fetch live market price: " + priceError.message);
+            return;
+          }
+
+          if (!priceData || !priceData.commoditiesData || !Array.isArray(priceData.commoditiesData)) {
+            console.error('Invalid commodities price data format:', priceData);
+            toast.error("Invalid price data received");
+            return;
+          }
+
+          const symbolData = priceData.commoditiesData.find((commodity: any) => {
+            const commoditySymbol = commodity.symbol?.toUpperCase() || '';
+            const searchSymbol = symbol.toUpperCase().trim();
+            return commoditySymbol === searchSymbol;
+          });
+
+          if (!symbolData || !symbolData.price) {
+            console.error('Commodity symbol not found:', symbol);
+            toast.error(`Symbol ${symbol} not found. Please check symbol name.`);
+            return;
+          }
+
+          price = parseFloat(symbolData.price);
+          
+        } else if (assetType === 'forex') {
+          // Fetch forex prices
+          const response = await supabase.functions.invoke('fetch-forex-data');
+          priceData = response.data;
+          priceError = response.error;
+          
+          if (priceError) {
+            console.error('Error fetching forex price:', priceError);
+            toast.error("Failed to fetch live market price: " + priceError.message);
+            return;
+          }
+
+          if (!priceData || !priceData.forexData || !Array.isArray(priceData.forexData)) {
+            console.error('Invalid forex price data format:', priceData);
+            toast.error("Invalid price data received");
+            return;
+          }
+
+          // For forex, match by the full pair name (EUR/USD) or just the base currency (EUR)
+          const symbolData = priceData.forexData.find((forex: any) => {
+            const forexName = forex.name?.toUpperCase() || '';
+            const forexSymbol = forex.symbol?.toUpperCase() || '';
+            const searchSymbol = symbol.toUpperCase().trim();
+            return forexName === searchSymbol || forexSymbol === searchSymbol;
+          });
+
+          if (!symbolData || !symbolData.price) {
+            console.error('Forex symbol not found:', symbol);
+            toast.error(`Symbol ${symbol} not found. Please check symbol name.`);
+            return;
+          }
+
+          price = parseFloat(symbolData.price);
+          
+        } else {
+          toast.error("Invalid asset type selected");
           return;
         }
 
-        if (!priceData || !priceData.cryptoData || !Array.isArray(priceData.cryptoData)) {
-          console.error('Invalid price data format:', priceData);
-          toast.error("Invalid price data received");
-          return;
-        }
-
-        // Find the symbol in the price data - be more flexible with matching
-        const symbolData = priceData.cryptoData.find((coin: any) => {
-          const coinSymbol = coin.symbol?.toUpperCase() || '';
-          const searchSymbol = symbol.toUpperCase().trim();
-          return coinSymbol === searchSymbol;
-        });
-
-        console.log('Found symbol data:', symbolData);
-
-        if (!symbolData || !symbolData.price) {
-          console.error('Symbol not found or invalid price. Available symbols:', 
-            priceData.cryptoData.slice(0, 10).map((c: any) => c.symbol).join(', '));
-          toast.error(`Symbol ${symbol} not found. Please check symbol name.`);
-          return;
-        }
-
-        price = parseFloat(symbolData.price);
-        // For live mode, use user-specified amount
+        console.log('Opening trade at live price:', price, 'with amount:', amount);
         tradeAmount = parseFloat(amount);
-        console.log('Opening trade at live price:', price, 'with amount:', tradeAmount);
       } else {
         // Manual mode
         price = parseFloat(entryPrice);

@@ -75,11 +75,35 @@ const Trading = () => {
   const liveUpdateIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [showLongDialog, setShowLongDialog] = useState(false);
   const [showShortDialog, setShowShortDialog] = useState(false);
-  const [tradeAmount, setTradeAmount] = useState("");
+  const [tradeAmount, setTradeAmount] = useState(""); // USD amount
   const [leverage, setLeverage] = useState(1);
   const [chartScale, setChartScale] = useState(1);
+  const [walletBalance, setWalletBalance] = useState<number>(0);
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const touchStartDistance = useRef<number>(0);
+
+  // Fetch wallet balance
+  const fetchWalletBalance = async () => {
+    if (!user?.id) return;
+    
+    const { data: wallet, error } = await supabase
+      .from('user_wallets')
+      .select('balance')
+      .eq('user_id', user.id)
+      .eq('currency', 'USD')
+      .maybeSingle();
+    
+    if (!error && wallet) {
+      setWalletBalance(wallet.balance || 0);
+    }
+  };
+
+  // Fetch balance when dialogs open
+  useEffect(() => {
+    if (showLongDialog || showShortDialog) {
+      fetchWalletBalance();
+    }
+  }, [showLongDialog, showShortDialog]);
 
   // Swipe gesture handlers
   const navigateTimeframe = (direction: 'left' | 'right') => {
@@ -419,13 +443,14 @@ const Trading = () => {
 
   const handleOpenPosition = async (type: 'long' | 'short') => {
     if (!tradeAmount || parseFloat(tradeAmount) <= 0) {
-      toast.error("Please enter a valid amount");
+      toast.error("Please enter a valid USD amount");
       return;
     }
 
     try {
-      const amount = parseFloat(tradeAmount);
-      const margin = (amount * currentPrice) / leverage;
+      const usdAmount = parseFloat(tradeAmount); // User enters USD amount
+      const margin = usdAmount / leverage; // Margin is the USD amount divided by leverage
+      const assetQuantity = usdAmount / currentPrice; // Calculate asset quantity from USD
 
       // Check wallet balance first
       const { data: wallet, error: walletError } = await supabase
@@ -433,7 +458,7 @@ const Trading = () => {
         .select('balance')
         .eq('user_id', user?.id)
         .eq('currency', 'USD')
-        .single();
+        .maybeSingle();
 
       if (walletError) {
         toast.error('Failed to check wallet balance');
@@ -456,16 +481,16 @@ const Trading = () => {
 
       if (updateError) throw updateError;
 
-      // Open position
+      // Open position - amount is asset quantity, margin is USD
       const { error } = await supabase.from('positions').insert({
         user_id: user?.id,
         symbol: symbol?.toUpperCase(),
         position_type: type,
-        amount: amount,
+        amount: assetQuantity, // Store asset quantity
         entry_price: currentPrice,
         current_price: currentPrice,
         leverage: leverage,
-        margin: margin,
+        margin: margin, // USD margin
         status: 'open'
       });
 
@@ -489,10 +514,11 @@ const Trading = () => {
         reference_id: null
       });
 
-      toast.success(`${type.toUpperCase()} position opened: ${tradeAmount} ${symbol?.toUpperCase()}. $${margin.toFixed(2)} deducted from wallet.`);
+      toast.success(`${type.toUpperCase()} position opened: $${usdAmount.toFixed(2)} (${assetQuantity.toFixed(6)} ${symbol?.toUpperCase()}). Margin: $${margin.toFixed(2)}`);
       setTradeAmount("");
       setShowLongDialog(false);
       setShowShortDialog(false);
+      fetchWalletBalance(); // Refresh balance
     } catch (error) {
       console.error('Error opening position:', error);
       toast.error('Failed to open position');
@@ -836,32 +862,51 @@ const Trading = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 mt-4">
-            <div>
-              <Label htmlFor="long-amount">Amount ({symbol?.toUpperCase()})</Label>
-              <Input
-                id="long-amount"
-                type="number"
-                placeholder="0.00"
-                value={tradeAmount}
-                onChange={(e) => setTradeAmount(e.target.value)}
-                className="mt-2"
-              />
+            {/* Available Balance */}
+            <div className="p-3 bg-primary/10 rounded-lg border border-primary/20">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Available Balance:</span>
+                <span className="font-bold text-lg text-primary">${walletBalance.toFixed(2)}</span>
+              </div>
             </div>
+
+            <div>
+              <Label htmlFor="long-amount">Trade Amount (USD)</Label>
+              <div className="relative mt-2">
+                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="long-amount"
+                  type="number"
+                  placeholder="Enter USD amount (e.g., 20, 50, 100)"
+                  value={tradeAmount}
+                  onChange={(e) => setTradeAmount(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Enter the amount in USD you want to trade</p>
+            </div>
+            
             <div className="p-3 bg-muted rounded-lg space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Entry Price:</span>
                 <span className="font-semibold">{currencySymbol}{typeof currentPrice === 'number' ? currentPrice.toFixed(2) : '0.00'}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Margin Required:</span>
+                <span className="text-muted-foreground">Asset Quantity:</span>
                 <span className="font-semibold">
-                  {currencySymbol}{tradeAmount ? ((parseFloat(tradeAmount) * currentPrice) / leverage).toFixed(2) : "0.00"}
+                  {tradeAmount && currentPrice > 0 ? (parseFloat(tradeAmount) / currentPrice).toFixed(6) : "0.000000"} {symbol?.toUpperCase()}
                 </span>
               </div>
               <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Margin Required:</span>
+                <span className="font-semibold">
+                  ${tradeAmount ? (parseFloat(tradeAmount) / leverage).toFixed(2) : "0.00"}
+                </span>
+              </div>
+              <div className="flex justify-between text-sm border-t border-border pt-2 mt-2">
                 <span className="text-muted-foreground">Position Value:</span>
-                <span className="font-semibold text-lg">
-                  {currencySymbol}{tradeAmount ? (parseFloat(tradeAmount) * currentPrice).toFixed(2) : "0.00"}
+                <span className="font-semibold text-lg text-green-500">
+                  ${tradeAmount ? parseFloat(tradeAmount).toFixed(2) : "0.00"}
                 </span>
               </div>
             </div>
@@ -869,6 +914,7 @@ const Trading = () => {
               onClick={() => handleOpenPosition('long')}
               className="w-full bg-green-500 hover:bg-green-600 text-white h-12"
               size="lg"
+              disabled={!tradeAmount || parseFloat(tradeAmount) <= 0 || parseFloat(tradeAmount) / leverage > walletBalance}
             >
               <TrendingUp className="mr-2 h-5 w-5" />
               Open LONG Position
@@ -890,32 +936,51 @@ const Trading = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 mt-4">
-            <div>
-              <Label htmlFor="short-amount">Amount ({symbol?.toUpperCase()})</Label>
-              <Input
-                id="short-amount"
-                type="number"
-                placeholder="0.00"
-                value={tradeAmount}
-                onChange={(e) => setTradeAmount(e.target.value)}
-                className="mt-2"
-              />
+            {/* Available Balance */}
+            <div className="p-3 bg-primary/10 rounded-lg border border-primary/20">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Available Balance:</span>
+                <span className="font-bold text-lg text-primary">${walletBalance.toFixed(2)}</span>
+              </div>
             </div>
+
+            <div>
+              <Label htmlFor="short-amount">Trade Amount (USD)</Label>
+              <div className="relative mt-2">
+                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="short-amount"
+                  type="number"
+                  placeholder="Enter USD amount (e.g., 20, 50, 100)"
+                  value={tradeAmount}
+                  onChange={(e) => setTradeAmount(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Enter the amount in USD you want to trade</p>
+            </div>
+            
             <div className="p-3 bg-muted rounded-lg space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Entry Price:</span>
                 <span className="font-semibold">{currencySymbol}{typeof currentPrice === 'number' ? currentPrice.toFixed(2) : '0.00'}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Margin Required:</span>
+                <span className="text-muted-foreground">Asset Quantity:</span>
                 <span className="font-semibold">
-                  {currencySymbol}{tradeAmount ? ((parseFloat(tradeAmount) * currentPrice) / leverage).toFixed(2) : "0.00"}
+                  {tradeAmount && currentPrice > 0 ? (parseFloat(tradeAmount) / currentPrice).toFixed(6) : "0.000000"} {symbol?.toUpperCase()}
                 </span>
               </div>
               <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Margin Required:</span>
+                <span className="font-semibold">
+                  ${tradeAmount ? (parseFloat(tradeAmount) / leverage).toFixed(2) : "0.00"}
+                </span>
+              </div>
+              <div className="flex justify-between text-sm border-t border-border pt-2 mt-2">
                 <span className="text-muted-foreground">Position Value:</span>
-                <span className="font-semibold text-lg">
-                  {currencySymbol}{tradeAmount ? (parseFloat(tradeAmount) * currentPrice).toFixed(2) : "0.00"}
+                <span className="font-semibold text-lg text-red-500">
+                  ${tradeAmount ? parseFloat(tradeAmount).toFixed(2) : "0.00"}
                 </span>
               </div>
             </div>
@@ -923,6 +988,7 @@ const Trading = () => {
               onClick={() => handleOpenPosition('short')}
               className="w-full bg-red-500 hover:bg-red-600 text-white h-12"
               size="lg"
+              disabled={!tradeAmount || parseFloat(tradeAmount) <= 0 || parseFloat(tradeAmount) / leverage > walletBalance}
             >
               <TrendingDown className="mr-2 h-5 w-5" />
               Open SHORT Position

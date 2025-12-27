@@ -738,6 +738,8 @@ const AdminPanel = () => {
         description: "Payment and deposit offer settings updated successfully",
       });
 
+      // Refresh data to show updated values
+      await fetchAllData();
       setSettingsOpen(false);
     } catch (error: any) {
       toast({

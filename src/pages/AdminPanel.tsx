@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { 
   TrendingUp, Shield, Users, Wallet, Settings, SettingsIcon, 
-  Check, X, RefreshCw, Edit, Trash2, DollarSign, FileText, ArrowUpRight, Upload, Loader2, Lock, Phone, Search, ChevronLeft, ChevronRight 
+  Check, X, RefreshCw, Edit, Trash2, DollarSign, FileText, ArrowUpRight, Upload, Loader2, Lock, Phone, Search, ChevronLeft, ChevronRight, Gift 
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -99,6 +99,16 @@ const AdminPanel = () => {
   });
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [uploadingQr, setUploadingQr] = useState(false);
+  
+  // Deposit offer settings state
+  const [depositOfferSettings, setDepositOfferSettings] = useState({
+    bonusEnabled: true,
+    bonusPercentage: "30",
+    minAmount: "200",
+    maxAmount: "2000",
+    bonusMax: "600",
+    offerTitle: "Christmas Bonus",
+  });
 
   useEffect(() => {
     checkAdminStatus();
@@ -250,6 +260,16 @@ const AdminPanel = () => {
           accountNumber: settings.accountNumber || "1234567890",
           ifsc: settings.ifscCode || "BANK0001234",
           bankName: settings.bankName || "Demo Bank",
+        });
+        
+        // Set deposit offer settings
+        setDepositOfferSettings({
+          bonusEnabled: settings.depositBonusEnabled === 'true',
+          bonusPercentage: settings.depositBonusPercentage || "30",
+          minAmount: settings.depositMinAmount || "200",
+          maxAmount: settings.depositMaxAmount || "2000",
+          bonusMax: settings.depositBonusMax || "600",
+          offerTitle: settings.depositOfferTitle || "Christmas Bonus",
         });
       }
     } catch (error: any) {
@@ -690,23 +710,32 @@ const AdminPanel = () => {
         { setting_key: "account_number", setting_value: paymentSettings.accountNumber },
         { setting_key: "ifsc_code", setting_value: paymentSettings.ifsc },
         { setting_key: "bank_name", setting_value: paymentSettings.bankName },
+        // Deposit offer settings
+        { setting_key: "deposit_bonus_enabled", setting_value: String(depositOfferSettings.bonusEnabled) },
+        { setting_key: "deposit_bonus_percentage", setting_value: depositOfferSettings.bonusPercentage },
+        { setting_key: "deposit_min_amount", setting_value: depositOfferSettings.minAmount },
+        { setting_key: "deposit_max_amount", setting_value: depositOfferSettings.maxAmount },
+        { setting_key: "deposit_bonus_max", setting_value: depositOfferSettings.bonusMax },
+        { setting_key: "deposit_offer_title", setting_value: depositOfferSettings.offerTitle },
       ];
 
       for (const setting of settingsToUpdate) {
         const { error } = await supabase
           .from("payment_settings")
-          .update({
+          .upsert({
+            setting_key: setting.setting_key,
             setting_value: setting.setting_value,
             updated_by: user.id,
-          })
-          .eq("setting_key", setting.setting_key);
+          }, {
+            onConflict: 'setting_key'
+          });
 
         if (error) throw error;
       }
 
       toast({
         title: "Settings Saved",
-        description: "Payment details updated successfully",
+        description: "Payment and deposit offer settings updated successfully",
       });
 
       setSettingsOpen(false);
@@ -1532,8 +1561,109 @@ const AdminPanel = () => {
                   </div>
                 </div>
 
+                {/* Deposit Offer Settings */}
+                <div className="space-y-4 border-t pt-6">
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                    <Gift className="h-5 w-5 text-green-500" />
+                    Deposit Offer Settings
+                  </h3>
+                  <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+                    <input
+                      type="checkbox"
+                      id="bonusEnabled"
+                      checked={depositOfferSettings.bonusEnabled}
+                      onChange={(e) =>
+                        setDepositOfferSettings({ ...depositOfferSettings, bonusEnabled: e.target.checked })
+                      }
+                      className="h-5 w-5 rounded border-border"
+                    />
+                    <Label htmlFor="bonusEnabled" className="cursor-pointer">
+                      Enable Deposit Bonus
+                    </Label>
+                  </div>
+                  
+                  {depositOfferSettings.bonusEnabled && (
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="offerTitle">Offer Title</Label>
+                        <Input
+                          id="offerTitle"
+                          placeholder="e.g., Christmas Bonus"
+                          value={depositOfferSettings.offerTitle}
+                          onChange={(e) =>
+                            setDepositOfferSettings({ ...depositOfferSettings, offerTitle: e.target.value })
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="bonusPercentage">Bonus Percentage (%)</Label>
+                        <Input
+                          id="bonusPercentage"
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={depositOfferSettings.bonusPercentage}
+                          onChange={(e) =>
+                            setDepositOfferSettings({ ...depositOfferSettings, bonusPercentage: e.target.value })
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="minAmount">Minimum Deposit Amount ($)</Label>
+                        <Input
+                          id="minAmount"
+                          type="number"
+                          min="0"
+                          value={depositOfferSettings.minAmount}
+                          onChange={(e) =>
+                            setDepositOfferSettings({ ...depositOfferSettings, minAmount: e.target.value })
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="maxAmount">Maximum Deposit Amount ($)</Label>
+                        <Input
+                          id="maxAmount"
+                          type="number"
+                          min="0"
+                          value={depositOfferSettings.maxAmount}
+                          onChange={(e) =>
+                            setDepositOfferSettings({ ...depositOfferSettings, maxAmount: e.target.value })
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2 md:col-span-2">
+                        <Label htmlFor="bonusMax">Maximum Bonus Amount ($)</Label>
+                        <Input
+                          id="bonusMax"
+                          type="number"
+                          min="0"
+                          value={depositOfferSettings.bonusMax}
+                          onChange={(e) =>
+                            setDepositOfferSettings({ ...depositOfferSettings, bonusMax: e.target.value })
+                          }
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Maximum bonus a user can receive regardless of deposit amount
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {depositOfferSettings.bonusEnabled && (
+                    <div className="p-4 bg-green-600/10 border border-green-600/20 rounded-lg">
+                      <p className="text-sm font-medium text-green-600">
+                        Current Offer: {depositOfferSettings.offerTitle} - {depositOfferSettings.bonusPercentage}% bonus
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        For deposits between ${depositOfferSettings.minAmount} - ${depositOfferSettings.maxAmount} (max bonus: ${depositOfferSettings.bonusMax})
+                      </p>
+                    </div>
+                  )}
+                </div>
+
                 <Button onClick={handleSavePaymentSettings} className="w-full">
-                  Save Payment Settings
+                  Save All Settings
                 </Button>
               </CardContent>
             </Card>

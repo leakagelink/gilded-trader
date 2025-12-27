@@ -46,10 +46,18 @@ const Positions = () => {
   const [priceChanges, setPriceChanges] = useState<Record<string, { direction: 'up' | 'down' | 'none'; flash: boolean }>>({});
   const previousPricesRef = useRef<Record<string, number>>({});
   const positionsRef = useRef<Position[]>([]);
+  // Store base PnL for edited trades (admin-set values that don't change)
+  const basePnlRef = useRef<Record<string, number>>({});
   
   // Keep ref in sync with state
   useEffect(() => {
     positionsRef.current = openPositions;
+    // Initialize basePnlRef for edited trades from database values
+    openPositions.forEach(pos => {
+      if (pos.price_mode === 'edited' && basePnlRef.current[pos.id] === undefined) {
+        basePnlRef.current[pos.id] = pos.pnl || 0;
+      }
+    });
   }, [openPositions]);
 
   useEffect(() => {
@@ -90,26 +98,28 @@ const Positions = () => {
 
             // Check if this is an edited trade (admin adjusted PnL)
             if (position.price_mode === 'edited') {
-              // For edited trades: use stored PnL from database and add momentum ±5-7% around it
-              const storedPnl = position.pnl || 0;
-              const isPositivePnl = storedPnl >= 0;
+              // Get the base PnL from ref (admin-set value) - this is the stable reference value
+              if (basePnlRef.current[position.id] === undefined) {
+                basePnlRef.current[position.id] = position.pnl || 0;
+              }
+              const basePnl = basePnlRef.current[position.id];
+              const isPositivePnl = basePnl >= 0;
               
               // Calculate base PnL percentage from margin
-              const basePnlPercent = position.margin > 0 ? (storedPnl / position.margin) * 100 : 0;
+              const basePnlPercent = position.margin > 0 ? (basePnl / position.margin) * 100 : 0;
               
-              // Add momentum: fluctuate between 5-7% around the base PnL
-              const momentumRange = 5 + Math.random() * 2; // 5-7%
-              const momentumOffset = (Math.random() * momentumRange - momentumRange / 2);
-              
-              // Keep momentum in the same direction as the base PnL
+              // Add momentum: fluctuate ±5% around the base PnL percentage
+              const momentumOffset = (Math.random() - 0.5) * 10; // -5% to +5%
               let adjustedPnlPercent = basePnlPercent + momentumOffset;
+              
+              // Keep the sign consistent with base PnL direction
               if (isPositivePnl && adjustedPnlPercent < 0) {
                 adjustedPnlPercent = Math.abs(momentumOffset);
               } else if (!isPositivePnl && adjustedPnlPercent > 0) {
                 adjustedPnlPercent = -Math.abs(momentumOffset);
               }
               
-              // Calculate new PnL from adjusted percentage
+              // Calculate display PnL from adjusted percentage
               pnl = (adjustedPnlPercent / 100) * position.margin;
               
               // Calculate current price from PnL
@@ -246,6 +256,11 @@ const Positions = () => {
         (payload) => {
           const updatedPosition = payload.new as Position;
           console.log('Position updated via realtime:', updatedPosition.id, 'price_mode:', updatedPosition.price_mode);
+          
+          // If admin edited this trade, update the basePnlRef with the new base value
+          if (updatedPosition.price_mode === 'edited') {
+            basePnlRef.current[updatedPosition.id] = updatedPosition.pnl || 0;
+          }
           
           // Update the position in state with new data from database
           setOpenPositions(prev => 

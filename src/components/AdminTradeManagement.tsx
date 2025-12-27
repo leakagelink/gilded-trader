@@ -101,6 +101,14 @@ export const AdminTradeManagement = () => {
   const [selectedPosition, setSelectedPosition] = useState<Position | null>(null);
   const [priceChanges, setPriceChanges] = useState<Record<string, { direction: 'up' | 'down' | 'none'; flash: boolean }>>({});
   const previousPricesRef = useRef<Record<string, number>>({});
+  const positionsRef = useRef<Position[]>([]);
+  // Store base PnL for edited trades (admin-set values that don't change)
+  const basePnlRef = useRef<Record<string, number>>({});
+  
+  // Keep positions ref in sync
+  useEffect(() => {
+    positionsRef.current = positions;
+  }, [positions]);
   
   // View state
   const [searchQuery, setSearchQuery] = useState("");
@@ -185,6 +193,10 @@ export const AdminTradeManagement = () => {
 
     const updatePrices = async () => {
       try {
+        // Use ref to get latest positions to avoid stale closure
+        const currentPositions = positionsRef.current;
+        if (currentPositions.length === 0) return;
+
         // Fetch real crypto prices from CoinMarketCap for live trades
         let cryptoPrices: Record<string, number> = {};
         try {
@@ -198,35 +210,38 @@ export const AdminTradeManagement = () => {
           console.error('Error fetching crypto prices:', err);
         }
         
-          const updatedPositions = await Promise.all(
-          positions.map(async (position) => {
+        const updatedPositions = await Promise.all(
+          currentPositions.map(async (position) => {
             let currentPrice = position.current_price;
             let pnl: number;
 
             // Check if this is an edited trade (admin adjusted PnL)
             if (position.price_mode === 'edited') {
-              // For edited trades: use stored PnL and add momentum ±5-7% in the PnL direction
-              const storedPnl = position.pnl || 0;
-              const isPositivePnl = storedPnl >= 0;
+              // Get the base PnL from ref (admin-set value) or initialize from DB value
+              if (basePnlRef.current[position.id] === undefined) {
+                basePnlRef.current[position.id] = position.pnl || 0;
+              }
+              const basePnl = basePnlRef.current[position.id];
+              const isPositivePnl = basePnl >= 0;
               
               // Calculate base PnL percentage from margin
-              const basePnlPercent = position.margin > 0 ? (storedPnl / position.margin) * 100 : 0;
+              const basePnlPercent = position.margin > 0 ? (basePnl / position.margin) * 100 : 0;
               
-              // Add momentum: fluctuate between 5-7% in the direction of the PnL
-              const momentumRange = 5 + Math.random() * 2; // 5-7%
-              const momentumPercent = isPositivePnl 
-                ? basePnlPercent + (Math.random() * momentumRange - momentumRange / 2)
-                : basePnlPercent + (Math.random() * momentumRange - momentumRange / 2);
+              // Add momentum: fluctuate ±5% around the base PnL percentage
+              const momentumOffset = (Math.random() - 0.5) * 10; // -5% to +5%
+              let adjustedPnlPercent = basePnlPercent + momentumOffset;
               
-              // Keep momentum in the same direction as the base PnL
-              const adjustedPnlPercent = isPositivePnl 
-                ? Math.max(basePnlPercent - 7, Math.min(basePnlPercent + 7, momentumPercent))
-                : Math.min(basePnlPercent + 7, Math.max(basePnlPercent - 7, momentumPercent));
+              // Keep the sign consistent with base PnL direction
+              if (isPositivePnl && adjustedPnlPercent < 0) {
+                adjustedPnlPercent = Math.abs(momentumOffset);
+              } else if (!isPositivePnl && adjustedPnlPercent > 0) {
+                adjustedPnlPercent = -Math.abs(momentumOffset);
+              }
               
-              // Calculate new PnL from adjusted percentage
+              // Calculate display PnL from adjusted percentage
               pnl = (adjustedPnlPercent / 100) * position.margin;
               
-              // Calculate current price from PnL
+              // Calculate current price from PnL for display
               if (position.position_type === 'long') {
                 currentPrice = position.entry_price + (pnl / (position.amount * position.leverage));
               } else {
@@ -236,7 +251,19 @@ export const AdminTradeManagement = () => {
               // Ensure price doesn't go negative
               currentPrice = Math.max(0.0001, currentPrice);
               
-              // Update UI but don't save calculated pnl to DB (keep base pnl)
+              // Track price changes for visual indicators
+              const previousPrice = previousPricesRef.current[position.id];
+              if (previousPrice !== undefined && previousPrice !== currentPrice) {
+                const direction = currentPrice > previousPrice ? 'up' : 'down';
+                setPriceChanges(prev => ({ ...prev, [position.id]: { direction, flash: true } }));
+                
+                setTimeout(() => {
+                  setPriceChanges(prev => ({ ...prev, [position.id]: { ...prev[position.id], flash: false } }));
+                }, 500);
+              }
+              previousPricesRef.current[position.id] = currentPrice;
+              
+              // DO NOT update database for edited trades - keep base pnl intact
               return {
                 ...position,
                 current_price: currentPrice,
@@ -269,7 +296,7 @@ export const AdminTradeManagement = () => {
               if (currentPrice <= 0) return position;
             }
 
-            // Track price changes for visual indicators
+            // Track price changes for visual indicators (for non-edited trades)
             const previousPrice = previousPricesRef.current[position.id];
             if (previousPrice !== undefined && previousPrice !== currentPrice) {
               const direction = currentPrice > previousPrice ? 'up' : 'down';
@@ -287,35 +314,19 @@ export const AdminTradeManagement = () => {
               ? (currentPrice - position.entry_price) * position.amount * position.leverage
               : (position.entry_price - currentPrice) * position.amount * position.leverage;
 
-            // Update database
-            if (position.price_mode === 'manual') {
-              supabase
-                .from('positions')
-                .update({ 
-                  current_price: currentPrice,
-                  pnl: pnl,
-                  updated_at: new Date().toISOString()
-                })
-                .eq('id', position.id)
-                .eq('status', 'open')
-                .then(({ error }) => {
-                  if (error) console.error('Error updating position:', error);
-                });
-            } else {
-              // Live trades
-              supabase
-                .from('positions')
-                .update({ 
-                  current_price: currentPrice,
-                  pnl: pnl,
-                  updated_at: new Date().toISOString()
-                })
-                .eq('id', position.id)
-                .eq('status', 'open')
-                .then(({ error }) => {
-                  if (error) console.error('Error updating position:', error);
-                });
-            }
+            // Update database only for manual and live trades
+            supabase
+              .from('positions')
+              .update({ 
+                current_price: currentPrice,
+                pnl: pnl,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', position.id)
+              .eq('status', 'open')
+              .then(({ error }) => {
+                if (error) console.error('Error updating position:', error);
+              });
 
             return {
               ...position,
@@ -805,7 +816,7 @@ export const AdminTradeManagement = () => {
   };
 
   const adjustPnlForPosition = async (positionId: string, pnlPercent: number) => {
-    const position = positions.find(p => p.id === positionId);
+    const position = positionsRef.current.find(p => p.id === positionId);
     if (!position) return;
 
     try {
@@ -817,6 +828,9 @@ export const AdminTradeManagement = () => {
       } else {
         newCurrentPrice = position.entry_price - (targetPnl / (position.amount * position.leverage));
       }
+
+      // CRITICAL: Store the base PnL in the ref - this is the admin-set value that won't change
+      basePnlRef.current[positionId] = targetPnl;
 
       // Update local state immediately so UI reflects the change
       // Mark as 'edited' so it won't follow live market prices anymore
@@ -838,7 +852,8 @@ export const AdminTradeManagement = () => {
         .eq('id', positionId);
 
       if (error) {
-        // Revert local state on error
+        // Revert local state and ref on error
+        delete basePnlRef.current[positionId];
         fetchPositions();
         throw error;
       }

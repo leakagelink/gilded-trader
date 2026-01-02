@@ -37,7 +37,14 @@ const Dashboard = () => {
   const [commoditiesLoading, setCommoditiesLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
+  // API DISABLED TEMPORARILY - Set to true to enable APIs and momentum
+  const API_ENABLED = false;
+
   const fetchCryptoData = async () => {
+    if (!API_ENABLED) {
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       const { data, error } = await supabase.functions.invoke('fetch-crypto-data');
@@ -58,6 +65,10 @@ const Dashboard = () => {
   };
 
   const fetchForexData = async () => {
+    if (!API_ENABLED) {
+      setForexLoading(false);
+      return;
+    }
     try {
       setForexLoading(true);
       const { data, error } = await supabase.functions.invoke('fetch-forex-data');
@@ -78,6 +89,10 @@ const Dashboard = () => {
   };
 
   const fetchCommoditiesData = async () => {
+    if (!API_ENABLED) {
+      setCommoditiesLoading(false);
+      return;
+    }
     try {
       setCommoditiesLoading(true);
       const { data, error } = await supabase.functions.invoke('fetch-commodities-data');

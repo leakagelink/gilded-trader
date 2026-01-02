@@ -19,12 +19,19 @@ interface TradingListProps {
   data: TradingItem[];
 }
 
+// MOMENTUM DISABLED TEMPORARILY - Set to true to enable momentum indicators
+const MOMENTUM_ENABLED = false;
+
 const TradingList = ({ data }: TradingListProps) => {
   const navigate = useNavigate();
   const [itemMomentum, setItemMomentum] = useState<Record<number, 'up' | 'down' | 'neutral'>>({});
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
+    if (!MOMENTUM_ENABLED) {
+      return;
+    }
+    
     // Simulate real-time momentum updates every second
     intervalRef.current = setInterval(() => {
       const newMomentum: Record<number, 'up' | 'down' | 'neutral'> = {};

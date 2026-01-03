@@ -6,17 +6,18 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Static fallback data for commodities
+// Static fallback data for commodities - Updated with current market prices (Jan 2026)
+// Prices are updated periodically to reflect approximate market values
 const STATIC_FALLBACK_DATA = {
   commoditiesData: [
-    { name: "Gold", symbol: "XAU", price: "2650.00", change: "+0.50%", isPositive: true, icon: "🥇", currencySymbol: "$", fullName: "Gold" },
-    { name: "Silver", symbol: "XAG", price: "31.50", change: "+0.80%", isPositive: true, icon: "🥈", currencySymbol: "$", fullName: "Silver" },
-    { name: "Crude Oil", symbol: "WTI", price: "71.50", change: "-0.50%", isPositive: false, icon: "🛢️", currencySymbol: "$", fullName: "Crude Oil WTI" },
-    { name: "Natural Gas", symbol: "NG", price: "3.25", change: "+2.10%", isPositive: true, icon: "🔥", currencySymbol: "$", fullName: "Natural Gas" },
-    { name: "Copper", symbol: "XCU", price: "4.15", change: "+1.50%", isPositive: true, icon: "🔶", currencySymbol: "$", fullName: "Copper" },
-    { name: "Platinum", symbol: "XPT", price: "980.00", change: "+0.45%", isPositive: true, icon: "💎", currencySymbol: "$", fullName: "Platinum" },
-    { name: "Palladium", symbol: "XPD", price: "1050.00", change: "-0.30%", isPositive: false, icon: "⬜", currencySymbol: "$", fullName: "Palladium" },
-    { name: "Brent Oil", symbol: "BRENT", price: "74.50", change: "+0.65%", isPositive: true, icon: "🛢️", currencySymbol: "$", fullName: "Brent Crude Oil" },
+    { name: "Gold", symbol: "XAU", price: "4332.01", change: "+0.28%", isPositive: true, icon: "🥇", currencySymbol: "$", fullName: "Gold" },
+    { name: "Silver", symbol: "XAG", price: "72.62", change: "+1.89%", isPositive: true, icon: "🥈", currencySymbol: "$", fullName: "Silver" },
+    { name: "Crude Oil", symbol: "WTI", price: "57.32", change: "-0.17%", isPositive: false, icon: "🛢️", currencySymbol: "$", fullName: "Crude Oil WTI" },
+    { name: "Natural Gas", symbol: "NG", price: "3.64", change: "-0.07%", isPositive: false, icon: "🔥", currencySymbol: "$", fullName: "Natural Gas" },
+    { name: "Copper", symbol: "XCU", price: "5.65", change: "-1.02%", isPositive: false, icon: "🔶", currencySymbol: "$", fullName: "Copper" },
+    { name: "Platinum", symbol: "XPT", price: "2142.50", change: "+4.21%", isPositive: true, icon: "💎", currencySymbol: "$", fullName: "Platinum" },
+    { name: "Palladium", symbol: "XPD", price: "950.00", change: "-0.30%", isPositive: false, icon: "⬜", currencySymbol: "$", fullName: "Palladium" },
+    { name: "Brent Oil", symbol: "BRENT", price: "60.75", change: "-0.16%", isPositive: false, icon: "🛢️", currencySymbol: "$", fullName: "Brent Crude Oil" },
   ]
 };
 
@@ -153,14 +154,14 @@ serve(async (req) => {
 
         // If we got at least gold price, add static data for oil/gas (not available on Gold API)
         if (commoditiesData.length > 0) {
-          // Add static data for commodities not available on Gold API
+          // Add static data for commodities not available on Gold API - Updated Jan 2026
           commoditiesData.push(
             {
               name: "Crude Oil",
               symbol: "WTI",
-              price: "71.50",
-              change: "+0.35%",
-              isPositive: true,
+              price: "57.32",
+              change: "-0.17%",
+              isPositive: false,
               icon: "🛢️",
               currencySymbol: "$",
               fullName: "Crude Oil WTI"
@@ -168,9 +169,9 @@ serve(async (req) => {
             {
               name: "Natural Gas",
               symbol: "NG",
-              price: "3.25",
-              change: "+1.20%",
-              isPositive: true,
+              price: "3.64",
+              change: "-0.07%",
+              isPositive: false,
               icon: "🔥",
               currencySymbol: "$",
               fullName: "Natural Gas"
@@ -178,9 +179,9 @@ serve(async (req) => {
             {
               name: "Brent Oil",
               symbol: "BRENT",
-              price: "74.50",
-              change: "+0.45%",
-              isPositive: true,
+              price: "60.75",
+              change: "-0.16%",
+              isPositive: false,
               icon: "🛢️",
               currencySymbol: "$",
               fullName: "Brent Crude Oil"

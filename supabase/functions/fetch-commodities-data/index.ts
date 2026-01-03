@@ -20,6 +20,18 @@ const STATIC_FALLBACK_DATA = {
   ]
 };
 
+// Yahoo Finance symbols for commodities
+const YAHOO_COMMODITIES = [
+  { name: "Gold", symbol: "XAU", yahooSymbol: "GC=F", icon: "🥇", fullName: "Gold" },
+  { name: "Silver", symbol: "XAG", yahooSymbol: "SI=F", icon: "🥈", fullName: "Silver" },
+  { name: "Platinum", symbol: "XPT", yahooSymbol: "PL=F", icon: "💎", fullName: "Platinum" },
+  { name: "Palladium", symbol: "XPD", yahooSymbol: "PA=F", icon: "⬜", fullName: "Palladium" },
+  { name: "Copper", symbol: "XCU", yahooSymbol: "HG=F", icon: "🔶", fullName: "Copper" },
+  { name: "Crude Oil", symbol: "WTI", yahooSymbol: "CL=F", icon: "🛢️", fullName: "Crude Oil WTI" },
+  { name: "Natural Gas", symbol: "NG", yahooSymbol: "NG=F", icon: "🔥", fullName: "Natural Gas" },
+  { name: "Brent Oil", symbol: "BRENT", yahooSymbol: "BZ=F", icon: "🛢️", fullName: "Brent Crude Oil" },
+];
+
 // Commodity configurations for Gold API (backup)
 const COMMODITIES_CONFIG = [
   { name: "Gold", symbol: "XAU", apiSymbol: "XAU", icon: "🥇", fullName: "Gold" },
@@ -64,62 +76,61 @@ async function markKeyAsInactive(serviceName: string, apiKey: string) {
   }
 }
 
-// Metals.dev API - Free, no API key required, real-time precious metal prices
-async function fetchFromMetalsDev(): Promise<any> {
+// Yahoo Finance API - Free, no API key required
+async function fetchFromYahooFinance(): Promise<any[]> {
   try {
-    console.log('Fetching from Metals.dev API (free, no auth)...');
+    console.log('Fetching from Yahoo Finance API (free, no auth)...');
     
-    const response = await fetch('https://api.metals.dev/v1/latest?api_key=demo&currency=USD&unit=toz', {
+    const symbols = YAHOO_COMMODITIES.map(c => c.yahooSymbol).join(',');
+    const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols)}`;
+    
+    const response = await fetch(url, {
       headers: {
-        'Content-Type': 'application/json'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'application/json'
       }
     });
 
     if (!response.ok) {
-      if (response.status === 429) {
-        console.log('Metals.dev rate limited');
-        return { rateLimited: true };
-      }
-      console.error('Metals.dev API error:', response.status);
-      return null;
+      console.error('Yahoo Finance API error:', response.status);
+      return [];
     }
 
     const data = await response.json();
-    console.log('Metals.dev response:', JSON.stringify(data).substring(0, 300));
-
-    if (data.status === 'success' && data.metals) {
-      const metals = data.metals;
-      
-      // Parse prices - metals.dev returns prices in USD per troy ounce
-      const result: any = { success: true };
-      
-      if (metals.gold) {
-        result.gold = { price: parseFloat(metals.gold), change: 0 };
-        console.log(`Metals.dev Gold: $${metals.gold}`);
-      }
-      
-      if (metals.silver) {
-        result.silver = { price: parseFloat(metals.silver), change: 0 };
-        console.log(`Metals.dev Silver: $${metals.silver}`);
-      }
-      
-      if (metals.platinum) {
-        result.platinum = { price: parseFloat(metals.platinum), change: 0 };
-        console.log(`Metals.dev Platinum: $${metals.platinum}`);
-      }
-      
-      if (metals.palladium) {
-        result.palladium = { price: parseFloat(metals.palladium), change: 0 };
-        console.log(`Metals.dev Palladium: $${metals.palladium}`);
-      }
-      
-      return result;
+    
+    if (!data.quoteResponse?.result) {
+      console.error('Yahoo Finance: No results');
+      return [];
     }
 
-    return null;
+    const results: any[] = [];
+    
+    for (const quote of data.quoteResponse.result) {
+      const config = YAHOO_COMMODITIES.find(c => c.yahooSymbol === quote.symbol);
+      if (!config) continue;
+      
+      const price = quote.regularMarketPrice || 0;
+      const changePercent = quote.regularMarketChangePercent || 0;
+      
+      console.log(`Yahoo Finance ${config.name}: $${price.toFixed(2)} (${changePercent.toFixed(2)}%)`);
+      
+      results.push({
+        name: config.name,
+        symbol: config.symbol,
+        price: price.toFixed(2),
+        change: `${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(2)}%`,
+        isPositive: changePercent >= 0,
+        icon: config.icon,
+        currencySymbol: "$",
+        fullName: config.fullName
+      });
+    }
+    
+    console.log(`Successfully fetched ${results.length} commodities from Yahoo Finance`);
+    return results;
   } catch (error) {
-    console.error('Metals.dev fetch error:', error);
-    return null;
+    console.error('Yahoo Finance fetch error:', error);
+    return [];
   }
 }
 
@@ -158,89 +169,20 @@ serve(async (req) => {
   }
 
   try {
-    const commoditiesData: any[] = [];
-    let metalsDevSuccess = false;
+    let commoditiesData: any[] = [];
 
-    // Step 1: Try Metals.dev API first (free, no API key needed)
-    const metalsDevResult = await fetchFromMetalsDev();
-    
-    if (metalsDevResult?.success) {
-      metalsDevSuccess = true;
-      
-      // Add Gold
-      if (metalsDevResult.gold) {
-        const changePercent = metalsDevResult.gold.change || 0;
-        commoditiesData.push({
-          name: "Gold",
-          symbol: "XAU",
-          price: metalsDevResult.gold.price.toFixed(2),
-          change: `${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(2)}%`,
-          isPositive: changePercent >= 0,
-          icon: "🥇",
-          currencySymbol: "$",
-          fullName: "Gold"
-        });
-      }
-      
-      // Add Silver
-      if (metalsDevResult.silver) {
-        const changePercent = metalsDevResult.silver.change || 0;
-        commoditiesData.push({
-          name: "Silver",
-          symbol: "XAG",
-          price: metalsDevResult.silver.price.toFixed(2),
-          change: `${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(2)}%`,
-          isPositive: changePercent >= 0,
-          icon: "🥈",
-          currencySymbol: "$",
-          fullName: "Silver"
-        });
-      }
-      
-      // Add Platinum
-      if (metalsDevResult.platinum) {
-        const changePercent = metalsDevResult.platinum.change || 0;
-        commoditiesData.push({
-          name: "Platinum",
-          symbol: "XPT",
-          price: metalsDevResult.platinum.price.toFixed(2),
-          change: `${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(2)}%`,
-          isPositive: changePercent >= 0,
-          icon: "💎",
-          currencySymbol: "$",
-          fullName: "Platinum"
-        });
-      }
-      
-      // Add Palladium
-      if (metalsDevResult.palladium) {
-        const changePercent = metalsDevResult.palladium.change || 0;
-        commoditiesData.push({
-          name: "Palladium",
-          symbol: "XPD",
-          price: metalsDevResult.palladium.price.toFixed(2),
-          change: `${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(2)}%`,
-          isPositive: changePercent >= 0,
-          icon: "⬜",
-          currencySymbol: "$",
-          fullName: "Palladium"
-        });
-      }
+    // Step 1: Try Yahoo Finance API first (free, no API key needed)
+    commoditiesData = await fetchFromYahooFinance();
+    const yahooSuccess = commoditiesData.length > 0;
 
-      console.log(`Successfully fetched ${commoditiesData.length} metals from Metals.dev`);
-    }
-
-    // Step 2: Try Gold API for remaining metals or all if Metals.dev failed
-    const fetchedSymbols = commoditiesData.map(c => c.symbol);
-    const metalsToFetch = metalsDevSuccess 
-      ? COMMODITIES_CONFIG.filter(c => !fetchedSymbols.includes(c.symbol))
-      : COMMODITIES_CONFIG;
-
-    if (metalsToFetch.length > 0) {
+    // Step 2: Try Gold API for precious metals if Yahoo failed
+    if (!yahooSuccess) {
+      console.log('Yahoo Finance failed, trying Gold API...');
+      
       let attempts = 0;
       const MAX_ATTEMPTS = 10;
 
-      while (attempts < MAX_ATTEMPTS) {
+      while (attempts < MAX_ATTEMPTS && commoditiesData.length === 0) {
         attempts++;
         const apiKey = await getActiveApiKey('goldapi');
         
@@ -252,7 +194,7 @@ serve(async (req) => {
         console.log(`Gold API attempt ${attempts}`);
         let rateLimited = false;
 
-        for (const commodity of metalsToFetch) {
+        for (const commodity of COMMODITIES_CONFIG) {
           const result = await fetchFromGoldAPI(apiKey, commodity.apiSymbol);
           
           if (result.rateLimited) {
@@ -290,10 +232,10 @@ serve(async (req) => {
     }
 
     // Step 3: Add static data for commodities we couldn't fetch
-    const finalFetchedSymbols = commoditiesData.map(c => c.symbol);
+    const fetchedSymbols = commoditiesData.map(c => c.symbol);
     
     for (const fallback of STATIC_FALLBACK_DATA.commoditiesData) {
-      if (!finalFetchedSymbols.includes(fallback.symbol)) {
+      if (!fetchedSymbols.includes(fallback.symbol)) {
         commoditiesData.push(fallback);
       }
     }
@@ -304,7 +246,7 @@ serve(async (req) => {
     };
     commoditiesData.sort((a, b) => (orderMap[a.symbol] || 99) - (orderMap[b.symbol] || 99));
 
-    console.log(`Returning ${commoditiesData.length} commodities (${metalsDevSuccess ? 'Metals.dev' : 'fallback'} + Gold API/static)`);
+    console.log(`Returning ${commoditiesData.length} commodities (${yahooSuccess ? 'Yahoo Finance' : 'fallback/Gold API'})`);
     
     return new Response(
       JSON.stringify({ commoditiesData }),

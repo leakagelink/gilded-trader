@@ -19,27 +19,83 @@ const STATIC_FALLBACK_DATA = {
   ]
 };
 
-// FMP API commodity symbols mapping (legacy API uses different symbols)
-const FMP_COMMODITIES = [
-  { name: "Gold", symbol: "XAU", fmpSymbols: ["GCUSD", "XAUUSD"], icon: "🥇", fullName: "Gold" },
-  { name: "Silver", symbol: "XAG", fmpSymbols: ["SIUSD", "XAGUSD"], icon: "🥈", fullName: "Silver" },
-  { name: "Platinum", symbol: "XPT", fmpSymbols: ["PLUSD", "XPTUSD"], icon: "💎", fullName: "Platinum" },
-  { name: "Palladium", symbol: "XPD", fmpSymbols: ["PAUSD", "XPDUSD"], icon: "⬜", fullName: "Palladium" },
-  { name: "Copper", symbol: "XCU", fmpSymbols: ["HGUSD", "XCUUSD"], icon: "🔶", fullName: "Copper" },
-  { name: "Crude Oil", symbol: "WTI", fmpSymbols: ["CLUSD", "WTIUSD"], icon: "🛢️", fullName: "Crude Oil WTI" },
-  { name: "Natural Gas", symbol: "NG", fmpSymbols: ["NGUSD"], icon: "🔥", fullName: "Natural Gas" },
-  { name: "Brent Oil", symbol: "BRENT", fmpSymbols: ["BZUSD", "BRENTUSD"], icon: "🛢️", fullName: "Brent Crude Oil" },
+// Commodity configurations for API fetching
+const COMMODITIES_CONFIG = [
+  { name: "Gold", symbol: "XAU", apiSymbol: "XAU", icon: "🥇", fullName: "Gold" },
+  { name: "Silver", symbol: "XAG", apiSymbol: "XAG", icon: "🥈", fullName: "Silver" },
+  { name: "Platinum", symbol: "XPT", apiSymbol: "XPT", icon: "💎", fullName: "Platinum" },
+  { name: "Palladium", symbol: "XPD", apiSymbol: "XPD", icon: "⬜", fullName: "Palladium" },
+  { name: "Copper", symbol: "XCU", apiSymbol: "XCU", icon: "🔶", fullName: "Copper" },
+  { name: "Crude Oil", symbol: "WTI", apiSymbol: "WTI", icon: "🛢️", fullName: "Crude Oil WTI" },
+  { name: "Natural Gas", symbol: "NG", apiSymbol: "NG", icon: "🔥", fullName: "Natural Gas" },
+  { name: "Brent Oil", symbol: "BRENT", apiSymbol: "BRENT", icon: "🛢️", fullName: "Brent Crude Oil" },
 ];
 
-// Fetch from FMP API (Financial Modeling Prep) - Legacy v3 endpoint
-async function fetchFromFMP(apiKey: string): Promise<any[]> {
+// Fetch from GoldPricez API (primary source for metals)
+async function fetchFromGoldPricez(apiKey: string): Promise<any[]> {
   try {
-    console.log('Fetching commodities from FMP API (legacy v3)...');
+    console.log('Fetching commodities from GoldPricez API...');
     
-    // Use the legacy v3 endpoint that lists all commodities
-    const url = `https://financialmodelingprep.com/api/v3/quotes/commodity?apikey=${apiKey}`;
+    const results: any[] = [];
+    const metalsToFetch = ['XAU', 'XAG', 'XPT', 'XPD'];
     
-    console.log('FMP URL:', url.replace(apiKey, '***'));
+    for (const metal of metalsToFetch) {
+      try {
+        const url = `https://goldpricez.com/api/rates/${metal}/usd?api_key=${apiKey}`;
+        console.log(`Fetching ${metal} from GoldPricez...`);
+        
+        const response = await fetch(url, {
+          headers: {
+            'Accept': 'application/json'
+          }
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`GoldPricez ${metal} error:`, response.status, errorText);
+          continue;
+        }
+
+        const data = await response.json();
+        console.log(`GoldPricez ${metal} response:`, JSON.stringify(data));
+        
+        if (data && data.price) {
+          const config = COMMODITIES_CONFIG.find(c => c.apiSymbol === metal);
+          if (config) {
+            const changePercent = data.change_percent || data.ch_pct || 0;
+            results.push({
+              name: config.name,
+              symbol: config.symbol,
+              price: parseFloat(data.price).toFixed(2),
+              change: `${changePercent >= 0 ? '+' : ''}${parseFloat(changePercent).toFixed(2)}%`,
+              isPositive: changePercent >= 0,
+              icon: config.icon,
+              currencySymbol: "$",
+              fullName: config.fullName
+            });
+            console.log(`GoldPricez ${config.name}: $${data.price} (${changePercent}%)`);
+          }
+        }
+      } catch (metalError) {
+        console.error(`Error fetching ${metal}:`, metalError);
+      }
+    }
+    
+    console.log(`Successfully fetched ${results.length} metals from GoldPricez`);
+    return results;
+  } catch (error) {
+    console.error('GoldPricez fetch error:', error);
+    return [];
+  }
+}
+
+// Alternative: Fetch all rates at once
+async function fetchAllFromGoldPricez(apiKey: string): Promise<any[]> {
+  try {
+    console.log('Fetching all rates from GoldPricez API...');
+    
+    // Try the all rates endpoint
+    const url = `https://goldpricez.com/api/rates?api_key=${apiKey}`;
     
     const response = await fetch(url, {
       headers: {
@@ -49,53 +105,55 @@ async function fetchFromFMP(apiKey: string): Promise<any[]> {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('FMP API error:', response.status, errorText);
+      console.error('GoldPricez all rates error:', response.status, errorText);
       return [];
     }
 
     const data = await response.json();
+    console.log('GoldPricez all rates response:', JSON.stringify(data).substring(0, 500));
     
-    if (!data || !Array.isArray(data) || data.length === 0) {
-      console.error('FMP: No results or invalid response');
-      return [];
-    }
-
-    console.log(`FMP API returned ${data.length} commodities`);
-
     const results: any[] = [];
     
-    for (const config of FMP_COMMODITIES) {
-      // Find matching commodity from FMP data
-      const quote = data.find((q: any) => config.fmpSymbols.includes(q.symbol));
+    if (data && typeof data === 'object') {
+      // Handle different response formats
+      const rates = data.rates || data.data || data;
       
-      if (!quote) {
-        console.log(`No FMP data for ${config.name} (${config.fmpSymbols.join(', ')})`);
-        continue;
+      for (const config of COMMODITIES_CONFIG) {
+        const metalData = rates[config.apiSymbol] || rates[config.apiSymbol.toLowerCase()];
+        if (metalData) {
+          const price = metalData.price || metalData.usd || metalData.rate || metalData;
+          const changePercent = metalData.change_percent || metalData.ch_pct || metalData.change || 0;
+          
+          const priceValue = typeof price === 'number' ? price : parseFloat(String(price));
+          if (!isNaN(priceValue)) {
+            results.push({
+              name: config.name,
+              symbol: config.symbol,
+              price: priceValue.toFixed(2),
+              change: `${parsePercent(changePercent) >= 0 ? '+' : ''}${parsePercent(changePercent).toFixed(2)}%`,
+              isPositive: parsePercent(changePercent) >= 0,
+              icon: config.icon,
+              currencySymbol: "$",
+              fullName: config.fullName
+            });
+            console.log(`GoldPricez ${config.name}: $${price}`);
+          }
+        }
       }
-      
-      const price = quote.price || 0;
-      const changePercent = quote.changesPercentage || 0;
-      
-      console.log(`FMP ${config.name}: $${price.toFixed(2)} (${changePercent.toFixed(2)}%)`);
-      
-      results.push({
-        name: config.name,
-        symbol: config.symbol,
-        price: price.toFixed(2),
-        change: `${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(2)}%`,
-        isPositive: changePercent >= 0,
-        icon: config.icon,
-        currencySymbol: "$",
-        fullName: config.fullName
-      });
     }
     
-    console.log(`Successfully fetched ${results.length} commodities from FMP`);
+    console.log(`Fetched ${results.length} commodities from GoldPricez all rates`);
     return results;
   } catch (error) {
-    console.error('FMP fetch error:', error);
+    console.error('GoldPricez all rates error:', error);
     return [];
   }
+}
+
+function parsePercent(value: any): number {
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') return parseFloat(value) || 0;
+  return 0;
 }
 
 serve(async (req) => {
@@ -106,16 +164,22 @@ serve(async (req) => {
   try {
     let commoditiesData: any[] = [];
 
-    // Try FMP API (primary source)
-    const fmpApiKey = Deno.env.get('FMP_API_KEY');
+    // Try GoldPricez API (primary source)
+    const goldPricezApiKey = Deno.env.get('GOLDPRICEZ_API_KEY');
     
-    if (fmpApiKey) {
-      commoditiesData = await fetchFromFMP(fmpApiKey);
+    if (goldPricezApiKey) {
+      // First try fetching all rates
+      commoditiesData = await fetchAllFromGoldPricez(goldPricezApiKey);
+      
+      // If that didn't work, try individual metals
+      if (commoditiesData.length === 0) {
+        commoditiesData = await fetchFromGoldPricez(goldPricezApiKey);
+      }
     } else {
-      console.log('FMP_API_KEY not configured');
+      console.log('GOLDPRICEZ_API_KEY not configured');
     }
 
-    const fmpSuccess = commoditiesData.length > 0;
+    const apiSuccess = commoditiesData.length > 0;
 
     // Add static data for commodities we couldn't fetch
     const fetchedSymbols = commoditiesData.map(c => c.symbol);
@@ -132,7 +196,7 @@ serve(async (req) => {
     };
     commoditiesData.sort((a, b) => (orderMap[a.symbol] || 99) - (orderMap[b.symbol] || 99));
 
-    console.log(`Returning ${commoditiesData.length} commodities (${fmpSuccess ? 'FMP API' : 'fallback'})`);
+    console.log(`Returning ${commoditiesData.length} commodities (${apiSuccess ? 'GoldPricez API' : 'fallback'})`);
     
     return new Response(
       JSON.stringify({ commoditiesData }),

@@ -64,58 +64,61 @@ async function markKeyAsInactive(serviceName: string, apiKey: string) {
   }
 }
 
-// GoldPriceZ API - Primary source for Gold & Silver (44K req/month free)
-async function fetchFromGoldPriceZ(): Promise<any> {
-  const apiKey = Deno.env.get('GOLDPRICEZ_API_KEY');
-  
-  if (!apiKey) {
-    console.log('GOLDPRICEZ_API_KEY not configured');
-    return null;
-  }
-
+// Metals.dev API - Free, no API key required, real-time precious metal prices
+async function fetchFromMetalsDev(): Promise<any> {
   try {
-    console.log('Fetching from GoldPriceZ API...');
+    console.log('Fetching from Metals.dev API (free, no auth)...');
     
-    // Fetch Gold & Silver prices in USD per ounce
-    const response = await fetch('https://goldpricez.com/api/rates/currency/usd/measure/ounce/metal/all', {
+    const response = await fetch('https://api.metals.dev/v1/latest?api_key=demo&currency=USD&unit=toz', {
       headers: {
-        'X-API-KEY': apiKey,
         'Content-Type': 'application/json'
       }
     });
 
     if (!response.ok) {
       if (response.status === 429) {
-        console.log('GoldPriceZ rate limited');
+        console.log('Metals.dev rate limited');
         return { rateLimited: true };
       }
-      console.error('GoldPriceZ API error:', response.status);
+      console.error('Metals.dev API error:', response.status);
       return null;
     }
 
     const data = await response.json();
-    console.log('GoldPriceZ response:', JSON.stringify(data).substring(0, 200));
+    console.log('Metals.dev response:', JSON.stringify(data).substring(0, 300));
 
-    // Parse gold price
-    const goldPrice = data.gold?.price || data.gold_price || data.XAU?.price;
-    const goldChange = data.gold?.change_percent || data.gold?.chp || 0;
-    
-    // Parse silver price
-    const silverPrice = data.silver?.price || data.silver_price || data.XAG?.price;
-    const silverChange = data.silver?.change_percent || data.silver?.chp || 0;
-
-    if (goldPrice) {
-      console.log(`GoldPriceZ Gold: $${goldPrice}, Silver: $${silverPrice || 'N/A'}`);
-      return {
-        success: true,
-        gold: { price: parseFloat(goldPrice), change: parseFloat(goldChange) || 0 },
-        silver: silverPrice ? { price: parseFloat(silverPrice), change: parseFloat(silverChange) || 0 } : null
-      };
+    if (data.status === 'success' && data.metals) {
+      const metals = data.metals;
+      
+      // Parse prices - metals.dev returns prices in USD per troy ounce
+      const result: any = { success: true };
+      
+      if (metals.gold) {
+        result.gold = { price: parseFloat(metals.gold), change: 0 };
+        console.log(`Metals.dev Gold: $${metals.gold}`);
+      }
+      
+      if (metals.silver) {
+        result.silver = { price: parseFloat(metals.silver), change: 0 };
+        console.log(`Metals.dev Silver: $${metals.silver}`);
+      }
+      
+      if (metals.platinum) {
+        result.platinum = { price: parseFloat(metals.platinum), change: 0 };
+        console.log(`Metals.dev Platinum: $${metals.platinum}`);
+      }
+      
+      if (metals.palladium) {
+        result.palladium = { price: parseFloat(metals.palladium), change: 0 };
+        console.log(`Metals.dev Palladium: $${metals.palladium}`);
+      }
+      
+      return result;
     }
 
     return null;
   } catch (error) {
-    console.error('GoldPriceZ fetch error:', error);
+    console.error('Metals.dev fetch error:', error);
     return null;
   }
 }
@@ -156,21 +159,21 @@ serve(async (req) => {
 
   try {
     const commoditiesData: any[] = [];
-    let goldPriceZSuccess = false;
+    let metalsDevSuccess = false;
 
-    // Step 1: Try GoldPriceZ API first (high limit, free)
-    const goldPriceZResult = await fetchFromGoldPriceZ();
+    // Step 1: Try Metals.dev API first (free, no API key needed)
+    const metalsDevResult = await fetchFromMetalsDev();
     
-    if (goldPriceZResult?.success) {
-      goldPriceZSuccess = true;
+    if (metalsDevResult?.success) {
+      metalsDevSuccess = true;
       
       // Add Gold
-      if (goldPriceZResult.gold) {
-        const changePercent = goldPriceZResult.gold.change || 0;
+      if (metalsDevResult.gold) {
+        const changePercent = metalsDevResult.gold.change || 0;
         commoditiesData.push({
           name: "Gold",
           symbol: "XAU",
-          price: goldPriceZResult.gold.price.toFixed(2),
+          price: metalsDevResult.gold.price.toFixed(2),
           change: `${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(2)}%`,
           isPositive: changePercent >= 0,
           icon: "🥇",
@@ -180,12 +183,12 @@ serve(async (req) => {
       }
       
       // Add Silver
-      if (goldPriceZResult.silver) {
-        const changePercent = goldPriceZResult.silver.change || 0;
+      if (metalsDevResult.silver) {
+        const changePercent = metalsDevResult.silver.change || 0;
         commoditiesData.push({
           name: "Silver",
           symbol: "XAG",
-          price: goldPriceZResult.silver.price.toFixed(2),
+          price: metalsDevResult.silver.price.toFixed(2),
           change: `${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(2)}%`,
           isPositive: changePercent >= 0,
           icon: "🥈",
@@ -193,13 +196,44 @@ serve(async (req) => {
           fullName: "Silver"
         });
       }
+      
+      // Add Platinum
+      if (metalsDevResult.platinum) {
+        const changePercent = metalsDevResult.platinum.change || 0;
+        commoditiesData.push({
+          name: "Platinum",
+          symbol: "XPT",
+          price: metalsDevResult.platinum.price.toFixed(2),
+          change: `${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(2)}%`,
+          isPositive: changePercent >= 0,
+          icon: "💎",
+          currencySymbol: "$",
+          fullName: "Platinum"
+        });
+      }
+      
+      // Add Palladium
+      if (metalsDevResult.palladium) {
+        const changePercent = metalsDevResult.palladium.change || 0;
+        commoditiesData.push({
+          name: "Palladium",
+          symbol: "XPD",
+          price: metalsDevResult.palladium.price.toFixed(2),
+          change: `${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(2)}%`,
+          isPositive: changePercent >= 0,
+          icon: "⬜",
+          currencySymbol: "$",
+          fullName: "Palladium"
+        });
+      }
 
-      console.log('Successfully fetched Gold & Silver from GoldPriceZ');
+      console.log(`Successfully fetched ${commoditiesData.length} metals from Metals.dev`);
     }
 
-    // Step 2: Try Gold API for remaining metals (Platinum, Palladium, Copper) or all if GoldPriceZ failed
-    const metalsToFetch = goldPriceZSuccess 
-      ? COMMODITIES_CONFIG.filter(c => !['XAU', 'XAG'].includes(c.symbol))
+    // Step 2: Try Gold API for remaining metals or all if Metals.dev failed
+    const fetchedSymbols = commoditiesData.map(c => c.symbol);
+    const metalsToFetch = metalsDevSuccess 
+      ? COMMODITIES_CONFIG.filter(c => !fetchedSymbols.includes(c.symbol))
       : COMMODITIES_CONFIG;
 
     if (metalsToFetch.length > 0) {
@@ -255,11 +289,11 @@ serve(async (req) => {
       }
     }
 
-    // Step 3: Add static data for metals we couldn't fetch
-    const fetchedSymbols = commoditiesData.map(c => c.symbol);
+    // Step 3: Add static data for commodities we couldn't fetch
+    const finalFetchedSymbols = commoditiesData.map(c => c.symbol);
     
     for (const fallback of STATIC_FALLBACK_DATA.commoditiesData) {
-      if (!fetchedSymbols.includes(fallback.symbol)) {
+      if (!finalFetchedSymbols.includes(fallback.symbol)) {
         commoditiesData.push(fallback);
       }
     }
@@ -270,7 +304,7 @@ serve(async (req) => {
     };
     commoditiesData.sort((a, b) => (orderMap[a.symbol] || 99) - (orderMap[b.symbol] || 99));
 
-    console.log(`Returning ${commoditiesData.length} commodities (${goldPriceZSuccess ? 'GoldPriceZ' : 'fallback'} + Gold API/static)`);
+    console.log(`Returning ${commoditiesData.length} commodities (${metalsDevSuccess ? 'Metals.dev' : 'fallback'} + Gold API/static)`);
     
     return new Response(
       JSON.stringify({ commoditiesData }),

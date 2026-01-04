@@ -340,9 +340,8 @@ const Trading = () => {
           };
         });
 
-        setChartData(formattedData);
-        
-        // Set current price - for crypto ONLY use CoinMarketCap price, for forex use API price
+        // For crypto, verify we have real CoinMarketCap price BEFORE setting any data
+        // This prevents fake TAAPI prices from showing
         let latestPrice = 0;
         
         if (isForex) {
@@ -354,13 +353,17 @@ const Trading = () => {
           if (realCurrentPrice > 0) {
             latestPrice = realCurrentPrice;
           } else {
-            // If CoinMarketCap failed, don't show any price - keep loading
+            // If CoinMarketCap failed, don't show any data - keep showing loading skeleton
             console.error('Failed to get real crypto price from CoinMarketCap');
             toast.error('Failed to fetch real-time price. Please refresh.');
             setLoading(false);
-            return;
+            return; // Exit early WITHOUT setting chartData - prevents fake prices from showing
           }
         }
+        
+        // Only set chart data AFTER we've confirmed we have valid prices
+        // This ensures fake prices are never displayed
+        setChartData(formattedData);
         
         console.log('Setting current price:', {
           latestPrice,

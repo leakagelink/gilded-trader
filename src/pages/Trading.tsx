@@ -253,7 +253,7 @@ const Trading = () => {
       const isForex = isForexPair(symbol);
       
       // For crypto, first get the real current price from CoinMarketCap
-      let realCurrentPrice = initialPrice;
+      let realCurrentPrice = 0; // Start with 0, only use API price
       
       if (!isForex) {
         try {

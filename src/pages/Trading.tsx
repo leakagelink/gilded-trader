@@ -65,9 +65,9 @@ const Trading = () => {
   const tradingIcon = location.state?.icon || location.state?.logo;
   const currencySymbol = location.state?.currencySymbol || '$';
   
-  const [currentPrice, setCurrentPrice] = useState<number>(initialPrice);
+  const [currentPrice, setCurrentPrice] = useState<number>(0); // Start with 0, will be set from API
   const [priceChange, setPriceChange] = useState<number>(0);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // Start with loading true
   const [liveCandle, setLiveCandle] = useState<CandleData | null>(null);
   const [priceDirection, setPriceDirection] = useState<'up' | 'down' | 'neutral'>('neutral');
   const [swipeIndicator, setSwipeIndicator] = useState<'left' | 'right' | null>(null);
@@ -708,25 +708,36 @@ const Trading = () => {
                 <p className="text-sm text-muted-foreground">Current Price</p>
                 <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></div>
               </div>
-              <h2 
-                className={`text-2xl sm:text-3xl md:text-4xl font-bold transition-all duration-300 ${
-                  priceDirection === 'up' ? 'text-green-500 scale-110' : 
-                  priceDirection === 'down' ? 'text-red-500 scale-110' : ''
-                }`}
-              >
-                {currencySymbol}{typeof currentPrice === 'number' ? currentPrice.toFixed(2) : '0.00'}
-              </h2>
+              {loading || currentPrice === 0 ? (
+                <div className="h-10 w-32 bg-muted animate-pulse rounded-md"></div>
+              ) : (
+                <h2 
+                  className={`text-2xl sm:text-3xl md:text-4xl font-bold transition-all duration-300 ${
+                    priceDirection === 'up' ? 'text-green-500 scale-110' : 
+                    priceDirection === 'down' ? 'text-red-500 scale-110' : ''
+                  }`}
+                >
+                  {currencySymbol}{currentPrice.toFixed(2)}
+                </h2>
+              )}
               <p className="text-xs text-muted-foreground mt-1">Updates every second</p>
             </div>
-            <div className={`flex flex-col items-end gap-1 transition-all duration-300 ${
-              priceChange >= 0 ? "text-green-500" : "text-red-500"
-            }`}>
-              <div className="flex items-center gap-2">
-                {priceChange >= 0 ? <TrendingUp className="h-8 w-8" /> : <TrendingDown className="h-8 w-8" />}
+            {loading || currentPrice === 0 ? (
+              <div className="flex flex-col items-end gap-2">
+                <div className="h-8 w-8 bg-muted animate-pulse rounded-md"></div>
+                <div className="h-8 w-20 bg-muted animate-pulse rounded-md"></div>
               </div>
-              <span className="text-3xl font-bold">{priceChange >= 0 ? "+" : ""}{priceChange.toFixed(2)}%</span>
-              <span className="text-xs">24h Change</span>
-            </div>
+            ) : (
+              <div className={`flex flex-col items-end gap-1 transition-all duration-300 ${
+                priceChange >= 0 ? "text-green-500" : "text-red-500"
+              }`}>
+                <div className="flex items-center gap-2">
+                  {priceChange >= 0 ? <TrendingUp className="h-8 w-8" /> : <TrendingDown className="h-8 w-8" />}
+                </div>
+                <span className="text-3xl font-bold">{priceChange >= 0 ? "+" : ""}{priceChange.toFixed(2)}%</span>
+                <span className="text-xs">24h Change</span>
+              </div>
+            )}
           </div>
         </Card>
 

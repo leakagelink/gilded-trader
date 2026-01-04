@@ -342,12 +342,27 @@ const Trading = () => {
 
         setChartData(formattedData);
         
-        // Set current price - use real CoinMarketCap price for crypto, API price for forex
-        const rawPrice = !isForex && realCurrentPrice > 0 ? realCurrentPrice : (data.currentPrice || formattedData[formattedData.length - 1]?.close || 0);
-        const latestPrice = typeof rawPrice === 'number' ? rawPrice : parseFloat(String(rawPrice)) || 0;
+        // Set current price - for crypto ONLY use CoinMarketCap price, for forex use API price
+        let latestPrice = 0;
+        
+        if (isForex) {
+          // For forex, use the chart data price
+          const rawPrice = data.currentPrice || formattedData[formattedData.length - 1]?.close || 0;
+          latestPrice = typeof rawPrice === 'number' ? rawPrice : parseFloat(String(rawPrice)) || 0;
+        } else {
+          // For crypto, ONLY use CoinMarketCap real price - don't show fake TAAPI price
+          if (realCurrentPrice > 0) {
+            latestPrice = realCurrentPrice;
+          } else {
+            // If CoinMarketCap failed, don't show any price - keep loading
+            console.error('Failed to get real crypto price from CoinMarketCap');
+            toast.error('Failed to fetch real-time price. Please refresh.');
+            setLoading(false);
+            return;
+          }
+        }
         
         console.log('Setting current price:', {
-          rawPrice,
           latestPrice,
           realCurrentPrice,
           isForex,
@@ -368,9 +383,6 @@ const Trading = () => {
           if (lastCandle) {
             setLiveCandle({ ...lastCandle, isLive: true });
           }
-        } else {
-          console.error('Invalid price received:', latestPrice);
-          toast.error('Invalid price data received');
         }
       } else {
         console.error('No candle data received');

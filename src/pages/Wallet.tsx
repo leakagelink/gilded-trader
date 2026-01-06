@@ -227,19 +227,17 @@ const Wallet = () => {
             </Card>
           ))}
           {walletData.map((wallet, index) => (
-            parseFloat(wallet.lockedBalance) > 0 && (
-              <Card key={`locked-${index}`} className="p-6 bg-gradient-to-br from-amber-500/10 to-orange-500/10 border-amber-500/30">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <Lock className="h-4 w-4 text-amber-500" />
-                    <span className="text-muted-foreground">{wallet.currency} Locked</span>
-                  </div>
-                  <span className="text-2xl">{wallet.icon}</span>
+            <Card key={`locked-${index}`} className="p-6 bg-gradient-to-br from-amber-500/10 to-orange-500/10 border-amber-500/30">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Lock className="h-4 w-4 text-amber-500" />
+                  <span className="text-muted-foreground">{wallet.currency} Locked</span>
                 </div>
-                <div className="text-3xl font-bold text-amber-500">{wallet.lockedBalance}</div>
-                <p className="text-xs text-muted-foreground mt-1">Pending admin verification</p>
-              </Card>
-            )
+                <span className="text-2xl">{wallet.icon}</span>
+              </div>
+              <div className="text-3xl font-bold text-amber-500">{wallet.lockedBalance}</div>
+              <p className="text-xs text-muted-foreground mt-1">Pending admin verification</p>
+            </Card>
           ))}
         </div>
 

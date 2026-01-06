@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, Check, X, RefreshCw } from "lucide-react";
+import { TrendingUp, Check, X, RefreshCw, Lock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -274,10 +274,13 @@ const DepositRequests = () => {
                             ? "default"
                             : request.status === "rejected"
                             ? "destructive"
+                            : request.status === "locked"
+                            ? "outline"
                             : "secondary"
                         }
-                        className="capitalize"
+                        className={`capitalize ${request.status === "locked" ? "border-amber-500 text-amber-500" : ""}`}
                       >
+                        {request.status === "locked" && <Lock className="h-3 w-3 mr-1" />}
                         {request.status}
                       </Badge>
                     </TableCell>
@@ -285,7 +288,7 @@ const DepositRequests = () => {
                       {new Date(request.created_at).toLocaleDateString()}
                     </TableCell>
                     <TableCell>
-                      {request.status === "pending" && (
+                      {(request.status === "pending" || request.status === "locked") && (
                         <div className="flex gap-2">
                           <Button
                             size="sm"
@@ -293,7 +296,7 @@ const DepositRequests = () => {
                             className="bg-green-600 hover:bg-green-700"
                           >
                             <Check className="h-4 w-4 mr-1" />
-                            Approve
+                            {request.status === "locked" ? "Verify & Approve" : "Approve"}
                           </Button>
                           <Button
                             size="sm"

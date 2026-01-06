@@ -251,11 +251,13 @@ const Trading = () => {
       
       // Determine which API to use based on symbol type
       const isForex = isForexPair(symbol);
+      const isCommoditySymbol = isCommodity(symbol);
       
-      // For crypto, first get the real current price from CoinMarketCap
+      // For crypto and commodities, first get the real current price from their respective APIs
       let realCurrentPrice = 0; // Start with 0, only use API price
       
-      if (!isForex) {
+      if (!isForex && !isCommoditySymbol) {
+        // Crypto - get from CoinMarketCap
         try {
           const { data: cryptoData, error: cryptoError } = await supabase.functions.invoke('fetch-crypto-data');
           
@@ -268,6 +270,21 @@ const Trading = () => {
           }
         } catch (err) {
           console.error('Error fetching real crypto price:', err);
+        }
+      } else if (isCommoditySymbol) {
+        // Commodities - get from fetch-commodities-data
+        try {
+          const { data: commoditiesData, error: commoditiesError } = await supabase.functions.invoke('fetch-commodities-data');
+          
+          if (!commoditiesError && commoditiesData?.commoditiesData) {
+            const commodity = commoditiesData.commoditiesData.find((c: any) => c.symbol.toUpperCase() === symbol.toUpperCase());
+            if (commodity) {
+              realCurrentPrice = parseFloat(commodity.price);
+              console.log('Real commodity price for', symbol, ':', realCurrentPrice);
+            }
+          }
+        } catch (err) {
+          console.error('Error fetching real commodity price:', err);
         }
       }
       
@@ -292,10 +309,11 @@ const Trading = () => {
           currentPrice: data.currentPrice,
           source: data.source,
           realCurrentPrice,
-          isForex
+          isForex,
+          isCommoditySymbol
         });
         
-        // For crypto using fallback data, adjust candles to match real CoinMarketCap price
+        // For crypto/commodities using fallback data, adjust candles to match real price
         let adjustedCandles = data.candles;
         if (!isForex && data.source === 'fallback' && realCurrentPrice > 0) {
           // Calculate adjustment ratio based on real vs fallback price
@@ -340,24 +358,32 @@ const Trading = () => {
           };
         });
 
-        // For crypto, verify we have real CoinMarketCap price BEFORE setting any data
-        // This prevents fake TAAPI prices from showing
+        // Determine latest price - ONLY use verified real prices to prevent fake data showing
         let latestPrice = 0;
         
         if (isForex) {
           // For forex, use the chart data price
           const rawPrice = data.currentPrice || formattedData[formattedData.length - 1]?.close || 0;
           latestPrice = typeof rawPrice === 'number' ? rawPrice : parseFloat(String(rawPrice)) || 0;
-        } else {
-          // For crypto, ONLY use CoinMarketCap real price - don't show fake TAAPI price
+        } else if (isCommoditySymbol) {
+          // For commodities, ONLY use real commodity API price
           if (realCurrentPrice > 0) {
             latestPrice = realCurrentPrice;
           } else {
-            // If CoinMarketCap failed, don't show any data - keep showing loading skeleton
+            console.error('Failed to get real commodity price');
+            toast.error('Failed to fetch real-time commodity price. Please refresh.');
+            setLoading(false);
+            return; // Exit early - prevents fake prices from showing
+          }
+        } else {
+          // For crypto, ONLY use CoinMarketCap real price
+          if (realCurrentPrice > 0) {
+            latestPrice = realCurrentPrice;
+          } else {
             console.error('Failed to get real crypto price from CoinMarketCap');
             toast.error('Failed to fetch real-time price. Please refresh.');
             setLoading(false);
-            return; // Exit early WITHOUT setting chartData - prevents fake prices from showing
+            return; // Exit early - prevents fake prices from showing
           }
         }
         
@@ -369,6 +395,7 @@ const Trading = () => {
           latestPrice,
           realCurrentPrice,
           isForex,
+          isCommoditySymbol,
           isValid: latestPrice > 0
         });
         

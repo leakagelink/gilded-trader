@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowUpRight, ArrowDownLeft, Wallet as WalletIcon, TrendingUp, Gift, Sparkles, Lock } from "lucide-react";
+import { ArrowUpRight, ArrowDownLeft, Wallet as WalletIcon, TrendingUp, Gift, Sparkles, Lock, BarChart3 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -24,6 +24,7 @@ const Wallet = () => {
   const [withdrawalModalOpen, setWithdrawalModalOpen] = useState(false);
   const [walletData, setWalletData] = useState<WalletBalance[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
+  const [tradeHistory, setTradeHistory] = useState<any[]>([]);
   const [offerSettings, setOfferSettings] = useState({
     bonusEnabled: false,
     bonusPercentage: "0",
@@ -108,6 +109,27 @@ const Wallet = () => {
       })) || [];
 
       setTransactions(formattedTxs);
+
+      // Fetch trade transactions separately
+      const { data: tradeTxs, error: tradeTxsError } = await supabase
+        .from("wallet_transactions")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("type", "trade")
+        .order("created_at", { ascending: false })
+        .limit(10);
+
+      if (tradeTxsError) throw tradeTxsError;
+
+      const formattedTradeTxs = tradeTxs?.map((tx) => ({
+        type: "Trade",
+        amount: Number(tx.amount) >= 0 ? `+$${Number(tx.amount).toFixed(2)}` : `-$${Math.abs(Number(tx.amount)).toFixed(2)}`,
+        date: new Date(tx.created_at).toLocaleDateString(),
+        status: tx.status,
+        isProfit: Number(tx.amount) >= 0,
+      })) || [];
+
+      setTradeHistory(formattedTradeTxs);
     } catch (error: any) {
       toast({
         title: "Error",
@@ -254,12 +276,15 @@ const Wallet = () => {
         </div>
 
         {/* Recent Transactions */}
-        <Card className="p-6">
-          <h2 className="text-2xl font-semibold mb-6">Recent Transactions</h2>
+        <Card className="p-6 mb-8">
+          <h2 className="text-2xl font-semibold mb-6 flex items-center gap-2">
+            <ArrowDownLeft className="h-6 w-6 text-green-600" />
+            Recent Transactions
+          </h2>
           {loading ? (
             <p className="text-muted-foreground text-center py-8">Loading transactions...</p>
           ) : transactions.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">No transactions yet</p>
+            <p className="text-muted-foreground text-center py-8">No deposit or withdrawal transactions yet</p>
           ) : (
             <div className="space-y-4">
               {transactions.map((transaction, index) => (
@@ -269,8 +294,36 @@ const Wallet = () => {
                   <div className="text-sm text-muted-foreground">{transaction.date}</div>
                 </div>
                 <div className="text-right">
-                  <div className="font-semibold">{transaction.amount}</div>
-                  <div className="text-sm text-green-600">{transaction.status}</div>
+                  <div className={`font-semibold ${transaction.type === "Deposit" ? "text-green-600" : "text-red-500"}`}>{transaction.amount}</div>
+                  <div className="text-sm text-muted-foreground">{transaction.status}</div>
+                </div>
+              </div>
+              ))}
+            </div>
+          )}
+        </Card>
+
+        {/* Trade History */}
+        <Card className="p-6">
+          <h2 className="text-2xl font-semibold mb-6 flex items-center gap-2">
+            <BarChart3 className="h-6 w-6 text-primary" />
+            Trade History
+          </h2>
+          {loading ? (
+            <p className="text-muted-foreground text-center py-8">Loading trade history...</p>
+          ) : tradeHistory.length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">No trade history yet</p>
+          ) : (
+            <div className="space-y-4">
+              {tradeHistory.map((trade, index) => (
+              <div key={index} className="flex items-center justify-between p-4 border border-border/50 rounded-lg">
+                <div>
+                  <div className="font-semibold">{trade.type}</div>
+                  <div className="text-sm text-muted-foreground">{trade.date}</div>
+                </div>
+                <div className="text-right">
+                  <div className={`font-semibold ${trade.isProfit ? "text-green-600" : "text-red-500"}`}>{trade.amount}</div>
+                  <div className="text-sm text-muted-foreground">{trade.status}</div>
                 </div>
               </div>
               ))}

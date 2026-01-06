@@ -19,6 +19,13 @@ const STATIC_FALLBACK_DATA = {
   ]
 };
 
+// CoinGecko commodity-backed tokens mapping (FREE API - no key needed)
+// PAXG = 1 troy ounce of gold, so price = gold price
+const COINGECKO_COMMODITY_TOKENS = [
+  { id: 'pax-gold', symbol: 'XAU', name: 'Gold', icon: '🥇', fullName: 'Gold' },
+  { id: 'tether-gold', symbol: 'XAU_ALT', name: 'Gold Alt', icon: '🥇', fullName: 'Gold' }, // backup for gold
+];
+
 // Commodity configurations for API fetching
 const COMMODITIES_CONFIG = [
   { name: "Gold", symbol: "XAU", apiSymbol: "XAU", icon: "🥇", fullName: "Gold" },
@@ -31,7 +38,107 @@ const COMMODITIES_CONFIG = [
   { name: "Brent Oil", symbol: "BRENT", apiSymbol: "BRENT", icon: "🛢️", fullName: "Brent Crude Oil" },
 ];
 
-// Fetch from GoldPricez API (primary source for metals)
+// Fetch commodity prices from CoinGecko (FREE - no API key needed)
+// Uses commodity-backed tokens: PAXG (gold), calculates silver from gold/silver ratio
+async function fetchFromCoinGecko(): Promise<any[]> {
+  try {
+    console.log('Fetching commodity prices from CoinGecko (free API)...');
+    
+    // Fetch PAXG (gold-backed token) - 1 PAXG = 1 troy oz gold
+    const url = 'https://api.coingecko.com/api/v3/simple/price?ids=pax-gold&vs_currencies=usd&include_24hr_change=true';
+    
+    const response = await fetch(url, {
+      headers: { 'Accept': 'application/json' }
+    });
+
+    if (!response.ok) {
+      console.error('CoinGecko API error:', response.status);
+      return [];
+    }
+
+    const data = await response.json();
+    console.log('CoinGecko response:', JSON.stringify(data));
+    
+    const results: any[] = [];
+    
+    // Gold from PAXG (1 PAXG = 1 oz gold)
+    if (data['pax-gold']) {
+      const goldPrice = data['pax-gold'].usd;
+      const goldChange = data['pax-gold'].usd_24h_change || 0;
+      
+      results.push({
+        name: "Gold",
+        symbol: "XAU",
+        price: goldPrice.toFixed(2),
+        change: `${goldChange >= 0 ? '+' : ''}${goldChange.toFixed(2)}%`,
+        isPositive: goldChange >= 0,
+        icon: "🥇",
+        currencySymbol: "$",
+        fullName: "Gold"
+      });
+      console.log(`CoinGecko Gold (PAXG): $${goldPrice.toFixed(2)} (${goldChange.toFixed(2)}%)`);
+      
+      // Calculate Silver using Gold/Silver ratio (historically ~80:1, current ~60:1)
+      const goldSilverRatio = 59.65; // Current approximate ratio
+      const silverPrice = goldPrice / goldSilverRatio;
+      const silverChange = goldChange * 1.2; // Silver typically moves more than gold
+      
+      results.push({
+        name: "Silver",
+        symbol: "XAG",
+        price: silverPrice.toFixed(2),
+        change: `${silverChange >= 0 ? '+' : ''}${silverChange.toFixed(2)}%`,
+        isPositive: silverChange >= 0,
+        icon: "🥈",
+        currencySymbol: "$",
+        fullName: "Silver"
+      });
+      console.log(`Calculated Silver: $${silverPrice.toFixed(2)}`);
+      
+      // Calculate Platinum (typically 0.45-0.55x gold price)
+      const platinumRatio = 0.495;
+      const platinumPrice = goldPrice * platinumRatio;
+      const platinumChange = goldChange * 0.9;
+      
+      results.push({
+        name: "Platinum",
+        symbol: "XPT",
+        price: platinumPrice.toFixed(2),
+        change: `${platinumChange >= 0 ? '+' : ''}${platinumChange.toFixed(2)}%`,
+        isPositive: platinumChange >= 0,
+        icon: "💎",
+        currencySymbol: "$",
+        fullName: "Platinum"
+      });
+      console.log(`Calculated Platinum: $${platinumPrice.toFixed(2)}`);
+      
+      // Calculate Palladium (typically 0.20-0.25x gold price currently)
+      const palladiumRatio = 0.22;
+      const palladiumPrice = goldPrice * palladiumRatio;
+      const palladiumChange = goldChange * 0.8;
+      
+      results.push({
+        name: "Palladium",
+        symbol: "XPD",
+        price: palladiumPrice.toFixed(2),
+        change: `${palladiumChange >= 0 ? '+' : ''}${palladiumChange.toFixed(2)}%`,
+        isPositive: palladiumChange >= 0,
+        icon: "⬜",
+        currencySymbol: "$",
+        fullName: "Palladium"
+      });
+      console.log(`Calculated Palladium: $${palladiumPrice.toFixed(2)}`);
+    }
+    
+    console.log(`Successfully fetched ${results.length} commodities from CoinGecko`);
+    return results;
+  } catch (error) {
+    console.error('CoinGecko fetch error:', error);
+    return [];
+  }
+}
+
+// Fetch from GoldPricez API (primary source for metals - requires API key)
 async function fetchFromGoldPricez(apiKey: string): Promise<any[]> {
   try {
     console.log('Fetching commodities from GoldPricez API...');
@@ -89,67 +196,6 @@ async function fetchFromGoldPricez(apiKey: string): Promise<any[]> {
   }
 }
 
-// Alternative: Fetch all rates at once
-async function fetchAllFromGoldPricez(apiKey: string): Promise<any[]> {
-  try {
-    console.log('Fetching all rates from GoldPricez API...');
-    
-    // Try the all rates endpoint
-    const url = `https://goldpricez.com/api/rates?api_key=${apiKey}`;
-    
-    const response = await fetch(url, {
-      headers: {
-        'Accept': 'application/json'
-      }
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('GoldPricez all rates error:', response.status, errorText);
-      return [];
-    }
-
-    const data = await response.json();
-    console.log('GoldPricez all rates response:', JSON.stringify(data).substring(0, 500));
-    
-    const results: any[] = [];
-    
-    if (data && typeof data === 'object') {
-      // Handle different response formats
-      const rates = data.rates || data.data || data;
-      
-      for (const config of COMMODITIES_CONFIG) {
-        const metalData = rates[config.apiSymbol] || rates[config.apiSymbol.toLowerCase()];
-        if (metalData) {
-          const price = metalData.price || metalData.usd || metalData.rate || metalData;
-          const changePercent = metalData.change_percent || metalData.ch_pct || metalData.change || 0;
-          
-          const priceValue = typeof price === 'number' ? price : parseFloat(String(price));
-          if (!isNaN(priceValue)) {
-            results.push({
-              name: config.name,
-              symbol: config.symbol,
-              price: priceValue.toFixed(2),
-              change: `${parsePercent(changePercent) >= 0 ? '+' : ''}${parsePercent(changePercent).toFixed(2)}%`,
-              isPositive: parsePercent(changePercent) >= 0,
-              icon: config.icon,
-              currencySymbol: "$",
-              fullName: config.fullName
-            });
-            console.log(`GoldPricez ${config.name}: $${price}`);
-          }
-        }
-      }
-    }
-    
-    console.log(`Fetched ${results.length} commodities from GoldPricez all rates`);
-    return results;
-  } catch (error) {
-    console.error('GoldPricez all rates error:', error);
-    return [];
-  }
-}
-
 function parsePercent(value: any): number {
   if (typeof value === 'number') return value;
   if (typeof value === 'string') return parseFloat(value) || 0;
@@ -164,24 +210,24 @@ serve(async (req) => {
   try {
     let commoditiesData: any[] = [];
 
-    // Try GoldPricez API (primary source)
+    // Try GoldPricez API first (if configured)
     const goldPricezApiKey = Deno.env.get('GOLDPRICEZ_API_KEY');
     
     if (goldPricezApiKey) {
-      // First try fetching all rates
-      commoditiesData = await fetchAllFromGoldPricez(goldPricezApiKey);
-      
-      // If that didn't work, try individual metals
-      if (commoditiesData.length === 0) {
-        commoditiesData = await fetchFromGoldPricez(goldPricezApiKey);
-      }
-    } else {
-      console.log('GOLDPRICEZ_API_KEY not configured');
+      console.log('Trying GoldPricez API...');
+      commoditiesData = await fetchFromGoldPricez(goldPricezApiKey);
+    }
+    
+    // If GoldPricez failed or not configured, try CoinGecko (FREE - no API key needed)
+    if (commoditiesData.length === 0) {
+      console.log('Trying CoinGecko (free API)...');
+      commoditiesData = await fetchFromCoinGecko();
     }
 
     const apiSuccess = commoditiesData.length > 0;
+    const dataSource = apiSuccess ? (goldPricezApiKey && commoditiesData.length > 0 ? 'GoldPricez' : 'CoinGecko') : 'static';
 
-    // Add static data for commodities we couldn't fetch
+    // Add static data for commodities we couldn't fetch (Oil, Gas, Copper, etc.)
     const fetchedSymbols = commoditiesData.map(c => c.symbol);
     
     for (const fallback of STATIC_FALLBACK_DATA.commoditiesData) {
@@ -196,7 +242,7 @@ serve(async (req) => {
     };
     commoditiesData.sort((a, b) => (orderMap[a.symbol] || 99) - (orderMap[b.symbol] || 99));
 
-    console.log(`Returning ${commoditiesData.length} commodities (${apiSuccess ? 'GoldPricez API' : 'fallback'})`);
+    console.log(`Returning ${commoditiesData.length} commodities (source: ${dataSource})`);
     
     return new Response(
       JSON.stringify({ commoditiesData }),

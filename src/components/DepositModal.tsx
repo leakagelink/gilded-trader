@@ -392,7 +392,7 @@ const DepositModal = ({ open, onOpenChange, onSuccess }: DepositModalProps) => {
           </div>
           {isAutoLocked ? (
             <p className="text-sm text-green-600 font-medium">
-              ✓ Payment Locked in Your Account
+              ✓ Payment Credit
             </p>
           ) : (
             <p className="text-xs text-muted-foreground">
@@ -429,42 +429,17 @@ const DepositModal = ({ open, onOpenChange, onSuccess }: DepositModalProps) => {
           </div>
         </div>
 
-        {/* Locked Balance Info */}
         {isAutoLocked && (
-          <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-lg">
-            <div className="flex items-center gap-2 text-green-600 mb-2">
-              <Lock className="h-5 w-5" />
-              <span className="font-semibold">Deposit Locked</span>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Your ₹{parseFloat(amount).toLocaleString()} is now in your locked balance. 
-              Once admin verifies your payment, it will be moved to available balance.
-            </p>
-          </div>
+          <Button
+            className="w-full h-12"
+            onClick={() => {
+              onOpenChange(false);
+              onSuccess();
+            }}
+          >
+            Done
+          </Button>
         )}
-
-        {/* Transaction ID Input */}
-        <div className="space-y-2">
-          <Label htmlFor="txn-id">Transaction ID / UTR Number</Label>
-          <Input
-            id="txn-id"
-            placeholder="Enter 12-digit UTR or Transaction ID"
-            value={transactionId}
-            onChange={(e) => setTransactionId(e.target.value)}
-            className="h-12"
-          />
-          <p className="text-xs text-muted-foreground">
-            Find this in your UPI app's transaction history
-          </p>
-        </div>
-
-        <Button
-          className="w-full h-12"
-          onClick={handleSubmit}
-          disabled={loading || !transactionId}
-        >
-          {loading ? "Submitting..." : "Submit Transaction ID"}
-        </Button>
       </div>
     );
   };

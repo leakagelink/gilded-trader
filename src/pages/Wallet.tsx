@@ -89,11 +89,12 @@ const Wallet = () => {
         setWalletData(formattedWallets);
       }
 
-      // Fetch transactions
+      // Fetch only deposit and withdrawal transactions (not trade)
       const { data: txs, error: txsError } = await supabase
         .from("wallet_transactions")
         .select("*")
         .eq("user_id", user.id)
+        .in("type", ["deposit", "withdrawal"])
         .order("created_at", { ascending: false })
         .limit(10);
 

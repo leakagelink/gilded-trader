@@ -75,20 +75,18 @@ const Wallet = () => {
 
       if (walletsError) throw walletsError;
 
-      // Format wallet data with locked balance
-      const formattedWallets: WalletBalance[] = wallets?.map((wallet) => ({
-        currency: wallet.currency,
-        balance: Number(wallet.balance).toFixed(2),
-        lockedBalance: Number(wallet.locked_balance || 0).toFixed(2),
-        icon: wallet.currency === "USD" ? "$" : wallet.currency === "BTC" ? "₿" : "Ξ",
-      })) || [];
+      // Format wallet data - separate USD available and INR locked
+      const usdWallet = wallets?.find(w => w.currency === "USD");
+      const inrWallet = wallets?.find(w => w.currency === "INR");
+      
+      const formattedWallets: WalletBalance[] = [{
+        currency: "USD",
+        balance: usdWallet ? Number(usdWallet.balance).toFixed(2) : "0.00",
+        lockedBalance: inrWallet ? Number(inrWallet.locked_balance || 0).toFixed(2) : "0.00",
+        icon: "$",
+      }];
 
-      // If no wallets exist, show default
-      if (formattedWallets.length === 0) {
-        setWalletData([{ currency: "USD", balance: "0.00", lockedBalance: "0.00", icon: "$" }]);
-      } else {
-        setWalletData(formattedWallets);
-      }
+      setWalletData(formattedWallets);
 
       // Fetch only deposit and withdrawal transactions (not trade)
       const { data: txs, error: txsError } = await supabase
@@ -231,11 +229,11 @@ const Wallet = () => {
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <Lock className="h-4 w-4 text-amber-500" />
-                  <span className="text-muted-foreground">{wallet.currency} Locked</span>
+                  <span className="text-muted-foreground">INR Locked</span>
                 </div>
-                <span className="text-2xl">{wallet.icon}</span>
+                <span className="text-2xl">₹</span>
               </div>
-              <div className="text-3xl font-bold text-amber-500">{wallet.lockedBalance}</div>
+              <div className="text-3xl font-bold text-amber-500">₹{wallet.lockedBalance}</div>
               <p className="text-xs text-muted-foreground mt-1">Pending admin verification</p>
             </Card>
           ))}

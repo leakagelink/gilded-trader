@@ -138,6 +138,66 @@ async function fetchFromCoinGecko(): Promise<any[]> {
   }
 }
 
+// Fetch Oil & Gas from FMP (Financial Modeling Prep) - Already has API key configured
+async function fetchFromFMP(apiKey: string): Promise<any[]> {
+  try {
+    console.log('Fetching oil & gas from FMP API...');
+    
+    const results: any[] = [];
+    
+    // FMP commodity symbols
+    const commoditySymbols = [
+      { symbol: 'CLUSD', name: 'Crude Oil', appSymbol: 'WTI', icon: '🛢️', fullName: 'Crude Oil WTI' },
+      { symbol: 'BZUSD', name: 'Brent Oil', appSymbol: 'BRENT', icon: '🛢️', fullName: 'Brent Crude Oil' },
+      { symbol: 'NGUSD', name: 'Natural Gas', appSymbol: 'NG', icon: '🔥', fullName: 'Natural Gas' },
+      { symbol: 'HGUSD', name: 'Copper', appSymbol: 'XCU', icon: '🔶', fullName: 'Copper' },
+    ];
+    
+    for (const commodity of commoditySymbols) {
+      try {
+        const url = `https://financialmodelingprep.com/api/v3/quote/${commodity.symbol}?apikey=${apiKey}`;
+        
+        const response = await fetch(url, {
+          headers: { 'Accept': 'application/json' }
+        });
+
+        if (!response.ok) {
+          console.error(`FMP ${commodity.name} error:`, response.status);
+          continue;
+        }
+
+        const data = await response.json();
+        
+        if (data && data.length > 0) {
+          const quote = data[0];
+          const price = quote.price || 0;
+          const changePercent = quote.changesPercentage || 0;
+          
+          results.push({
+            name: commodity.name,
+            symbol: commodity.appSymbol,
+            price: price.toFixed(2),
+            change: `${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(2)}%`,
+            isPositive: changePercent >= 0,
+            icon: commodity.icon,
+            currencySymbol: "$",
+            fullName: commodity.fullName
+          });
+          console.log(`FMP ${commodity.name}: $${price.toFixed(2)} (${changePercent.toFixed(2)}%)`);
+        }
+      } catch (err) {
+        console.error(`Error fetching ${commodity.name} from FMP:`, err);
+      }
+    }
+    
+    console.log(`Successfully fetched ${results.length} energy commodities from FMP`);
+    return results;
+  } catch (error) {
+    console.error('FMP fetch error:', error);
+    return [];
+  }
+}
+
 // Fetch from GoldPricez API (primary source for metals - requires API key)
 async function fetchFromGoldPricez(apiKey: string): Promise<any[]> {
   try {
@@ -209,25 +269,49 @@ serve(async (req) => {
 
   try {
     let commoditiesData: any[] = [];
+    let energyData: any[] = [];
+    let dataSource = 'static';
 
-    // Try GoldPricez API first (if configured)
+    // Try GoldPricez API first for metals (if configured)
     const goldPricezApiKey = Deno.env.get('GOLDPRICEZ_API_KEY');
     
     if (goldPricezApiKey) {
-      console.log('Trying GoldPricez API...');
+      console.log('Trying GoldPricez API for metals...');
       commoditiesData = await fetchFromGoldPricez(goldPricezApiKey);
+      if (commoditiesData.length > 0) dataSource = 'GoldPricez';
     }
     
     // If GoldPricez failed or not configured, try CoinGecko (FREE - no API key needed)
     if (commoditiesData.length === 0) {
-      console.log('Trying CoinGecko (free API)...');
+      console.log('Trying CoinGecko (free API) for metals...');
       commoditiesData = await fetchFromCoinGecko();
+      if (commoditiesData.length > 0) dataSource = 'CoinGecko';
     }
 
-    const apiSuccess = commoditiesData.length > 0;
-    const dataSource = apiSuccess ? (goldPricezApiKey && commoditiesData.length > 0 ? 'GoldPricez' : 'CoinGecko') : 'static';
+    // Try FMP API for Oil, Gas, Copper (uses existing FMP_API_KEY)
+    const fmpApiKey = Deno.env.get('FMP_API_KEY');
+    
+    if (fmpApiKey) {
+      console.log('Trying FMP API for energy commodities...');
+      energyData = await fetchFromFMP(fmpApiKey);
+      if (energyData.length > 0) {
+        console.log(`Got ${energyData.length} energy commodities from FMP`);
+        // Merge energy data
+        for (const energy of energyData) {
+          const existingIndex = commoditiesData.findIndex(c => c.symbol === energy.symbol);
+          if (existingIndex >= 0) {
+            commoditiesData[existingIndex] = energy; // Replace with FMP data
+          } else {
+            commoditiesData.push(energy);
+          }
+        }
+        dataSource = dataSource === 'static' ? 'FMP' : `${dataSource}+FMP`;
+      }
+    } else {
+      console.log('FMP_API_KEY not configured - using static data for energy commodities');
+    }
 
-    // Add static data for commodities we couldn't fetch (Oil, Gas, Copper, etc.)
+    // Add static data for commodities we couldn't fetch
     const fetchedSymbols = commoditiesData.map(c => c.symbol);
     
     for (const fallback of STATIC_FALLBACK_DATA.commoditiesData) {

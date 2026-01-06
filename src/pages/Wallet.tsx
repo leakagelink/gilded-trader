@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowUpRight, ArrowDownLeft, Wallet as WalletIcon, TrendingUp, Gift, Sparkles } from "lucide-react";
+import { ArrowUpRight, ArrowDownLeft, Wallet as WalletIcon, TrendingUp, Gift, Sparkles, Lock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -9,13 +9,20 @@ import BottomNav from "@/components/BottomNav";
 import DepositModal from "@/components/DepositModal";
 import WithdrawalModal from "@/components/WithdrawalModal";
 
+interface WalletBalance {
+  currency: string;
+  balance: string;
+  lockedBalance: string;
+  icon: string;
+}
+
 const Wallet = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [depositModalOpen, setDepositModalOpen] = useState(false);
   const [withdrawalModalOpen, setWithdrawalModalOpen] = useState(false);
-  const [walletData, setWalletData] = useState<any[]>([]);
+  const [walletData, setWalletData] = useState<WalletBalance[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [offerSettings, setOfferSettings] = useState({
     bonusEnabled: false,
@@ -59,7 +66,7 @@ const Wallet = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Fetch wallet balances
+      // Fetch wallet balances including locked_balance
       const { data: wallets, error: walletsError } = await supabase
         .from("user_wallets")
         .select("*")
@@ -67,16 +74,17 @@ const Wallet = () => {
 
       if (walletsError) throw walletsError;
 
-      // Format wallet data
-      const formattedWallets = wallets?.map((wallet) => ({
+      // Format wallet data with locked balance
+      const formattedWallets: WalletBalance[] = wallets?.map((wallet) => ({
         currency: wallet.currency,
         balance: Number(wallet.balance).toFixed(2),
+        lockedBalance: Number(wallet.locked_balance || 0).toFixed(2),
         icon: wallet.currency === "USD" ? "$" : wallet.currency === "BTC" ? "₿" : "Ξ",
       })) || [];
 
       // If no wallets exist, show default
       if (formattedWallets.length === 0) {
-        setWalletData([{ currency: "USD", balance: "0.00", icon: "$" }]);
+        setWalletData([{ currency: "USD", balance: "0.00", lockedBalance: "0.00", icon: "$" }]);
       } else {
         setWalletData(formattedWallets);
       }
@@ -184,15 +192,31 @@ const Wallet = () => {
         )}
 
         {/* Wallet Balances */}
-        <div className="grid md:grid-cols-3 gap-6 mb-8">
+        <div className="grid md:grid-cols-2 gap-6 mb-8">
           {walletData.map((wallet, index) => (
             <Card key={index} className="p-6 bg-gradient-to-br from-card to-muted/20">
               <div className="flex items-center justify-between mb-4">
-                <span className="text-muted-foreground">{wallet.currency}</span>
+                <span className="text-muted-foreground">{wallet.currency} Available</span>
                 <span className="text-2xl">{wallet.icon}</span>
               </div>
-              <div className="text-3xl font-bold">{wallet.balance}</div>
+              <div className="text-3xl font-bold text-green-500">{wallet.balance}</div>
+              <p className="text-xs text-muted-foreground mt-1">Available for trading & withdrawal</p>
             </Card>
+          ))}
+          {walletData.map((wallet, index) => (
+            parseFloat(wallet.lockedBalance) > 0 && (
+              <Card key={`locked-${index}`} className="p-6 bg-gradient-to-br from-amber-500/10 to-orange-500/10 border-amber-500/30">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <Lock className="h-4 w-4 text-amber-500" />
+                    <span className="text-muted-foreground">{wallet.currency} Locked</span>
+                  </div>
+                  <span className="text-2xl">{wallet.icon}</span>
+                </div>
+                <div className="text-3xl font-bold text-amber-500">{wallet.lockedBalance}</div>
+                <p className="text-xs text-muted-foreground mt-1">Pending admin verification</p>
+              </Card>
+            )
           ))}
         </div>
 

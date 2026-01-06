@@ -365,6 +365,7 @@ export type Database = {
           created_at: string
           currency: string
           id: string
+          locked_balance: number | null
           updated_at: string
           user_id: string
         }
@@ -373,6 +374,7 @@ export type Database = {
           created_at?: string
           currency?: string
           id?: string
+          locked_balance?: number | null
           updated_at?: string
           user_id: string
         }
@@ -381,6 +383,7 @@ export type Database = {
           created_at?: string
           currency?: string
           id?: string
+          locked_balance?: number | null
           updated_at?: string
           user_id?: string
         }
@@ -531,6 +534,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      lock_deposit: {
+        Args: {
+          p_amount: number
+          p_currency: string
+          p_deposit_id: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
       reject_kyc: {
         Args: { kyc_id: string; reason?: string }
         Returns: undefined
@@ -542,7 +554,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
-      deposit_status: "pending" | "approved" | "rejected"
+      deposit_status: "pending" | "approved" | "rejected" | "locked"
       kyc_status: "pending" | "approved" | "rejected"
       payment_method: "upi" | "netbanking"
       position_status: "open" | "closed"
@@ -677,7 +689,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "moderator", "user"],
-      deposit_status: ["pending", "approved", "rejected"],
+      deposit_status: ["pending", "approved", "rejected", "locked"],
       kyc_status: ["pending", "approved", "rejected"],
       payment_method: ["upi", "netbanking"],
       position_status: ["open", "closed"],

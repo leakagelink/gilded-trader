@@ -418,18 +418,31 @@ const DepositModal = ({ open, onOpenChange, onSuccess }: DepositModalProps) => {
           
           {/* UPI App Icons */}
           <div className="text-sm text-muted-foreground mb-3">Pay directly via:</div>
-          <div className="flex items-center justify-center gap-4">
+          <div className="flex items-center justify-center gap-3 flex-wrap">
             <button
               onClick={() => {
                 const upiLink = `phonepe://pay?pa=${upiId}&pn=CoinGoldFX&am=${amount}&cu=INR`;
                 window.location.href = upiLink;
               }}
-              className="flex flex-col items-center gap-1 p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
+              className="flex flex-col items-center gap-1 p-2 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
             >
-              <div className="h-12 w-12 rounded-full bg-purple-600 flex items-center justify-center">
-                <span className="text-white font-bold text-lg">P</span>
+              <div className="h-11 w-11 rounded-full bg-purple-600 flex items-center justify-center">
+                <span className="text-white font-bold text-base">P</span>
               </div>
               <span className="text-xs text-muted-foreground">PhonePe</span>
+            </button>
+            
+            <button
+              onClick={() => {
+                const upiLink = `gpay://upi/pay?pa=${upiId}&pn=CoinGoldFX&am=${amount}&cu=INR`;
+                window.location.href = upiLink;
+              }}
+              className="flex flex-col items-center gap-1 p-2 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
+            >
+              <div className="h-11 w-11 rounded-full bg-white border-2 border-gray-200 flex items-center justify-center">
+                <span className="font-bold text-base" style={{ background: 'linear-gradient(90deg, #4285F4, #EA4335, #FBBC05, #34A853)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>G</span>
+              </div>
+              <span className="text-xs text-muted-foreground">GPay</span>
             </button>
             
             <button
@@ -437,10 +450,10 @@ const DepositModal = ({ open, onOpenChange, onSuccess }: DepositModalProps) => {
                 const upiLink = `paytmmp://pay?pa=${upiId}&pn=CoinGoldFX&am=${amount}&cu=INR`;
                 window.location.href = upiLink;
               }}
-              className="flex flex-col items-center gap-1 p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
+              className="flex flex-col items-center gap-1 p-2 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
             >
-              <div className="h-12 w-12 rounded-full bg-blue-500 flex items-center justify-center">
-                <span className="text-white font-bold text-lg">₹</span>
+              <div className="h-11 w-11 rounded-full bg-blue-500 flex items-center justify-center">
+                <span className="text-white font-bold text-base">₹</span>
               </div>
               <span className="text-xs text-muted-foreground">Paytm</span>
             </button>
@@ -450,12 +463,12 @@ const DepositModal = ({ open, onOpenChange, onSuccess }: DepositModalProps) => {
                 const upiLink = `upi://pay?pa=${upiId}&pn=CoinGoldFX&am=${amount}&cu=INR`;
                 window.location.href = upiLink;
               }}
-              className="flex flex-col items-center gap-1 p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
+              className="flex flex-col items-center gap-1 p-2 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
             >
-              <div className="h-12 w-12 rounded-full bg-green-600 flex items-center justify-center">
-                <span className="text-white font-bold text-sm">UPI</span>
+              <div className="h-11 w-11 rounded-full bg-green-600 flex items-center justify-center">
+                <span className="text-white font-bold text-xs">UPI</span>
               </div>
-              <span className="text-xs text-muted-foreground">Other UPI</span>
+              <span className="text-xs text-muted-foreground">Other</span>
             </button>
           </div>
         </div>

@@ -416,16 +416,47 @@ const DepositModal = ({ open, onOpenChange, onSuccess }: DepositModalProps) => {
             </div>
           </div>
           
-          <div className="text-sm text-muted-foreground mb-2">Or use UPI ID:</div>
-          <div className="flex items-center justify-center gap-2">
-            <code className="bg-muted px-3 py-2 rounded">{upiId}</code>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => handleCopy(upiId)}
+          {/* UPI App Icons */}
+          <div className="text-sm text-muted-foreground mb-3">Pay directly via:</div>
+          <div className="flex items-center justify-center gap-4">
+            <button
+              onClick={() => {
+                const upiLink = `phonepe://pay?pa=${upiId}&pn=CoinGoldFX&am=${amount}&cu=INR`;
+                window.location.href = upiLink;
+              }}
+              className="flex flex-col items-center gap-1 p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
             >
-              {copied ? <CheckCircle className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-            </Button>
+              <div className="h-12 w-12 rounded-full bg-purple-600 flex items-center justify-center">
+                <span className="text-white font-bold text-lg">P</span>
+              </div>
+              <span className="text-xs text-muted-foreground">PhonePe</span>
+            </button>
+            
+            <button
+              onClick={() => {
+                const upiLink = `paytmmp://pay?pa=${upiId}&pn=CoinGoldFX&am=${amount}&cu=INR`;
+                window.location.href = upiLink;
+              }}
+              className="flex flex-col items-center gap-1 p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
+            >
+              <div className="h-12 w-12 rounded-full bg-blue-500 flex items-center justify-center">
+                <span className="text-white font-bold text-lg">₹</span>
+              </div>
+              <span className="text-xs text-muted-foreground">Paytm</span>
+            </button>
+            
+            <button
+              onClick={() => {
+                const upiLink = `upi://pay?pa=${upiId}&pn=CoinGoldFX&am=${amount}&cu=INR`;
+                window.location.href = upiLink;
+              }}
+              className="flex flex-col items-center gap-1 p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
+            >
+              <div className="h-12 w-12 rounded-full bg-green-600 flex items-center justify-center">
+                <span className="text-white font-bold text-sm">UPI</span>
+              </div>
+              <span className="text-xs text-muted-foreground">Other UPI</span>
+            </button>
           </div>
         </div>
 

@@ -122,6 +122,8 @@ export const AdminTradeManagement = () => {
   const [symbol, setSymbol] = useState("");
   const [positionType, setPositionType] = useState<'long' | 'short'>('long');
   const [amount, setAmount] = useState("");
+  const [lotSize, setLotSize] = useState("");
+  const [inputMode, setInputMode] = useState<'amount' | 'lotSize'>('amount');
   const [entryPrice, setEntryPrice] = useState("");
   const [leverage, setLeverage] = useState("1");
   const [priceMode, setPriceMode] = useState<'live' | 'manual'>('live');
@@ -129,6 +131,7 @@ export const AdminTradeManagement = () => {
   const [targetPnlPercent, setTargetPnlPercent] = useState("");
   const [selectedUserBalance, setSelectedUserBalance] = useState<number | null>(null);
   const [userSearchQuery, setUserSearchQuery] = useState("");
+  const [fetchedPrice, setFetchedPrice] = useState<number | null>(null);
 
   // Get available assets based on asset type
   const availableAssets = useMemo(() => {
@@ -144,12 +147,29 @@ export const AdminTradeManagement = () => {
     }
   }, [assetType]);
 
-  // Calculate margin based on amount and leverage
-  const calculatedMargin = useMemo(() => {
-    const amountNum = parseFloat(amount);
-    if (isNaN(amountNum) || amountNum <= 0) return null;
-    return amountNum; // Amount is the margin (investment amount)
-  }, [amount]);
+  // Calculate margin and position size based on input mode
+  const calculatedValues = useMemo(() => {
+    if (inputMode === 'amount') {
+      const amountNum = parseFloat(amount);
+      if (isNaN(amountNum) || amountNum <= 0) return null;
+      const margin = amountNum;
+      const lev = parseInt(leverage);
+      // Calculate lot size if we have a price
+      const price = fetchedPrice || parseFloat(entryPrice);
+      const lotSizeCalc = price > 0 ? (margin * lev) / price : 0;
+      return { margin, lotSize: lotSizeCalc, positionValue: margin * lev };
+    } else {
+      // Lot size mode
+      const lotSizeNum = parseFloat(lotSize);
+      if (isNaN(lotSizeNum) || lotSizeNum <= 0) return null;
+      const lev = parseInt(leverage);
+      const price = fetchedPrice || parseFloat(entryPrice);
+      if (price <= 0) return { margin: 0, lotSize: lotSizeNum, positionValue: 0 };
+      // margin = (lotSize * price) / leverage
+      const margin = (lotSizeNum * price) / lev;
+      return { margin, lotSize: lotSizeNum, positionValue: lotSizeNum * price };
+    }
+  }, [amount, lotSize, inputMode, leverage, fetchedPrice, entryPrice]);
 
   // Filter users for search in dialog
   const filteredUsersForDialog = useMemo(() => {
@@ -186,6 +206,47 @@ export const AdminTradeManagement = () => {
     fetchUsers();
     fetchPositions();
   }, []);
+
+  // Fetch price when symbol changes for lot size calculations
+  useEffect(() => {
+    const fetchPriceForSymbol = async () => {
+      if (!symbol || !openTradeDialog) {
+        setFetchedPrice(null);
+        return;
+      }
+
+      try {
+        let price = 0;
+        
+        if (assetType === 'crypto') {
+          const { data, error } = await supabase.functions.invoke('fetch-crypto-data');
+          if (!error && data?.cryptoData) {
+            const coin = data.cryptoData.find((c: any) => c.symbol.toUpperCase() === symbol.toUpperCase());
+            if (coin) price = parseFloat(coin.price);
+          }
+        } else if (assetType === 'commodities') {
+          const { data, error } = await supabase.functions.invoke('fetch-commodities-data');
+          if (!error && data?.commoditiesData) {
+            const commodity = data.commoditiesData.find((c: any) => c.symbol.toUpperCase() === symbol.toUpperCase());
+            if (commodity) price = parseFloat(commodity.price);
+          }
+        } else if (assetType === 'forex') {
+          const { data, error } = await supabase.functions.invoke('fetch-forex-data');
+          if (!error && data?.forexData) {
+            const forex = data.forexData.find((f: any) => f.name?.toUpperCase() === symbol.toUpperCase() || f.symbol?.toUpperCase() === symbol.toUpperCase());
+            if (forex) price = parseFloat(forex.price);
+          }
+        }
+        
+        setFetchedPrice(price > 0 ? price : null);
+      } catch (err) {
+        console.error('Error fetching price for symbol:', err);
+        setFetchedPrice(null);
+      }
+    };
+
+    fetchPriceForSymbol();
+  }, [symbol, assetType, openTradeDialog]);
 
   // Real-time price updates for open positions
   useEffect(() => {
@@ -460,19 +521,24 @@ export const AdminTradeManagement = () => {
   const selectedUserInfo = usersWithTrades.find(u => u.id === viewingUserId);
 
   const handleOpenTrade = async () => {
-    // Validate based on price mode
+    // Validate based on price mode and input mode
     if (!selectedUser || !symbol) {
       toast.error("Please select user and symbol");
       return;
     }
 
-    if (priceMode === 'manual' && (!amount || !entryPrice)) {
-      toast.error("Please fill amount and entry price for manual mode");
+    if (priceMode === 'manual' && !entryPrice) {
+      toast.error("Please enter entry price for manual mode");
       return;
     }
 
-    if (priceMode === 'live' && !amount) {
+    if (inputMode === 'amount' && !amount) {
       toast.error("Please enter amount");
+      return;
+    }
+
+    if (inputMode === 'lotSize' && !lotSize) {
+      toast.error("Please enter lot size");
       return;
     }
 
@@ -590,20 +656,26 @@ export const AdminTradeManagement = () => {
           return;
         }
 
-        console.log('Opening trade at live price:', price, 'with amount:', amount);
-        tradeAmount = parseFloat(amount);
+        console.log('Opening trade at live price:', price);
       } else {
         // Manual mode
         price = parseFloat(entryPrice);
-        tradeAmount = parseFloat(amount);
         console.log('Opening trade at manual price:', price);
       }
 
       const lev = parseInt(leverage);
-      // The amount entered IS the margin (USD investment amount), not units
-      const margin = tradeAmount;
-      // Calculate position size in units from margin
-      const positionSize = (margin * lev) / price;
+      let margin: number;
+      let positionSize: number;
+      
+      if (inputMode === 'amount') {
+        // Amount mode: margin = amount, calculate positionSize
+        margin = parseFloat(amount);
+        positionSize = (margin * lev) / price;
+      } else {
+        // Lot size mode: positionSize = lotSize, calculate margin
+        positionSize = parseFloat(lotSize);
+        margin = (positionSize * price) / lev;
+      }
 
       // Check user wallet balance
       const { data: wallet } = await supabase
@@ -794,10 +866,13 @@ export const AdminTradeManagement = () => {
     setSymbol("");
     setPositionType("long");
     setAmount("");
+    setLotSize("");
+    setInputMode("amount");
     setEntryPrice("");
     setLeverage("1");
     setPriceMode("live");
     setSelectedUserBalance(null);
+    setFetchedPrice(null);
   };
 
   const handleSymbolChange = (value: string) => {
@@ -1317,7 +1392,10 @@ export const AdminTradeManagement = () => {
           setUserSearchQuery("");
           setSymbol("");
           setAmount("");
+          setLotSize("");
           setEntryPrice("");
+          setFetchedPrice(null);
+          setInputMode("amount");
         }
       }}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
@@ -1453,26 +1531,67 @@ export const AdminTradeManagement = () => {
             )}
 
             <div>
-              <Label>Amount (Investment in USD)</Label>
-              <Input
-                type="number"
-                placeholder="0.00"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-              />
-              {calculatedMargin !== null && (
-                <div className="mt-2 p-2 bg-muted/50 rounded-lg border">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Margin Required:</span>
-                    <span className="font-semibold text-primary">${calculatedMargin.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm mt-1">
-                    <span className="text-muted-foreground">Position Size ({leverage}x):</span>
-                    <span className="font-semibold">${(calculatedMargin * parseInt(leverage)).toFixed(2)}</span>
-                  </div>
-                </div>
-              )}
+              <Label>Input Mode</Label>
+              <Select value={inputMode} onValueChange={(v) => {
+                setInputMode(v as 'amount' | 'lotSize');
+                setAmount("");
+                setLotSize("");
+              }}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="amount">Amount (USD)</SelectItem>
+                  <SelectItem value="lotSize">Lot Size (Units)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
+
+            {inputMode === 'amount' ? (
+              <div>
+                <Label>Amount (Investment in USD)</Label>
+                <Input
+                  type="number"
+                  placeholder="0.00"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                />
+              </div>
+            ) : (
+              <div>
+                <Label>Lot Size (Units of Asset)</Label>
+                <Input
+                  type="number"
+                  placeholder="0.00"
+                  value={lotSize}
+                  onChange={(e) => setLotSize(e.target.value)}
+                />
+                {fetchedPrice && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Current Price: <span className="font-semibold text-primary">${fetchedPrice.toFixed(4)}</span>
+                  </p>
+                )}
+              </div>
+            )}
+
+            {calculatedValues !== null && (
+              <div className="p-2 bg-muted/50 rounded-lg border">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Margin Required:</span>
+                  <span className="font-semibold text-primary">${calculatedValues.margin.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-sm mt-1">
+                  <span className="text-muted-foreground">Position Size ({leverage}x):</span>
+                  <span className="font-semibold">${calculatedValues.positionValue.toFixed(2)}</span>
+                </div>
+                {calculatedValues.lotSize > 0 && (
+                  <div className="flex justify-between text-sm mt-1">
+                    <span className="text-muted-foreground">Lot Size (Units):</span>
+                    <span className="font-semibold">{calculatedValues.lotSize.toFixed(6)}</span>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div>
               <Label>Leverage</Label>

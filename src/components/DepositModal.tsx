@@ -102,11 +102,11 @@ const DepositModal = ({ open, onOpenChange, onSuccess }: DepositModalProps) => {
     setIsAutoLocked(true);
     
     try {
-      // Call the lock_deposit function
+      // Call the lock_deposit function (deposits are in INR)
       const { error } = await supabase.rpc('lock_deposit', {
         p_user_id: (await supabase.auth.getUser()).data.user?.id,
         p_amount: parseFloat(amount),
-        p_currency: 'USD',
+        p_currency: 'INR',
         p_deposit_id: depositRequestId
       });
 
@@ -180,11 +180,11 @@ const DepositModal = ({ open, onOpenChange, onSuccess }: DepositModalProps) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      // Create deposit request immediately
+      // Create deposit request immediately (store in INR, will convert to USD on approval)
       const { data, error } = await supabase.from("deposit_requests").insert({
         user_id: user.id,
         amount: parseFloat(amount),
-        currency: "USD",
+        currency: "INR",
         payment_method: "upi",
         transaction_id: `QR_${Date.now()}`, // Temporary transaction ID
       }).select().single();
@@ -229,11 +229,11 @@ const DepositModal = ({ open, onOpenChange, onSuccess }: DepositModalProps) => {
 
         if (error) throw error;
       } else {
-        // For manual deposit, create new request
+        // For manual deposit, create new request (store in INR, will convert to USD on approval)
         const { error } = await supabase.from("deposit_requests").insert({
           user_id: user.id,
           amount: parseFloat(amount),
-          currency: "USD",
+          currency: "INR",
           payment_method: depositMode === "instant" ? "upi" : paymentMethod,
           transaction_id: transactionId,
         });

@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { User, Mail, FileCheck, CheckCircle, Clock, XCircle, ChevronRight, Phone, Hash, Copy } from "lucide-react";
+import { User, Mail, FileCheck, CheckCircle, Clock, XCircle, ChevronRight, Phone, Hash, Copy, Download, Smartphone } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -33,6 +33,7 @@ const Profile = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [fullName, setFullName] = useState("");
+  const [appDownloadUrl, setAppDownloadUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -68,6 +69,17 @@ const Profile = () => {
       
       if (kycData) {
         setKycStatus(kycData as KYCStatus);
+      }
+
+      // Fetch app download URL
+      const { data: appUrlSetting } = await supabase
+        .from("payment_settings")
+        .select("setting_value")
+        .eq("setting_key", "app_download_url")
+        .maybeSingle();
+      
+      if (appUrlSetting?.setting_value) {
+        setAppDownloadUrl(appUrlSetting.setting_value);
       }
     } catch (error: any) {
       console.error("Error fetching profile:", error);
@@ -233,6 +245,32 @@ const Profile = () => {
             </Button>
           </form>
         </Card>
+
+        {/* App Download Card */}
+        {appDownloadUrl && (
+          <Card className="p-6 mb-6 bg-gradient-to-r from-green-500/10 to-emerald-500/10 border-green-500/20">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="h-12 w-12 rounded-full bg-green-500/20 flex items-center justify-center">
+                  <Smartphone className="h-6 w-6 text-green-500" />
+                </div>
+                <div>
+                  <h3 className="font-semibold">Download Mobile App</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Get the CoinGoldFX app for better trading experience
+                  </p>
+                </div>
+              </div>
+              <Button 
+                onClick={() => window.open(appDownloadUrl, '_blank')}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Download
+              </Button>
+            </div>
+          </Card>
+        )}
 
         {/* KYC Verification Card */}
         <Card 

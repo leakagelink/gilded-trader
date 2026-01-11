@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { 
   TrendingUp, Shield, Users, Wallet, Settings, SettingsIcon, 
-  Check, X, RefreshCw, Edit, Trash2, DollarSign, FileText, ArrowUpRight, Upload, Loader2, Lock, Phone, Search, ChevronLeft, ChevronRight, Gift 
+  Check, X, RefreshCw, Edit, Trash2, DollarSign, FileText, ArrowUpRight, Upload, Loader2, Lock, Phone, Search, ChevronLeft, ChevronRight, Gift, Smartphone, Download 
 } from "lucide-react";
 import logo from "@/assets/logo.png";
 import { useNavigate } from "react-router-dom";
@@ -98,9 +98,11 @@ const AdminPanel = () => {
     ifsc: "BANK0001234",
     bankName: "Demo Bank",
     exchangeRate: "0.012",
+    appDownloadUrl: "",
   });
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [uploadingQr, setUploadingQr] = useState(false);
+  const [uploadingApp, setUploadingApp] = useState(false);
   
   // Deposit offer settings state
   const [depositOfferSettings, setDepositOfferSettings] = useState({
@@ -263,6 +265,7 @@ const AdminPanel = () => {
           ifsc: settings.ifscCode || "BANK0001234",
           bankName: settings.bankName || "Demo Bank",
           exchangeRate: settings.exchangeRate || "0.012",
+          appDownloadUrl: settings.appDownloadUrl || "",
         });
         
         // Set deposit offer settings
@@ -715,6 +718,7 @@ const AdminPanel = () => {
         { setting_key: "ifsc_code", setting_value: paymentSettings.ifsc },
         { setting_key: "bank_name", setting_value: paymentSettings.bankName },
         { setting_key: "exchange_rate", setting_value: paymentSettings.exchangeRate },
+        { setting_key: "app_download_url", setting_value: paymentSettings.appDownloadUrl },
         // Deposit offer settings
         { setting_key: "deposit_bonus_enabled", setting_value: String(depositOfferSettings.bonusEnabled) },
         { setting_key: "deposit_bonus_percentage", setting_value: depositOfferSettings.bonusPercentage },
@@ -1642,6 +1646,104 @@ const AdminPanel = () => {
                         1 INR = {paymentSettings.exchangeRate} USD (Example: ₹1000 = ${(1000 * parseFloat(paymentSettings.exchangeRate || "0.012")).toFixed(2)})
                       </p>
                     </div>
+                  </div>
+                </div>
+
+                {/* Mobile App Upload Settings */}
+                <div className="space-y-4 border-t pt-6">
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                    <Smartphone className="h-5 w-5 text-purple-500" />
+                    Mobile App Settings
+                  </h3>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Upload APK/App File</Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="file"
+                          accept=".apk,.ipa,.zip"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            
+                            if (file.size > 100 * 1024 * 1024) {
+                              toast({
+                                title: "Error",
+                                description: "File size must be less than 100MB",
+                                variant: "destructive",
+                              });
+                              return;
+                            }
+                            
+                            setUploadingApp(true);
+                            try {
+                              const fileExt = file.name.split('.').pop();
+                              const fileName = `coingoldfx-app.${fileExt}`;
+                              
+                              // Delete old file if exists
+                              await supabase.storage.from('app-files').remove([fileName]);
+                              
+                              const { data, error } = await supabase.storage
+                                .from('app-files')
+                                .upload(fileName, file, { upsert: true });
+                              
+                              if (error) throw error;
+                              
+                              const { data: urlData } = supabase.storage
+                                .from('app-files')
+                                .getPublicUrl(fileName);
+                              
+                              setPaymentSettings({ ...paymentSettings, appDownloadUrl: urlData.publicUrl });
+                              toast({
+                                title: "Success",
+                                description: "App file uploaded successfully",
+                              });
+                            } catch (error: any) {
+                              toast({
+                                title: "Error",
+                                description: error.message,
+                                variant: "destructive",
+                              });
+                            } finally {
+                              setUploadingApp(false);
+                            }
+                          }}
+                          className="cursor-pointer"
+                        />
+                        {uploadingApp && <Loader2 className="h-4 w-4 animate-spin" />}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Upload APK file for Android users (max 100MB)
+                      </p>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="appDownloadUrl">Or Enter Direct Download URL</Label>
+                      <Input
+                        id="appDownloadUrl"
+                        placeholder="https://example.com/app.apk"
+                        value={paymentSettings.appDownloadUrl}
+                        onChange={(e) =>
+                          setPaymentSettings({ ...paymentSettings, appDownloadUrl: e.target.value })
+                        }
+                      />
+                    </div>
+                    
+                    {paymentSettings.appDownloadUrl && (
+                      <div className="p-3 bg-purple-600/10 border border-purple-600/20 rounded-lg flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Download className="h-4 w-4 text-purple-500" />
+                          <span className="text-sm">App download link is active</span>
+                        </div>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => window.open(paymentSettings.appDownloadUrl, '_blank')}
+                        >
+                          Test Download
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </div>
 

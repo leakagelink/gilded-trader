@@ -196,7 +196,7 @@ const Index = () => {
         <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 sm:gap-3 group cursor-pointer">
-              <img src={logo} alt="CoinGoldFX" className="h-10 w-10 sm:h-14 sm:w-14 object-contain group-hover:scale-105 transition-all duration-300" />
+              <img src={logo} alt="CoinGoldFX" className="h-14 w-auto sm:h-20 object-contain group-hover:scale-105 transition-all duration-300" />
             </div>
             <div className="flex items-center gap-2 sm:gap-3">
               <Button variant="ghost" onClick={() => navigate("/auth")} className="hover:bg-primary/10 transition-all hidden sm:flex">

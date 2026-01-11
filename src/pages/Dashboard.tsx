@@ -184,7 +184,7 @@ const Dashboard = () => {
               <Menu className="h-4 w-4 sm:h-5 sm:w-5" />
             </Button>
             <div className="flex items-center gap-1.5 sm:gap-2">
-              <img src={logo} alt="CoinGoldFX" className="h-9 w-9 sm:h-11 sm:w-11 object-contain" />
+              <img src={logo} alt="CoinGoldFX" className="h-12 w-auto sm:h-16 object-contain" />
             </div>
           </div>
           

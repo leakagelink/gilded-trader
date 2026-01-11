@@ -21,6 +21,7 @@ const DepositRequests = () => {
   const [loading, setLoading] = useState(true);
   const [requests, setRequests] = useState<any[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [exchangeRate, setExchangeRate] = useState(0.012);
 
   const checkAdminStatus = async () => {
     try {
@@ -62,6 +63,17 @@ const DepositRequests = () => {
   const fetchRequests = async () => {
     setLoading(true);
     try {
+      // Fetch exchange rate from payment settings
+      const { data: settingsData } = await supabase
+        .from("payment_settings")
+        .select("setting_value")
+        .eq("setting_key", "exchange_rate")
+        .single();
+      
+      if (settingsData?.setting_value) {
+        setExchangeRate(parseFloat(settingsData.setting_value));
+      }
+
       const { data, error } = await supabase
         .from("deposit_requests")
         .select("*")
@@ -261,7 +273,7 @@ const DepositRequests = () => {
                         <div>{request.currency === "INR" ? "₹" : "$"}{parseFloat(request.amount).toFixed(2)}</div>
                         {request.currency === "INR" && (
                           <div className="text-xs text-muted-foreground">
-                            ≈ ${(parseFloat(request.amount) * 0.012).toFixed(2)} USD
+                            ≈ ${(parseFloat(request.amount) * exchangeRate).toFixed(2)} USD
                           </div>
                         )}
                       </div>

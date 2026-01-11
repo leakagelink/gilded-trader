@@ -15,6 +15,9 @@ import certificate2 from "@/assets/certificate-2.png";
 import certificate3 from "@/assets/certificate-3.png";
 import certificate4 from "@/assets/certificate-4.png";
 
+// Logo
+import logo from "@/assets/logo.png";
+
 const Index = () => {
   const navigate = useNavigate();
   const [recentActivities, setRecentActivities] = useState<Array<{
@@ -193,12 +196,7 @@ const Index = () => {
         <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 sm:gap-3 group cursor-pointer">
-              <div className="h-9 w-9 sm:h-12 sm:w-12 rounded-xl bg-gradient-to-br from-primary via-primary to-accent flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-105 animate-glow">
-                <TrendingUp className="h-5 w-5 sm:h-7 sm:w-7 text-primary-foreground" />
-              </div>
-              <span className="text-xl sm:text-3xl font-extrabold gradient-text">
-                CoinGoldFX
-              </span>
+              <img src={logo} alt="CoinGoldFX" className="h-10 w-10 sm:h-14 sm:w-14 object-contain group-hover:scale-105 transition-all duration-300" />
             </div>
             <div className="flex items-center gap-2 sm:gap-3">
               <Button variant="ghost" onClick={() => navigate("/auth")} className="hover:bg-primary/10 transition-all hidden sm:flex">
@@ -954,12 +952,7 @@ const Index = () => {
               {/* Logo & Brand */}
               <div className="flex flex-col items-center md:items-start gap-3">
                 <div className="flex items-center gap-2 sm:gap-3">
-                  <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-                    <TrendingUp className="h-4 w-4 sm:h-6 sm:w-6 text-primary-foreground" />
-                  </div>
-                  <span className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                    CoinGoldFX
-                  </span>
+                  <img src={logo} alt="CoinGoldFX" className="h-12 w-12 sm:h-14 sm:w-14 object-contain" />
                 </div>
                 <p className="text-xs sm:text-sm text-muted-foreground text-center md:text-left">
                   Your trusted platform for crypto, forex & commodities trading.

@@ -578,17 +578,44 @@ const DepositModal = ({ open, onOpenChange, onSuccess }: DepositModalProps) => {
 
       {/* Amount Input */}
       <div className="space-y-2">
-        <Label htmlFor="amount">Amount (USD)</Label>
+        <Label htmlFor="amount">Amount (INR)</Label>
         <Input
           id="amount"
           type="number"
-          placeholder="Enter amount"
+          placeholder="Enter amount in INR"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
           min="1"
-          step="0.01"
+          step="1"
         />
       </div>
+
+      {/* USD Conversion Preview */}
+      {amount && parseFloat(amount) > 0 && (
+        <div className="p-4 rounded-xl bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20">
+          <div className="text-center space-y-2">
+            <p className="text-sm text-muted-foreground">You will receive</p>
+            <div className="text-2xl font-bold text-green-600">
+              ${calculateUsdPreview(parseFloat(amount)).totalAmount.toFixed(2)} USD
+            </div>
+            <div className="text-xs text-muted-foreground space-y-1">
+              <div className="flex justify-center items-center gap-2">
+                <span>₹{parseFloat(amount).toLocaleString()}</span>
+                <span>→</span>
+                <span>${calculateUsdPreview(parseFloat(amount)).usdAmount.toFixed(2)}</span>
+              </div>
+              {bonusSettings.enabled && calculateUsdPreview(parseFloat(amount)).bonusAmount > 0 && (
+                <div className="text-green-600 font-medium">
+                  + ${calculateUsdPreview(parseFloat(amount)).bonusAmount.toFixed(2)} bonus ({bonusSettings.percentage}%)
+                </div>
+              )}
+              <div className="text-[10px] opacity-70">
+                Rate: 1 INR = {exchangeRate} USD
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Payment Method Selection */}
       <div className="space-y-3">

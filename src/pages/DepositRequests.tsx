@@ -151,12 +151,11 @@ const DepositRequests = () => {
   const handleReject = async (depositId: string) => {
     try {
       const deposit = requests.find(r => r.id === depositId);
-      const rejectionReason = "Rejected by admin";
       
-      const { error } = await supabase
-        .from("deposit_requests")
-        .update({ status: "rejected", rejection_reason: rejectionReason })
-        .eq("id", depositId);
+      // Use the reject_deposit function which also handles locked_balance
+      const { error } = await supabase.rpc("reject_deposit", {
+        deposit_id: depositId,
+      });
 
       if (error) throw error;
 
@@ -170,7 +169,7 @@ const DepositRequests = () => {
               status: "rejected",
               amount: deposit.amount,
               currency: deposit.currency,
-              rejectionReason: rejectionReason,
+              rejectionReason: "Rejected by admin",
             },
           });
         } catch (emailError) {
@@ -180,7 +179,9 @@ const DepositRequests = () => {
 
       toast({
         title: "Success",
-        description: "Deposit request rejected",
+        description: deposit?.status === "locked" 
+          ? "Deposit rejected and locked balance removed" 
+          : "Deposit request rejected",
       });
 
       fetchRequests();

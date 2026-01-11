@@ -750,6 +750,48 @@ const AdminPanel = () => {
     }
   };
 
+  // Real-time subscription for deposit and withdrawal requests
+  useEffect(() => {
+    if (!isAdmin) return;
+
+    const depositChannel = supabase
+      .channel('admin-deposit-requests')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'deposit_requests'
+        },
+        () => {
+          // Refresh deposit requests when any change occurs
+          fetchAllData();
+        }
+      )
+      .subscribe();
+
+    const withdrawalChannel = supabase
+      .channel('admin-withdrawal-requests')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'withdrawal_requests'
+        },
+        () => {
+          // Refresh withdrawal requests when any change occurs
+          fetchAllData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(depositChannel);
+      supabase.removeChannel(withdrawalChannel);
+    };
+  }, [isAdmin]);
+
   if (!isAdmin) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">

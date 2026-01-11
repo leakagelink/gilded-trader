@@ -104,7 +104,7 @@ const handler = async (req: Request): Promise<Response> => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: "TradePro <onboarding@resend.dev>",
+        from: "CoinGoldFX <onboarding@resend.dev>",
         to: [email],
         subject: subject,
         html: htmlContent,
@@ -115,21 +115,32 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (!res.ok) {
       console.error("Resend API error:", data);
-      throw new Error(data.message || "Failed to send email");
+      // Return success anyway - don't block the deposit approval due to email issues
+      // This handles cases where domain is not verified in Resend
+      console.log("Email could not be sent, but returning success to not block deposit flow");
+      return new Response(JSON.stringify({ 
+        success: true, 
+        emailSent: false, 
+        reason: data.message || "Email service limitation" 
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
     }
 
     console.log("Email sent successfully:", data);
 
-    return new Response(JSON.stringify({ success: true, data }), {
+    return new Response(JSON.stringify({ success: true, emailSent: true, data }), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   } catch (error: any) {
     console.error("Error sending deposit notification:", error);
+    // Return success anyway - email is secondary, deposit approval is primary
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ success: true, emailSent: false, error: error.message }),
       {
-        status: 500,
+        status: 200,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       }
     );

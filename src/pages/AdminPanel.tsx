@@ -1698,10 +1698,26 @@ const AdminPanel = () => {
                                 .from('app-files')
                                 .getPublicUrl(fileName);
                               
-                              setPaymentSettings({ ...paymentSettings, appDownloadUrl: urlData.publicUrl });
+                              const newAppUrl = urlData.publicUrl;
+                              setPaymentSettings({ ...paymentSettings, appDownloadUrl: newAppUrl });
+                              
+                              // Auto-save the URL to database
+                              const { data: { user } } = await supabase.auth.getUser();
+                              if (user) {
+                                await supabase
+                                  .from("payment_settings")
+                                  .upsert({
+                                    setting_key: "app_download_url",
+                                    setting_value: newAppUrl,
+                                    updated_by: user.id,
+                                  }, {
+                                    onConflict: 'setting_key'
+                                  });
+                              }
+                              
                               toast({
                                 title: "Success",
-                                description: "App file uploaded successfully",
+                                description: "App file uploaded and saved successfully",
                               });
                             } catch (error: any) {
                               toast({

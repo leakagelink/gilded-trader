@@ -96,6 +96,7 @@ const AdminPanel = () => {
     accountNumber: "1234567890",
     ifsc: "BANK0001234",
     bankName: "Demo Bank",
+    exchangeRate: "0.012",
   });
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [uploadingQr, setUploadingQr] = useState(false);
@@ -260,6 +261,7 @@ const AdminPanel = () => {
           accountNumber: settings.accountNumber || "1234567890",
           ifsc: settings.ifscCode || "BANK0001234",
           bankName: settings.bankName || "Demo Bank",
+          exchangeRate: settings.exchangeRate || "0.012",
         });
         
         // Set deposit offer settings
@@ -710,6 +712,7 @@ const AdminPanel = () => {
         { setting_key: "account_number", setting_value: paymentSettings.accountNumber },
         { setting_key: "ifsc_code", setting_value: paymentSettings.ifsc },
         { setting_key: "bank_name", setting_value: paymentSettings.bankName },
+        { setting_key: "exchange_rate", setting_value: paymentSettings.exchangeRate },
         // Deposit offer settings
         { setting_key: "deposit_bonus_enabled", setting_value: String(depositOfferSettings.bonusEnabled) },
         { setting_key: "deposit_bonus_percentage", setting_value: depositOfferSettings.bonusPercentage },
@@ -1257,7 +1260,7 @@ const AdminPanel = () => {
                               <div>{request.currency === "INR" ? "₹" : "$"}{Number(request.amount).toFixed(2)}</div>
                               {request.currency === "INR" && (
                                 <div className="text-xs text-muted-foreground">
-                                  ≈ ${(Number(request.amount) * 0.012).toFixed(2)} USD
+                                  ≈ ${(Number(request.amount) * parseFloat(paymentSettings.exchangeRate || "0.012")).toFixed(2)} USD
                                 </div>
                               )}
                             </div>
@@ -1608,6 +1611,33 @@ const AdminPanel = () => {
                           setPaymentSettings({ ...paymentSettings, bankName: e.target.value })
                         }
                       />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Exchange Rate Settings */}
+                <div className="space-y-4 border-t pt-6">
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                    <DollarSign className="h-5 w-5 text-blue-500" />
+                    Currency Conversion Settings
+                  </h3>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="exchangeRate">INR to USD Exchange Rate</Label>
+                      <Input
+                        id="exchangeRate"
+                        type="number"
+                        step="0.0001"
+                        min="0"
+                        placeholder="0.012"
+                        value={paymentSettings.exchangeRate}
+                        onChange={(e) =>
+                          setPaymentSettings({ ...paymentSettings, exchangeRate: e.target.value })
+                        }
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        1 INR = {paymentSettings.exchangeRate} USD (Example: ₹1000 = ${(1000 * parseFloat(paymentSettings.exchangeRate || "0.012")).toFixed(2)})
+                      </p>
                     </div>
                   </div>
                 </div>

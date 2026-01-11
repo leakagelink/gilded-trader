@@ -3,13 +3,14 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { User, Mail, TrendingUp, FileCheck, CheckCircle, Clock, XCircle, ChevronRight, Phone, Hash, Copy } from "lucide-react";
+import { User, Mail, FileCheck, CheckCircle, Clock, XCircle, ChevronRight, Phone, Hash, Copy } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import BottomNav from "@/components/BottomNav";
 import { Badge } from "@/components/ui/badge";
+import logo from "@/assets/logo.png";
 
 interface Profile {
   id: string;
@@ -119,12 +120,7 @@ const Profile = () => {
       <header className="border-b border-border/40 backdrop-blur-sm bg-background/80 sticky top-0 z-50">
         <div className="flex items-center justify-between px-4 py-4">
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-              <TrendingUp className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <span className="text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              CoinGoldFX
-            </span>
+            <img src={logo} alt="CoinGoldFX" className="h-10 w-auto object-contain" />
           </div>
           <Button variant="ghost" onClick={() => navigate("/dashboard")}>
             Back to Dashboard

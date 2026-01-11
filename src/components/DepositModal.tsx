@@ -442,10 +442,21 @@ const DepositModal = ({ open, onOpenChange, onSuccess }: DepositModalProps) => {
           <ArrowLeft className="h-4 w-4 mr-2" /> Back
         </Button>
 
-        {/* Amount Display */}
+        {/* Amount Display with USD Preview */}
         <div className="text-center">
           <p className="text-muted-foreground text-sm mb-1">Amount to Pay</p>
           <p className="text-3xl font-bold text-primary">₹{parseFloat(amount).toLocaleString()}</p>
+          <div className="mt-2 p-3 rounded-lg bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20 inline-block">
+            <p className="text-xs text-muted-foreground mb-1">You will receive</p>
+            <p className="text-lg font-bold text-green-600">
+              ${calculateUsdPreview(parseFloat(amount)).totalAmount.toFixed(2)} USD
+            </p>
+            {bonusSettings.enabled && calculateUsdPreview(parseFloat(amount)).bonusAmount > 0 && (
+              <p className="text-xs text-green-600">
+                (incl. ${calculateUsdPreview(parseFloat(amount)).bonusAmount.toFixed(2)} bonus)
+              </p>
+            )}
+          </div>
         </div>
 
         {/* Countdown Timer */}

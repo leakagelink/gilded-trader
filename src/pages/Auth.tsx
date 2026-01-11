@@ -5,10 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp, Mail, Lock, User, Phone, ArrowLeft, Eye, EyeOff, Hash } from "lucide-react";
+import { Mail, Lock, User, Phone, ArrowLeft, Eye, EyeOff, Hash } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
+import logo from "@/assets/logo.png";
 
 const signInSchema = z.object({
   identifier: z.string().min(1, "Email, Mobile or Client ID is required"),
@@ -183,12 +184,7 @@ const Auth = () => {
       <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 flex items-center justify-center p-4">
         <Card className="w-full max-w-md p-8">
           <div className="flex items-center justify-center gap-2 mb-8">
-            <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-              <TrendingUp className="h-7 w-7 text-primary-foreground" />
-            </div>
-            <span className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              CoinGoldFX
-            </span>
+            <img src={logo} alt="CoinGoldFX" className="h-16 w-auto object-contain" />
           </div>
 
           <h2 className="text-xl font-semibold text-center mb-6">Reset Password</h2>
@@ -236,12 +232,7 @@ const Auth = () => {
     <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 flex items-center justify-center p-4">
       <Card className="w-full max-w-md p-8">
         <div className="flex items-center justify-center gap-2 mb-8">
-          <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-            <TrendingUp className="h-7 w-7 text-primary-foreground" />
-          </div>
-          <span className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-            CoinGoldFX
-          </span>
+          <img src={logo} alt="CoinGoldFX" className="h-16 w-auto object-contain" />
         </div>
 
         <Tabs defaultValue="signin" className="w-full">

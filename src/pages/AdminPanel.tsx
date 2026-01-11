@@ -828,38 +828,43 @@ const AdminPanel = () => {
 
       <main className="container mx-auto px-4 py-8 max-w-7xl">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-7 mb-6">
-            <TabsTrigger value="approvals" className="flex items-center gap-2">
-              <Shield className="h-4 w-4" />
-              Approvals
+          <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8 mb-6 h-auto gap-1">
+            <TabsTrigger value="approvals" className="flex items-center gap-1 text-xs lg:text-sm px-2 py-2">
+              <Shield className="h-3 w-3 lg:h-4 lg:w-4" />
+              <span className="hidden sm:inline">Approvals</span>
+              <span className="sm:hidden">Approve</span>
             </TabsTrigger>
-            <TabsTrigger value="users" className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
+            <TabsTrigger value="users" className="flex items-center gap-1 text-xs lg:text-sm px-2 py-2">
+              <Users className="h-3 w-3 lg:h-4 lg:w-4" />
               Users
             </TabsTrigger>
-            <TabsTrigger value="trades" className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" />
+            <TabsTrigger value="trades" className="flex items-center gap-1 text-xs lg:text-sm px-2 py-2">
+              <TrendingUp className="h-3 w-3 lg:h-4 lg:w-4" />
               Trades
             </TabsTrigger>
-            <TabsTrigger value="api" className="flex items-center gap-2">
-              <Settings className="h-4 w-4" />
-              API Keys
+            <TabsTrigger value="api" className="flex items-center gap-1 text-xs lg:text-sm px-2 py-2">
+              <Settings className="h-3 w-3 lg:h-4 lg:w-4" />
+              <span className="hidden sm:inline">API Keys</span>
+              <span className="sm:hidden">API</span>
             </TabsTrigger>
-            <TabsTrigger value="deposits" className="flex items-center gap-2">
-              <Wallet className="h-4 w-4" />
-              Deposits
+            <TabsTrigger value="deposits" className="flex items-center gap-1 text-xs lg:text-sm px-2 py-2">
+              <Wallet className="h-3 w-3 lg:h-4 lg:w-4" />
+              <span className="hidden sm:inline">Deposits</span>
+              <span className="sm:hidden">Dep</span>
             </TabsTrigger>
-            <TabsTrigger value="withdrawals" className="flex items-center gap-2">
-              <ArrowUpRight className="h-4 w-4" />
-              Withdrawals
+            <TabsTrigger value="withdrawals" className="flex items-center gap-1 text-xs lg:text-sm px-2 py-2">
+              <ArrowUpRight className="h-3 w-3 lg:h-4 lg:w-4" />
+              <span className="hidden sm:inline">Withdrawals</span>
+              <span className="sm:hidden">With</span>
             </TabsTrigger>
-            <TabsTrigger value="kyc" className="flex items-center gap-2">
-              <FileText className="h-4 w-4" />
+            <TabsTrigger value="kyc" className="flex items-center gap-1 text-xs lg:text-sm px-2 py-2">
+              <FileText className="h-3 w-3 lg:h-4 lg:w-4" />
               KYC
             </TabsTrigger>
-            <TabsTrigger value="settings" className="flex items-center gap-2">
-              <SettingsIcon className="h-4 w-4" />
-              Payment Settings
+            <TabsTrigger value="settings" className="flex items-center gap-1 text-xs lg:text-sm px-2 py-2">
+              <SettingsIcon className="h-3 w-3 lg:h-4 lg:w-4" />
+              <span className="hidden sm:inline">Settings</span>
+              <span className="sm:hidden">Set</span>
             </TabsTrigger>
           </TabsList>
 

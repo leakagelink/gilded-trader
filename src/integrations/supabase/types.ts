@@ -543,6 +543,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      reject_deposit: { Args: { deposit_id: string }; Returns: undefined }
       reject_kyc: {
         Args: { kyc_id: string; reason?: string }
         Returns: undefined

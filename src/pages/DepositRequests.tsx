@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, Check, X, RefreshCw, Lock } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TrendingUp, Check, X, RefreshCw, Lock, Clock, CheckCircle, XCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -22,6 +23,7 @@ const DepositRequests = () => {
   const [requests, setRequests] = useState<any[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [exchangeRate, setExchangeRate] = useState(0.012);
+  const [activeTab, setActiveTab] = useState<string>("all");
 
   const checkAdminStatus = async () => {
     try {
@@ -242,11 +244,51 @@ const DepositRequests = () => {
           </Button>
         </div>
 
+        {/* Filter Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
+          <TabsList className="grid w-full grid-cols-5 max-w-xl">
+            <TabsTrigger value="all" className="flex items-center gap-1">
+              All
+              <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                {requests.length}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger value="pending" className="flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              Pending
+              <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                {requests.filter(r => r.status === "pending").length}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger value="locked" className="flex items-center gap-1">
+              <Lock className="h-3 w-3" />
+              Locked
+              <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                {requests.filter(r => r.status === "locked").length}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger value="approved" className="flex items-center gap-1">
+              <CheckCircle className="h-3 w-3" />
+              Approved
+              <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                {requests.filter(r => r.status === "approved").length}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger value="rejected" className="flex items-center gap-1">
+              <XCircle className="h-3 w-3" />
+              Rejected
+              <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                {requests.filter(r => r.status === "rejected").length}
+              </Badge>
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+
         <Card className="p-6">
           {loading ? (
             <p className="text-muted-foreground text-center py-8">Loading requests...</p>
-          ) : requests.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">No deposit requests</p>
+          ) : requests.filter(r => activeTab === "all" || r.status === activeTab).length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">No {activeTab === "all" ? "" : activeTab} deposit requests</p>
           ) : (
             <Table>
               <TableHeader>
@@ -261,7 +303,9 @@ const DepositRequests = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {requests.map((request) => (
+                {requests
+                  .filter(r => activeTab === "all" || r.status === activeTab)
+                  .map((request) => (
                   <TableRow key={request.id}>
                     <TableCell>
                       <div>

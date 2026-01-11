@@ -4,11 +4,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { TrendingUp, Wallet, User, Settings, FileCheck, Menu, LogOut, Bitcoin, DollarSign, Euro, PoundSterling, Coins, Gem, Droplet, Flame, RotateCcw, Shield, Search, type LucideIcon } from "lucide-react";
+import { Wallet, User, Settings, FileCheck, Menu, LogOut, Bitcoin, DollarSign, Euro, PoundSterling, Coins, Gem, Droplet, Flame, RotateCcw, Shield, Search, TrendingUp, type LucideIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import TradingList from "@/components/TradingList";
 import BottomNav from "@/components/BottomNav";
+import logo from "@/assets/logo.png";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -183,12 +184,7 @@ const Dashboard = () => {
               <Menu className="h-4 w-4 sm:h-5 sm:w-5" />
             </Button>
             <div className="flex items-center gap-1.5 sm:gap-2">
-              <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-                <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-primary-foreground" />
-              </div>
-              <span className="text-lg sm:text-xl font-extrabold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent tracking-tight">
-                CoinGoldFX
-              </span>
+              <img src={logo} alt="CoinGoldFX" className="h-9 w-9 sm:h-11 sm:w-11 object-contain" />
             </div>
           </div>
           

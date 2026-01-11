@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowUpRight, ArrowDownLeft, Wallet as WalletIcon, TrendingUp, Gift, Sparkles, Lock, BarChart3 } from "lucide-react";
+import { ArrowUpRight, ArrowDownLeft, Wallet as WalletIcon, TrendingUp, Gift, Sparkles, Lock, BarChart3, Clock, CheckCircle, XCircle, History } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -25,6 +25,8 @@ const Wallet = () => {
   const [walletData, setWalletData] = useState<WalletBalance[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [tradeHistory, setTradeHistory] = useState<any[]>([]);
+  const [depositHistory, setDepositHistory] = useState<any[]>([]);
+  const [exchangeRate, setExchangeRate] = useState(0.012);
   const [offerSettings, setOfferSettings] = useState({
     bonusEnabled: false,
     bonusPercentage: "0",
@@ -56,6 +58,11 @@ const Wallet = () => {
           bonusMax: settings.deposit_bonus_max || "0",
           offerTitle: settings.deposit_offer_title || "",
         });
+        
+        // Set exchange rate
+        if (settings.exchange_rate) {
+          setExchangeRate(parseFloat(settings.exchange_rate));
+        }
       }
     } catch (error) {
       console.error("Error fetching offer settings:", error);
@@ -128,6 +135,17 @@ const Wallet = () => {
       })) || [];
 
       setTradeHistory(formattedTradeTxs);
+
+      // Fetch deposit requests history
+      const { data: deposits, error: depositsError } = await supabase
+        .from("deposit_requests")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(10);
+
+      if (depositsError) throw depositsError;
+      setDepositHistory(deposits || []);
     } catch (error: any) {
       toast({
         title: "Error",
@@ -295,6 +313,73 @@ const Wallet = () => {
                 </div>
               </div>
               ))}
+            </div>
+          )}
+        </Card>
+
+        {/* Deposit History */}
+        <Card className="p-6 mb-8">
+          <h2 className="text-2xl font-semibold mb-6 flex items-center gap-2">
+            <History className="h-6 w-6 text-primary" />
+            Deposit History
+          </h2>
+          {loading ? (
+            <p className="text-muted-foreground text-center py-8">Loading deposit history...</p>
+          ) : depositHistory.length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">No deposit requests yet</p>
+          ) : (
+            <div className="space-y-4">
+              {depositHistory.map((deposit, index) => {
+                const inrAmount = Number(deposit.amount);
+                const usdAmount = deposit.currency === "INR" ? inrAmount * exchangeRate : inrAmount;
+                const statusIcon = deposit.status === "approved" ? (
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                ) : deposit.status === "rejected" ? (
+                  <XCircle className="h-4 w-4 text-red-500" />
+                ) : (
+                  <Clock className="h-4 w-4 text-amber-500" />
+                );
+                
+                return (
+                  <div key={index} className="flex items-center justify-between p-4 border border-border/50 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <div className={`h-10 w-10 rounded-full flex items-center justify-center ${
+                        deposit.status === "approved" ? "bg-green-600/10" : 
+                        deposit.status === "rejected" ? "bg-red-500/10" : 
+                        "bg-amber-500/10"
+                      }`}>
+                        {statusIcon}
+                      </div>
+                      <div>
+                        <div className="font-semibold flex items-center gap-2">
+                          Deposit
+                          <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${
+                            deposit.status === "approved" ? "bg-green-600/10 text-green-600" : 
+                            deposit.status === "rejected" ? "bg-red-500/10 text-red-500" : 
+                            deposit.status === "locked" ? "bg-amber-500/10 text-amber-500" :
+                            "bg-muted text-muted-foreground"
+                          }`}>
+                            {deposit.status === "locked" ? "Payment Credit" : deposit.status}
+                          </span>
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          {new Date(deposit.created_at).toLocaleDateString()} • {deposit.payment_method?.toUpperCase()}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-semibold">
+                        {deposit.currency === "INR" ? "₹" : "$"}{inrAmount.toLocaleString()}
+                      </div>
+                      {deposit.currency === "INR" && (
+                        <div className="text-sm text-green-600">
+                          ≈ ${usdAmount.toFixed(2)} USD
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </Card>

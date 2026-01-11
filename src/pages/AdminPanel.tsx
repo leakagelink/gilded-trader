@@ -1253,7 +1253,14 @@ const AdminPanel = () => {
                             </div>
                           </TableCell>
                           <TableCell className="font-semibold">
-                            ${Number(request.amount).toFixed(2)}
+                            <div>
+                              <div>{request.currency === "INR" ? "₹" : "$"}{Number(request.amount).toFixed(2)}</div>
+                              {request.currency === "INR" && (
+                                <div className="text-xs text-muted-foreground">
+                                  ≈ ${(Number(request.amount) * 0.012).toFixed(2)} USD
+                                </div>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell>
                             <Badge variant="outline" className="capitalize">

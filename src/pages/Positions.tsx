@@ -283,14 +283,32 @@ const Positions = () => {
         },
         (payload) => {
           const updatedPosition = payload.new as Position;
-          console.log('Position updated via realtime:', updatedPosition.id, 'price_mode:', updatedPosition.price_mode);
+          console.log('Position updated via realtime:', updatedPosition.id, 'status:', updatedPosition.status, 'price_mode:', updatedPosition.price_mode);
+          
+          // If position was closed, move it from open to closed
+          if (updatedPosition.status === 'closed') {
+            // Remove from open positions
+            setOpenPositions(prev => prev.filter(p => p.id !== updatedPosition.id));
+            // Add to closed positions (avoid duplicates)
+            setClosedPositions(prev => {
+              const exists = prev.some(p => p.id === updatedPosition.id);
+              if (exists) {
+                return prev.map(p => p.id === updatedPosition.id ? updatedPosition : p);
+              }
+              return [updatedPosition, ...prev];
+            });
+            // Clean up refs
+            delete previousPricesRef.current[updatedPosition.id];
+            delete basePnlRef.current[updatedPosition.id];
+            return;
+          }
           
           // If admin edited this trade, update the basePnlRef with the new base value
           if (updatedPosition.price_mode === 'edited') {
             basePnlRef.current[updatedPosition.id] = updatedPosition.pnl || 0;
           }
           
-          // Update the position in state with new data from database
+          // Update the position in state with new data from database (only if still open)
           setOpenPositions(prev => 
             prev.map(p => 
               p.id === updatedPosition.id 

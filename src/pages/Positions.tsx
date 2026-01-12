@@ -345,12 +345,14 @@ const Positions = () => {
         ? (closePrice - position.entry_price) * position.amount * position.leverage
         : (position.entry_price - closePrice) * position.amount * position.leverage;
 
-      // Close position
+      const closedAt = new Date().toISOString();
+
+      // Close position in database
       const { error } = await supabase
         .from('positions')
         .update({
           status: 'closed',
-          closed_at: new Date().toISOString(),
+          closed_at: closedAt,
           close_price: closePrice,
           pnl: pnl,
           closed_by: user?.id
@@ -358,6 +360,24 @@ const Positions = () => {
         .eq('id', position.id);
 
       if (error) throw error;
+
+      // IMMEDIATELY update local state - move from open to closed
+      const closedPosition: Position = {
+        ...position,
+        status: 'closed',
+        closed_at: closedAt,
+        close_price: closePrice,
+        pnl: pnl
+      };
+      
+      // Remove from open positions
+      setOpenPositions(prev => prev.filter(p => p.id !== position.id));
+      // Add to closed positions at the top
+      setClosedPositions(prev => [closedPosition, ...prev]);
+      
+      // Clean up refs
+      delete previousPricesRef.current[position.id];
+      delete basePnlRef.current[position.id];
 
       // Get current wallet balance
       const { data: wallet, error: walletError } = await supabase
@@ -395,7 +415,6 @@ const Positions = () => {
 
       toast.success(`Position closed: ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} PnL. Wallet updated with $${(position.margin + pnl).toFixed(2)}`);
       setClosePositionId(null);
-      fetchPositions();
     } catch (error) {
       console.error('Error closing position:', error);
       toast.error('Failed to close position');

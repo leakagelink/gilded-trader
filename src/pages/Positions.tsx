@@ -69,6 +69,8 @@ const Positions = () => {
   }, [user, navigate]);
 
   // Real-time price updates for open positions
+  const hasOpenPositions = openPositions.length > 0;
+  
   useEffect(() => {
     if (!user || openPositions.length === 0) return;
 
@@ -263,7 +265,7 @@ const Positions = () => {
     const interval = setInterval(updatePrices, 1000);
 
     return () => clearInterval(interval);
-  }, [user, openPositions.length]);
+  }, [user, hasOpenPositions]);
 
   // Subscribe to real-time updates for position changes (when admin edits a trade)
   useEffect(() => {

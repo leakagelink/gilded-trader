@@ -78,8 +78,12 @@ const Positions = () => {
 
     const updatePrices = async () => {
       try {
-        // Always get fresh positions from ref
-        const currentPositions = positionsRef.current;
+        // Always get fresh positions from ref, but filter out any that are being closed
+        const currentPositions = positionsRef.current.filter(p => 
+          p.status === 'open' && 
+          closingPositionId !== p.id && 
+          closedSuccessId !== p.id
+        );
         if (currentPositions.length === 0) return;
 
         // Define commodity symbols for detection
@@ -256,7 +260,15 @@ const Positions = () => {
         );
 
         // Update state immediately for real-time UI updates
-        setOpenPositions(updatedPositions);
+        // Use functional update to preserve any positions that were removed during this update
+        setOpenPositions(prev => {
+          const closedIds = new Set(
+            prev.filter(p => p.status === 'closed' || closingPositionId === p.id || closedSuccessId === p.id)
+              .map(p => p.id)
+          );
+          // Filter out closed positions and merge with updated prices
+          return updatedPositions.filter(p => !closedIds.has(p.id));
+        });
       } catch (error) {
         console.error('Error updating prices:', error);
       }
@@ -267,7 +279,7 @@ const Positions = () => {
     const interval = setInterval(updatePrices, 1000);
 
     return () => clearInterval(interval);
-  }, [user, hasOpenPositions]);
+  }, [user, hasOpenPositions, closingPositionId, closedSuccessId]);
 
   // Subscribe to real-time updates for position changes (when admin edits a trade)
   useEffect(() => {

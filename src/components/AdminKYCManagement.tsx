@@ -234,27 +234,19 @@ export const AdminKYCManagement = () => {
     }
 
     try {
-      // Get current admin user
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      // Create KYC submission with approved status
-      const { error } = await supabase
-        .from("kyc_submissions")
-        .insert({
-          user_id: selectedUserId,
-          first_name: manualKycForm.first_name,
-          last_name: manualKycForm.last_name,
-          date_of_birth: manualKycForm.date_of_birth,
-          country: manualKycForm.country,
-          address: manualKycForm.address,
-          city: manualKycForm.city,
-          postal_code: manualKycForm.postal_code,
-          id_document_type: manualKycForm.id_document_type,
-          document_url: uploadedDocumentPath,
-          status: "approved",
-          reviewed_at: new Date().toISOString(),
-          reviewed_by: user?.id
-        });
+      // Use the security definer function for admin KYC submission
+      const { data, error } = await supabase.rpc('admin_submit_kyc', {
+        p_user_id: selectedUserId,
+        p_first_name: manualKycForm.first_name,
+        p_last_name: manualKycForm.last_name,
+        p_date_of_birth: manualKycForm.date_of_birth,
+        p_country: manualKycForm.country,
+        p_address: manualKycForm.address,
+        p_city: manualKycForm.city,
+        p_postal_code: manualKycForm.postal_code,
+        p_id_document_type: manualKycForm.id_document_type,
+        p_document_url: uploadedDocumentPath
+      });
 
       if (error) throw error;
 

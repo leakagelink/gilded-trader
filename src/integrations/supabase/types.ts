@@ -518,6 +518,21 @@ export type Database = {
       }
     }
     Functions: {
+      admin_submit_kyc: {
+        Args: {
+          p_address: string
+          p_city: string
+          p_country: string
+          p_date_of_birth: string
+          p_document_url?: string
+          p_first_name: string
+          p_id_document_type: string
+          p_last_name: string
+          p_postal_code: string
+          p_user_id: string
+        }
+        Returns: string
+      }
       approve_deposit: { Args: { deposit_id: string }; Returns: undefined }
       approve_kyc: { Args: { kyc_id: string }; Returns: undefined }
       approve_user: { Args: { target_user_id: string }; Returns: undefined }

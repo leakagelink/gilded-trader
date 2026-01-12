@@ -104,7 +104,7 @@ const handler = async (req: Request): Promise<Response> => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: "TradePro <onboarding@resend.dev>",
+        from: "CoinGoldFX <onboarding@resend.dev>",
         to: [email],
         subject: subject,
         html: htmlContent,
@@ -114,22 +114,28 @@ const handler = async (req: Request): Promise<Response> => {
     const data = await res.json();
 
     if (!res.ok) {
-      console.error("Resend API error:", data);
-      throw new Error(data.message || "Failed to send email");
+      // Log error but return 200 to prevent blocking the main flow
+      console.error("Resend API error (non-blocking):", data);
+      console.log("Email delivery failed but returning success to avoid blocking account flow");
+      return new Response(
+        JSON.stringify({ success: true, emailSent: false, reason: "Email delivery failed - domain verification required" }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
     }
 
     console.log("Email sent successfully:", data);
 
-    return new Response(JSON.stringify({ success: true, data }), {
+    return new Response(JSON.stringify({ success: true, emailSent: true, data }), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   } catch (error: any) {
-    console.error("Error sending account notification:", error);
+    // Log error but return 200 to prevent blocking the main flow
+    console.error("Error sending account notification (non-blocking):", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ success: true, emailSent: false, reason: error.message }),
       {
-        status: 500,
+        status: 200,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       }
     );

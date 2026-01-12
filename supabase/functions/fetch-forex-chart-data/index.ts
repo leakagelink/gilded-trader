@@ -76,6 +76,27 @@ serve(async (req) => {
     const minutes = intervalMinutes[interval] || 60;
     const candleCount = 50;
     
+    // Fallback forex rates (Jan 2026 approximate values)
+    const fallbackRates: Record<string, number> = {
+      'EUR': 0.92,
+      'GBP': 0.79,
+      'JPY': 157.5,
+      'CHF': 0.90,
+      'AUD': 1.61,
+      'CAD': 1.44,
+      'NZD': 1.78,
+      'INR': 85.5,
+      'CNY': 7.30,
+      'SGD': 1.36,
+      'HKD': 7.79,
+      'MXN': 20.5,
+      'ZAR': 18.5,
+    };
+    
+    let currentRate: number | null = null;
+    let source = 'fallback';
+    
+    // Try to fetch from API
     let attempts = 0;
     const MAX_ATTEMPTS = 10;
     let lastError: any = null;
@@ -85,7 +106,7 @@ serve(async (req) => {
       const apiKey = await getActiveApiKey('currencyfreaks');
       
       if (!apiKey) {
-        console.error('No active CurrencyFreaks API key available');
+        console.log('No active CurrencyFreaks API key available, using fallback');
         break;
       }
 
@@ -97,67 +118,12 @@ serve(async (req) => {
         if (response.ok) {
           const data = await response.json();
           
-          if (!data.rates || !data.rates[symbol]) {
-            throw new Error('Failed to fetch current forex rate');
+          if (data.rates && data.rates[symbol]) {
+            currentRate = parseFloat(data.rates[symbol]);
+            source = 'forex-api';
+            console.log(`Got forex rate for ${symbol}: ${currentRate}`);
+            break;
           }
-
-          const currentRate = data.rates[symbol];
-          
-          // Generate realistic OHLC candles based on current price
-          const startDate = new Date(Date.now() - (minutes * candleCount * 60000));
-          const candles = [];
-          const volatilityMap: Record<string, number> = {
-            '1m': 0.0001,
-            '5m': 0.0002,
-            '15m': 0.0003,
-            '1h': 0.0005,
-            '4h': 0.001,
-            '1d': 0.002,
-          };
-          
-          const volatility = volatilityMap[interval] || 0.0005;
-          let price = currentRate * 0.995;
-          
-          for (let i = 0; i < candleCount; i++) {
-            const timestamp = startDate.getTime() + (i * minutes * 60000);
-            const timestampHuman = new Date(timestamp).toISOString();
-            
-            const open = price;
-            const change = (Math.random() - 0.48) * volatility * price;
-            const close = open + change;
-            
-            const rangeFactor = Math.random() * 0.5 + 0.5;
-            const high = Math.max(open, close) + (Math.abs(change) * rangeFactor);
-            const low = Math.min(open, close) - (Math.abs(change) * rangeFactor);
-            
-            candles.push({
-              timestamp: Math.floor(timestamp / 1000),
-              timestampHuman,
-              open: parseFloat(open.toFixed(6)),
-              high: parseFloat(high.toFixed(6)),
-              low: parseFloat(low.toFixed(6)),
-              close: parseFloat(close.toFixed(6)),
-              volume: Math.floor(Math.random() * 1000000) + 500000,
-            });
-            
-            price = close;
-          }
-          
-          // Make sure last candle matches current price closely
-          const lastCandle = candles[candles.length - 1];
-          lastCandle.close = currentRate;
-          lastCandle.high = Math.max(lastCandle.high, currentRate);
-          lastCandle.low = Math.min(lastCandle.low, currentRate);
-
-          return new Response(
-            JSON.stringify({
-              success: true,
-              candles,
-              currentPrice: currentRate,
-              source: 'forex-api',
-            }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
         }
 
         // Check if rate limit error
@@ -173,20 +139,84 @@ serve(async (req) => {
           continue;
         }
 
-        // Other errors
+        // Other errors - try next key
         const errorText = await response.text();
         lastError = `Forex API error ${response.status}: ${errorText}`;
         console.error(lastError);
-        break;
+        
+        // Mark key as inactive and try next
+        await markKeyAsInactive('currencyfreaks', apiKey);
+        continue;
 
       } catch (error) {
         lastError = error;
         console.error(`Error with key attempt ${attempts}:`, error);
-        break;
+        continue;
       }
     }
 
-    throw new Error(lastError || 'Failed to fetch forex chart data from all available API keys');
+    // Use fallback if no API rate available
+    if (currentRate === null) {
+      currentRate = fallbackRates[symbol.toUpperCase()] || 1.0;
+      source = 'fallback';
+      console.log(`Using fallback rate for ${symbol}: ${currentRate}`);
+    }
+
+    // Generate realistic OHLC candles based on current price
+    const startDate = new Date(Date.now() - (minutes * candleCount * 60000));
+    const candles = [];
+    const volatilityMap: Record<string, number> = {
+      '1m': 0.0001,
+      '5m': 0.0002,
+      '15m': 0.0003,
+      '1h': 0.0005,
+      '4h': 0.001,
+      '1d': 0.002,
+    };
+    
+    const volatility = volatilityMap[interval] || 0.0005;
+    let price = currentRate * 0.995;
+    
+    for (let i = 0; i < candleCount; i++) {
+      const timestamp = startDate.getTime() + (i * minutes * 60000);
+      const timestampHuman = new Date(timestamp).toISOString();
+      
+      const open = price;
+      const change = (Math.random() - 0.48) * volatility * price;
+      const close = open + change;
+      
+      const rangeFactor = Math.random() * 0.5 + 0.5;
+      const high = Math.max(open, close) + (Math.abs(change) * rangeFactor);
+      const low = Math.min(open, close) - (Math.abs(change) * rangeFactor);
+      
+      candles.push({
+        timestamp: Math.floor(timestamp / 1000),
+        timestampHuman,
+        open: parseFloat(open.toFixed(6)),
+        high: parseFloat(high.toFixed(6)),
+        low: parseFloat(low.toFixed(6)),
+        close: parseFloat(close.toFixed(6)),
+        volume: Math.floor(Math.random() * 1000000) + 500000,
+      });
+      
+      price = close;
+    }
+    
+    // Make sure last candle matches current price closely
+    const lastCandle = candles[candles.length - 1];
+    lastCandle.close = currentRate;
+    lastCandle.high = Math.max(lastCandle.high, currentRate);
+    lastCandle.low = Math.min(lastCandle.low, currentRate);
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        candles,
+        currentPrice: currentRate,
+        source,
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
 
   } catch (error) {
     console.error('Error in fetch-forex-chart-data function:', error);

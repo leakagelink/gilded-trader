@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, TrendingUp, TrendingDown, X, RefreshCcw, ArrowUp, ArrowDown } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, X, RefreshCcw, ArrowUp, ArrowDown, CheckCircle2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -43,6 +43,8 @@ const Positions = () => {
   const [closedPositions, setClosedPositions] = useState<Position[]>([]);
   const [loading, setLoading] = useState(true);
   const [closePositionId, setClosePositionId] = useState<string | null>(null);
+  const [closingPositionId, setClosingPositionId] = useState<string | null>(null);
+  const [closedSuccessId, setClosedSuccessId] = useState<string | null>(null);
   const [priceChanges, setPriceChanges] = useState<Record<string, { direction: 'up' | 'down' | 'none'; flash: boolean }>>({});
   const previousPricesRef = useRef<Record<string, number>>({});
   const positionsRef = useRef<Position[]>([]);
@@ -358,6 +360,9 @@ const Positions = () => {
 
   const handleClosePosition = async (position: Position) => {
     try {
+      // Start closing animation
+      setClosingPositionId(position.id);
+      
       const closePrice = position.current_price;
       const pnl = position.position_type === 'long' 
         ? (closePrice - position.entry_price) * position.amount * position.leverage
@@ -379,6 +384,13 @@ const Positions = () => {
 
       if (error) throw error;
 
+      // Show success animation
+      setClosingPositionId(null);
+      setClosedSuccessId(position.id);
+
+      // Wait for animation to complete before moving to closed
+      await new Promise(resolve => setTimeout(resolve, 800));
+
       // IMMEDIATELY update local state - move from open to closed
       const closedPosition: Position = {
         ...position,
@@ -393,7 +405,8 @@ const Positions = () => {
       // Add to closed positions at the top
       setClosedPositions(prev => [closedPosition, ...prev]);
       
-      // Clean up refs
+      // Clean up refs and animation state
+      setClosedSuccessId(null);
       delete previousPricesRef.current[position.id];
       delete basePnlRef.current[position.id];
 
@@ -436,6 +449,8 @@ const Positions = () => {
     } catch (error) {
       console.error('Error closing position:', error);
       toast.error('Failed to close position');
+      setClosingPositionId(null);
+      setClosedSuccessId(null);
     }
   };
 
@@ -456,9 +471,30 @@ const Positions = () => {
     const isProfit = pnl >= 0;
     const isLong = position.position_type === 'long';
     const priceChange = priceChanges[position.id];
+    const isClosing = closingPositionId === position.id;
+    const isClosedSuccess = closedSuccessId === position.id;
 
     return (
-      <Card className="p-4 hover:shadow-lg transition-shadow">
+      <Card className={`p-4 hover:shadow-lg transition-all duration-300 relative overflow-hidden ${
+        isClosedSuccess ? 'scale-95 opacity-0 bg-green-500/20 border-green-500' : ''
+      } ${isClosing ? 'opacity-70' : ''}`}>
+        {/* Success overlay animation */}
+        {isClosedSuccess && (
+          <div className="absolute inset-0 flex items-center justify-center bg-green-500/20 z-10 animate-fade-in">
+            <div className="flex flex-col items-center gap-2">
+              <CheckCircle2 className="h-12 w-12 text-green-500 animate-scale-in" />
+              <span className="text-green-500 font-bold text-lg">Position Closed!</span>
+            </div>
+          </div>
+        )}
+        
+        {/* Loading overlay */}
+        {isClosing && (
+          <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-10">
+            <Loader2 className="h-8 w-8 text-primary animate-spin" />
+          </div>
+        )}
+        
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-2">
             <div className={`h-10 w-10 rounded-full flex items-center justify-center ${
@@ -477,7 +513,7 @@ const Positions = () => {
               </span>
             </div>
           </div>
-          {showCloseButton && (
+          {showCloseButton && !isClosing && !isClosedSuccess && (
             <Button
               variant="ghost"
               size="icon"

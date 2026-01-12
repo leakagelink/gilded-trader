@@ -50,8 +50,11 @@ const Positions = () => {
   const positionsRef = useRef<Position[]>([]);
   // Store base PnL for edited trades (admin-set values that don't change)
   const basePnlRef = useRef<Record<string, number>>({});
+  // Refs to track closing state without causing useEffect rerenders
+  const closingIdRef = useRef<string | null>(null);
+  const closedSuccessIdRef = useRef<string | null>(null);
   
-  // Keep ref in sync with state
+  // Keep refs in sync with state
   useEffect(() => {
     positionsRef.current = openPositions;
     // Initialize basePnlRef for edited trades from database values
@@ -61,6 +64,15 @@ const Positions = () => {
       }
     });
   }, [openPositions]);
+
+  // Sync closing state refs
+  useEffect(() => {
+    closingIdRef.current = closingPositionId;
+  }, [closingPositionId]);
+
+  useEffect(() => {
+    closedSuccessIdRef.current = closedSuccessId;
+  }, [closedSuccessId]);
 
   useEffect(() => {
     if (!user) {
@@ -81,8 +93,8 @@ const Positions = () => {
         // Always get fresh positions from ref, but filter out any that are being closed
         const currentPositions = positionsRef.current.filter(p => 
           p.status === 'open' && 
-          closingPositionId !== p.id && 
-          closedSuccessId !== p.id
+          closingIdRef.current !== p.id && 
+          closedSuccessIdRef.current !== p.id
         );
         if (currentPositions.length === 0) return;
 
@@ -263,8 +275,11 @@ const Positions = () => {
         // Use functional update to preserve any positions that were removed during this update
         setOpenPositions(prev => {
           const closedIds = new Set(
-            prev.filter(p => p.status === 'closed' || closingPositionId === p.id || closedSuccessId === p.id)
-              .map(p => p.id)
+            prev.filter(p => 
+              p.status === 'closed' || 
+              closingIdRef.current === p.id || 
+              closedSuccessIdRef.current === p.id
+            ).map(p => p.id)
           );
           // Filter out closed positions and merge with updated prices
           return updatedPositions.filter(p => !closedIds.has(p.id));
@@ -279,7 +294,7 @@ const Positions = () => {
     const interval = setInterval(updatePrices, 1000);
 
     return () => clearInterval(interval);
-  }, [user, hasOpenPositions, closingPositionId, closedSuccessId]);
+  }, [user, hasOpenPositions]);
 
   // Subscribe to real-time updates for position changes (when admin edits a trade)
   useEffect(() => {

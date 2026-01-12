@@ -78,6 +78,9 @@ const Positions = () => {
         const currentPositions = positionsRef.current;
         if (currentPositions.length === 0) return;
 
+        // Define commodity symbols for detection
+        const commoditySymbols = ['GOLD', 'XAU', 'SILVER', 'XAG', 'CRUDE', 'WTI', 'OIL', 'COPPER', 'PLATINUM', 'PALLADIUM', 'GAS', 'NATURALGAS'];
+
         // Fetch real crypto prices from CoinMarketCap for live trades
         let cryptoPrices: Record<string, number> = {};
         try {
@@ -89,6 +92,24 @@ const Positions = () => {
           }
         } catch (err) {
           console.error('Error fetching crypto prices:', err);
+        }
+
+        // Fetch commodity prices for live trades
+        let commodityPrices: Record<string, number> = {};
+        try {
+          const { data: commodityData, error: commodityError } = await supabase.functions.invoke('fetch-commodities-data');
+          if (!commodityError && commodityData?.commoditiesData) {
+            commodityData.commoditiesData.forEach((commodity: any) => {
+              commodityPrices[commodity.symbol.toUpperCase()] = parseFloat(commodity.price);
+              // Also map alternative names
+              if (commodity.symbol.toUpperCase() === 'XAU') commodityPrices['GOLD'] = parseFloat(commodity.price);
+              if (commodity.symbol.toUpperCase() === 'XAG') commodityPrices['SILVER'] = parseFloat(commodity.price);
+              if (commodity.symbol.toUpperCase() === 'WTI') commodityPrices['CRUDE'] = parseFloat(commodity.price);
+              if (commodity.symbol.toUpperCase() === 'WTI') commodityPrices['OIL'] = parseFloat(commodity.price);
+            });
+          }
+        } catch (err) {
+          console.error('Error fetching commodity prices:', err);
         }
         
         const updatedPositions = await Promise.all(
@@ -163,8 +184,13 @@ const Positions = () => {
             } else {
               // For live trades, use real market prices
               const isForex = position.symbol.includes('/');
+              const isCommodity = commoditySymbols.some(c => position.symbol.toUpperCase().includes(c));
               
-              if (!isForex && cryptoPrices[position.symbol.toUpperCase()]) {
+              if (isCommodity && commodityPrices[position.symbol.toUpperCase()]) {
+                // Use commodity prices
+                currentPrice = commodityPrices[position.symbol.toUpperCase()];
+              } else if (!isForex && !isCommodity && cryptoPrices[position.symbol.toUpperCase()]) {
+                // Use crypto prices
                 currentPrice = cryptoPrices[position.symbol.toUpperCase()];
               } else if (isForex) {
                 try {

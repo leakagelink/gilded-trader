@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,72 +20,82 @@ const passwordSchema = z.object({
 
 const ResetPassword = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isSuccess, setIsSuccess] = useState(false);
-  const [isValidSession, setIsValidSession] = useState(false);
-  const [isChecking, setIsChecking] = useState(true);
+  const [isReady, setIsReady] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
-    // Check if we have a valid recovery session
-    const checkSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        // Check URL for recovery token
-        const hashParams = new URLSearchParams(window.location.hash.substring(1));
-        const accessToken = hashParams.get('access_token');
-        const type = hashParams.get('type');
-        
-        if (type === 'recovery' && accessToken) {
-          // We have a recovery token, session should be set
-          setIsValidSession(true);
-        } else if (session) {
-          // Check if this is a recovery session by looking at the URL or session
-          const urlParams = new URLSearchParams(window.location.search);
-          if (urlParams.get('reset') === 'true' || urlParams.get('type') === 'recovery') {
-            setIsValidSession(true);
-          } else {
-            // Regular session, redirect to dashboard
-            navigate("/dashboard");
+    // Mark that we're in password recovery mode - this prevents auto-redirect
+    sessionStorage.setItem('password_recovery_mode', 'true');
+
+    const handleRecovery = async () => {
+      // Check for hash parameters (Supabase sends tokens in URL hash)
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const accessToken = hashParams.get('access_token');
+      const refreshToken = hashParams.get('refresh_token');
+      const type = hashParams.get('type');
+      const error = hashParams.get('error');
+      const errorDescription = hashParams.get('error_description');
+
+      // Handle error from Supabase
+      if (error) {
+        setErrorMessage(errorDescription || "Invalid or expired reset link");
+        return;
+      }
+
+      // If we have recovery tokens in the URL
+      if (type === 'recovery' && accessToken) {
+        try {
+          // Set the session with the recovery tokens
+          const { error: sessionError } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken || '',
+          });
+
+          if (sessionError) {
+            setErrorMessage("Invalid or expired reset link. Please request a new one.");
+            return;
           }
-        } else {
-          // No valid session, redirect to auth
-          toast.error("Invalid or expired reset link. Please request a new one.");
-          navigate("/auth");
+
+          // Clear the hash from URL for cleaner look
+          window.history.replaceState(null, '', window.location.pathname);
+          setIsReady(true);
+        } catch (err) {
+          console.error("Error setting session:", err);
+          setErrorMessage("An error occurred. Please try again.");
         }
-      } catch (error) {
-        console.error("Error checking session:", error);
-        toast.error("An error occurred. Please try again.");
-        navigate("/auth");
-      } finally {
-        setIsChecking(false);
+        return;
+      }
+
+      // Check if we already have a session (user might have refreshed the page)
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setIsReady(true);
+      } else {
+        setErrorMessage("No valid reset session found. Please request a new password reset link.");
       }
     };
 
-    // Listen for auth state changes (recovery token exchange)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    // Listen for PASSWORD_RECOVERY event
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log("Auth event:", event);
       if (event === 'PASSWORD_RECOVERY') {
-        setIsValidSession(true);
-        setIsChecking(false);
-      } else if (event === 'SIGNED_IN' && session) {
-        // Check if this came from a recovery flow
-        const hashParams = new URLSearchParams(window.location.hash.substring(1));
-        const type = hashParams.get('type');
-        if (type === 'recovery') {
-          setIsValidSession(true);
-          setIsChecking(false);
-        }
+        setIsReady(true);
       }
     });
 
-    checkSession();
+    handleRecovery();
 
-    return () => subscription.unsubscribe();
-  }, [navigate]);
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const handleResetPassword = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -106,6 +116,9 @@ const ResetPassword = () => {
       setIsSuccess(true);
       toast.success("Password updated successfully!");
       
+      // Clear recovery mode flag
+      sessionStorage.removeItem('password_recovery_mode');
+      
       // Sign out and redirect to login after a delay
       setTimeout(async () => {
         await supabase.auth.signOut();
@@ -122,7 +135,33 @@ const ResetPassword = () => {
     }
   };
 
-  if (isChecking) {
+  // Show error state
+  if (errorMessage) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md p-8 text-center">
+          <div className="flex items-center justify-center gap-2 mb-8">
+            <img src={logo} alt="CoinGoldFX" className="h-16 w-auto object-contain" />
+          </div>
+          <div className="flex flex-col items-center gap-4">
+            <div className="h-16 w-16 rounded-full bg-destructive/10 flex items-center justify-center">
+              <Lock className="h-8 w-8 text-destructive" />
+            </div>
+            <h2 className="text-xl font-semibold">Reset Link Invalid</h2>
+            <p className="text-muted-foreground text-sm">
+              {errorMessage}
+            </p>
+            <Button onClick={() => navigate("/auth")} className="mt-4">
+              Back to Sign In
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  // Show loading state
+  if (!isReady && !isSuccess) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 flex items-center justify-center p-4">
         <Card className="w-full max-w-md p-8 text-center">
@@ -135,6 +174,7 @@ const ResetPassword = () => {
     );
   }
 
+  // Show success state
   if (isSuccess) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 flex items-center justify-center p-4">
@@ -154,6 +194,7 @@ const ResetPassword = () => {
     );
   }
 
+  // Show password reset form
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 flex items-center justify-center p-4">
       <Card className="w-full max-w-md p-8">
@@ -225,7 +266,10 @@ const ResetPassword = () => {
         </form>
 
         <div className="mt-6 text-center">
-          <Button variant="link" onClick={() => navigate("/auth")}>
+          <Button variant="link" onClick={() => {
+            sessionStorage.removeItem('password_recovery_mode');
+            navigate("/auth");
+          }}>
             Back to Sign In
           </Button>
         </div>

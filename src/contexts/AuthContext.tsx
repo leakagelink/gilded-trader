@@ -35,6 +35,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        // Don't auto-navigate during password recovery
+        const isPasswordRecovery = sessionStorage.getItem('password_recovery_mode') === 'true';
+        const currentPath = window.location.pathname;
+        
+        if (event === 'PASSWORD_RECOVERY') {
+          // User clicked password reset link - don't redirect
+          sessionStorage.setItem('password_recovery_mode', 'true');
+          setSession(session);
+          setUser(session?.user ?? null);
+          setLoading(false);
+          return;
+        }
+        
+        // If we're on the reset password page and in recovery mode, don't update auth state that would cause redirect
+        if (isPasswordRecovery && currentPath === '/reset-password') {
+          setSession(session);
+          setUser(session?.user ?? null);
+          setLoading(false);
+          return;
+        }
+        
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);

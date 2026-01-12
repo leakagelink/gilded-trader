@@ -489,10 +489,22 @@ const Trading = () => {
       return;
     }
 
+    // Validate currentPrice before proceeding
+    if (!currentPrice || currentPrice <= 0 || isNaN(currentPrice)) {
+      toast.error("Price data not available. Please wait for price to load.");
+      return;
+    }
+
     try {
       const usdAmount = parseFloat(tradeAmount); // User enters USD amount
       const margin = usdAmount / leverage; // Margin is the USD amount divided by leverage
       const assetQuantity = usdAmount / currentPrice; // Calculate asset quantity from USD
+
+      // Validate calculated values
+      if (isNaN(assetQuantity) || assetQuantity <= 0) {
+        toast.error("Invalid trade calculation. Please try again.");
+        return;
+      }
 
       // Check wallet balance first
       const { data: wallet, error: walletError } = await supabase

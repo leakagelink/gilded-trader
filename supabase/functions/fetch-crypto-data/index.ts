@@ -27,38 +27,149 @@ const STATIC_FALLBACK_DATA = {
   ]
 };
 
-async function getActiveApiKey(serviceName: string) {
+// Track rate-limited keys with their cooldown expiry time (in-memory for this edge function instance)
+const rateLimitedKeys: Map<string, number> = new Map();
+const RATE_LIMIT_COOLDOWN_MS = 60000; // 1 minute cooldown for rate-limited keys
+
+async function getActiveApiKey(serviceName: string, excludeKeys: string[] = []) {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const supabase = createClient(supabaseUrl, supabaseKey);
   
-  const { data, error } = await supabase.rpc('get_active_api_key', {
-    p_service_name: serviceName
-  });
+  // First, re-enable any keys that have completed their cooldown period
+  await reEnableExpiredKeys(serviceName);
+  
+  // Get all keys for this service, ordered by priority
+  const { data: allKeys, error } = await supabase
+    .from('api_keys')
+    .select('api_key, is_active, priority, last_used_at')
+    .eq('service_name', serviceName)
+    .order('priority', { ascending: true });
   
   if (error) {
-    console.error('Error fetching API key:', error);
+    console.error('Error fetching API keys:', error);
     return null;
   }
   
-  return data;
+  if (!allKeys || allKeys.length === 0) {
+    return null;
+  }
+  
+  // Find the first active key that's not in excludeKeys and not in cooldown
+  const now = Date.now();
+  for (const key of allKeys) {
+    if (!key.api_key) continue;
+    if (excludeKeys.includes(key.api_key)) continue;
+    
+    // Check if key is in cooldown
+    const cooldownExpiry = rateLimitedKeys.get(key.api_key);
+    if (cooldownExpiry && now < cooldownExpiry) {
+      console.log(`Key is in cooldown, ${Math.ceil((cooldownExpiry - now) / 1000)}s remaining`);
+      continue;
+    }
+    
+    // If key was in cooldown but now expired, remove from map
+    if (cooldownExpiry) {
+      rateLimitedKeys.delete(key.api_key);
+    }
+    
+    // If key is active, use it
+    if (key.is_active) {
+      // Update last_used_at
+      await supabase
+        .from('api_keys')
+        .update({ last_used_at: new Date().toISOString() })
+        .eq('service_name', serviceName)
+        .eq('api_key', key.api_key);
+      
+      return key.api_key;
+    }
+  }
+  
+  // If no active keys found, try to re-enable the first inactive key that's not in cooldown
+  for (const key of allKeys) {
+    if (!key.api_key) continue;
+    if (excludeKeys.includes(key.api_key)) continue;
+    
+    const cooldownExpiry = rateLimitedKeys.get(key.api_key);
+    if (cooldownExpiry && now < cooldownExpiry) continue;
+    
+    // Re-enable this key
+    console.log(`Re-enabling inactive key (priority ${key.priority})`);
+    const { error: updateError } = await supabase
+      .from('api_keys')
+      .update({ is_active: true, last_used_at: new Date().toISOString() })
+      .eq('service_name', serviceName)
+      .eq('api_key', key.api_key);
+    
+    if (!updateError) {
+      return key.api_key;
+    }
+  }
+  
+  return null;
 }
 
-async function markKeyAsInactive(serviceName: string, apiKey: string) {
+async function reEnableExpiredKeys(serviceName: string) {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const supabase = createClient(supabaseUrl, supabaseKey);
   
+  const now = Date.now();
+  
+  // Check for keys that have been inactive for more than 1 minute
+  const oneMinuteAgo = new Date(now - RATE_LIMIT_COOLDOWN_MS).toISOString();
+  
+  // Re-enable keys that were disabled more than 1 minute ago
+  const { data: inactiveKeys, error } = await supabase
+    .from('api_keys')
+    .select('api_key, last_used_at')
+    .eq('service_name', serviceName)
+    .eq('is_active', false);
+  
+  if (error || !inactiveKeys) return;
+  
+  for (const key of inactiveKeys) {
+    // Check if not in cooldown map or cooldown expired
+    const cooldownExpiry = rateLimitedKeys.get(key.api_key);
+    if (!cooldownExpiry || now >= cooldownExpiry) {
+      // Check if last_used_at is more than 1 minute ago
+      if (key.last_used_at && new Date(key.last_used_at).getTime() < now - RATE_LIMIT_COOLDOWN_MS) {
+        console.log(`Re-enabling key after cooldown period`);
+        await supabase
+          .from('api_keys')
+          .update({ is_active: true })
+          .eq('service_name', serviceName)
+          .eq('api_key', key.api_key);
+        
+        rateLimitedKeys.delete(key.api_key);
+      }
+    }
+  }
+}
+
+async function markKeyAsRateLimited(serviceName: string, apiKey: string) {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const supabase = createClient(supabaseUrl, supabaseKey);
+  
+  // Add to in-memory cooldown map
+  rateLimitedKeys.set(apiKey, Date.now() + RATE_LIMIT_COOLDOWN_MS);
+  
+  // Temporarily disable in database
   const { error } = await supabase
     .from('api_keys')
-    .update({ is_active: false })
+    .update({ 
+      is_active: false,
+      last_used_at: new Date().toISOString()
+    })
     .eq('service_name', serviceName)
     .eq('api_key', apiKey);
   
   if (error) {
-    console.error('Error marking key as inactive:', error);
+    console.error('Error marking key as rate-limited:', error);
   } else {
-    console.log(`Marked ${serviceName} key as inactive due to rate limit`);
+    console.log(`Marked ${serviceName} key as rate-limited for 60 seconds - will auto re-enable`);
   }
 }
 
@@ -134,10 +245,11 @@ serve(async (req) => {
     let attempts = 0;
     const MAX_ATTEMPTS = 10;
     let lastError: any = null;
+    const usedKeys: string[] = [];
 
     while (attempts < MAX_ATTEMPTS) {
       attempts++;
-      let apiKey = await getActiveApiKey('coinmarketcap');
+      let apiKey = await getActiveApiKey('coinmarketcap', usedKeys);
       
       // Fallback to secret if no database keys configured
       if (!apiKey) {
@@ -148,6 +260,8 @@ serve(async (req) => {
           break;
         }
         console.log('Using fallback API key from secrets');
+      } else {
+        usedKeys.push(apiKey);
       }
 
       console.log(`Attempt ${attempts}: Using CoinMarketCap API key`);
@@ -200,10 +314,9 @@ serve(async (req) => {
           const errorText = await response.text();
           console.error(`Rate limit hit for key, status ${response.status}:`, errorText);
           
-          // Only mark database keys as inactive, not the secret fallback
-          const dbApiKey = await getActiveApiKey('coinmarketcap');
-          if (dbApiKey) {
-            await markKeyAsInactive('coinmarketcap', dbApiKey);
+          // Mark the current key as rate-limited
+          if (apiKey) {
+            await markKeyAsRateLimited('coinmarketcap', apiKey);
           }
           
           // Try next key

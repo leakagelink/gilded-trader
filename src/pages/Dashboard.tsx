@@ -24,9 +24,9 @@ const Dashboard = () => {
   const [commoditiesLoading, setCommoditiesLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const fetchCryptoData = async () => {
+  const fetchCryptoData = async (isBackgroundRefresh = false) => {
     try {
-      setLoading(true);
+      if (!isBackgroundRefresh) setLoading(true);
       const { data, error } = await supabase.functions.invoke('fetch-crypto-data');
       
       if (error) {
@@ -40,13 +40,13 @@ const Dashboard = () => {
     } catch (error) {
       console.error('Error:', error);
     } finally {
-      setLoading(false);
+      if (!isBackgroundRefresh) setLoading(false);
     }
   };
 
-  const fetchForexData = async () => {
+  const fetchForexData = async (isBackgroundRefresh = false) => {
     try {
-      setForexLoading(true);
+      if (!isBackgroundRefresh) setForexLoading(true);
       const { data, error } = await supabase.functions.invoke('fetch-forex-data');
       
       if (error) {
@@ -60,13 +60,13 @@ const Dashboard = () => {
     } catch (error) {
       console.error('Error:', error);
     } finally {
-      setForexLoading(false);
+      if (!isBackgroundRefresh) setForexLoading(false);
     }
   };
 
-  const fetchCommoditiesData = async () => {
+  const fetchCommoditiesData = async (isBackgroundRefresh = false) => {
     try {
-      setCommoditiesLoading(true);
+      if (!isBackgroundRefresh) setCommoditiesLoading(true);
       const { data, error } = await supabase.functions.invoke('fetch-commodities-data');
       
       if (error) {
@@ -80,7 +80,7 @@ const Dashboard = () => {
     } catch (error) {
       console.error('Error:', error);
     } finally {
-      setCommoditiesLoading(false);
+      if (!isBackgroundRefresh) setCommoditiesLoading(false);
     }
   };
 
@@ -116,11 +116,11 @@ const Dashboard = () => {
       fetchCommoditiesData();
       checkAdminStatus();
       
-      // Auto-refresh every 10 seconds for real-time data
+      // Auto-refresh every 10 seconds for real-time data (background refresh - no loading skeleton)
       const refreshInterval = setInterval(() => {
-        fetchCryptoData();
-        fetchForexData();
-        fetchCommoditiesData();
+        fetchCryptoData(true);
+        fetchForexData(true);
+        fetchCommoditiesData(true);
       }, 10000);
 
       return () => clearInterval(refreshInterval);
@@ -272,7 +272,7 @@ const Dashboard = () => {
                       Cryptocurrency Markets
                     </span>
                   </h2>
-                  <Button variant="ghost" size="icon" onClick={fetchCryptoData} aria-label="Refresh markets" title="Refresh markets">
+                  <Button variant="ghost" size="icon" onClick={() => fetchCryptoData()} aria-label="Refresh markets" title="Refresh markets">
                     <RotateCcw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
                   </Button>
                 </div>
@@ -311,7 +311,7 @@ const Dashboard = () => {
                       Forex Markets
                     </span>
                   </h2>
-                  <Button variant="ghost" size="icon" onClick={fetchForexData} aria-label="Refresh forex" title="Refresh forex">
+                  <Button variant="ghost" size="icon" onClick={() => fetchForexData()} aria-label="Refresh forex" title="Refresh forex">
                     <RotateCcw className={`h-4 w-4 ${forexLoading ? "animate-spin" : ""}`} />
                   </Button>
                 </div>
@@ -350,7 +350,7 @@ const Dashboard = () => {
                       Commodities Markets
                     </span>
                   </h2>
-                  <Button variant="ghost" size="icon" onClick={fetchCommoditiesData} aria-label="Refresh commodities" title="Refresh commodities">
+                  <Button variant="ghost" size="icon" onClick={() => fetchCommoditiesData()} aria-label="Refresh commodities" title="Refresh commodities">
                     <RotateCcw className={`h-4 w-4 ${commoditiesLoading ? "animate-spin" : ""}`} />
                   </Button>
                 </div>

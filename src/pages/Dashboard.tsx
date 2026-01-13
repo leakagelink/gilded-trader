@@ -116,12 +116,12 @@ const Dashboard = () => {
       fetchCommoditiesData();
       checkAdminStatus();
       
-      // Auto-refresh every 10 seconds for real-time data (background refresh - no loading skeleton)
+      // Auto-refresh every 30 seconds for real-time data (background refresh - no loading skeleton)
       const refreshInterval = setInterval(() => {
         fetchCryptoData(true);
         fetchForexData(true);
         fetchCommoditiesData(true);
-      }, 10000);
+      }, 30000);
 
       return () => clearInterval(refreshInterval);
     } catch (error) {

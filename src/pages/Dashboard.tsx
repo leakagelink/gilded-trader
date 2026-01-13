@@ -16,26 +16,12 @@ const Dashboard = () => {
   const { user, loading: authLoading, signOut } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [cryptoData, setCryptoData] = useState([
-    { name: "Bitcoin", symbol: "BTC", price: "$43,250.00", change: "+2.5%", isPositive: true, icon: Bitcoin },
-    { name: "Ethereum", symbol: "ETH", price: "$2,280.50", change: "+1.8%", isPositive: true, icon: Coins },
-    { name: "Ripple", symbol: "XRP", price: "$0.62", change: "-0.5%", isPositive: false, icon: Coins },
-    { name: "Cardano", symbol: "ADA", price: "$0.48", change: "+3.2%", isPositive: true, icon: Coins },
-    { name: "Solana", symbol: "SOL", price: "$98.75", change: "+5.1%", isPositive: true, icon: Coins },
-  ]);
-  const [forexData, setForexData] = useState([
-    { name: "EUR/USD", symbol: "EUR", price: "1.0925", change: "+0.15%", isPositive: true, icon: "🇪🇺" },
-    { name: "GBP/USD", symbol: "GBP", price: "1.2750", change: "-0.08%", isPositive: false, icon: "🇬🇧" },
-    { name: "USD/JPY", symbol: "JPY", price: "148.50", change: "+0.22%", isPositive: true, icon: "🇯🇵" },
-  ]);
-  const [commoditiesData, setCommoditiesData] = useState([
-    { name: "Gold", symbol: "XAU", price: "2050.00", change: "+1.2%", isPositive: true, icon: "🥇" },
-    { name: "Silver", symbol: "XAG", price: "24.50", change: "+0.8%", isPositive: true, icon: "🥈" },
-    { name: "Crude Oil", symbol: "WTI", price: "78.50", change: "-0.5%", isPositive: false, icon: "🛢️" },
-  ]);
+  const [cryptoData, setCryptoData] = useState<any[]>([]);
+  const [forexData, setForexData] = useState<any[]>([]);
+  const [commoditiesData, setCommoditiesData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [forexLoading, setForexLoading] = useState(false);
-  const [commoditiesLoading, setCommoditiesLoading] = useState(false);
+  const [forexLoading, setForexLoading] = useState(true);
+  const [commoditiesLoading, setCommoditiesLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
   const fetchCryptoData = async () => {
@@ -290,7 +276,25 @@ const Dashboard = () => {
                     <RotateCcw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
                   </Button>
                 </div>
-                {filteredCryptoData.length > 0 ? (
+                {loading ? (
+                  <div className="space-y-3">
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <div key={i} className="animate-pulse bg-muted/50 rounded-lg p-4 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-muted"></div>
+                          <div>
+                            <div className="h-4 w-24 bg-muted rounded mb-2"></div>
+                            <div className="h-3 w-16 bg-muted rounded"></div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="h-4 w-20 bg-muted rounded mb-2"></div>
+                          <div className="h-3 w-12 bg-muted rounded"></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : filteredCryptoData.length > 0 ? (
                   <TradingList data={filteredCryptoData} />
                 ) : (
                   <div className="text-center py-8 text-muted-foreground">
@@ -311,7 +315,25 @@ const Dashboard = () => {
                     <RotateCcw className={`h-4 w-4 ${forexLoading ? "animate-spin" : ""}`} />
                   </Button>
                 </div>
-                {filteredForexData.length > 0 ? (
+                {forexLoading ? (
+                  <div className="space-y-3">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="animate-pulse bg-muted/50 rounded-lg p-4 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-muted"></div>
+                          <div>
+                            <div className="h-4 w-24 bg-muted rounded mb-2"></div>
+                            <div className="h-3 w-16 bg-muted rounded"></div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="h-4 w-20 bg-muted rounded mb-2"></div>
+                          <div className="h-3 w-12 bg-muted rounded"></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : filteredForexData.length > 0 ? (
                   <TradingList data={filteredForexData} />
                 ) : (
                   <div className="text-center py-8 text-muted-foreground">
@@ -332,7 +354,25 @@ const Dashboard = () => {
                     <RotateCcw className={`h-4 w-4 ${commoditiesLoading ? "animate-spin" : ""}`} />
                   </Button>
                 </div>
-                {filteredCommoditiesData.length > 0 ? (
+                {commoditiesLoading ? (
+                  <div className="space-y-3">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="animate-pulse bg-muted/50 rounded-lg p-4 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-muted"></div>
+                          <div>
+                            <div className="h-4 w-24 bg-muted rounded mb-2"></div>
+                            <div className="h-3 w-16 bg-muted rounded"></div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="h-4 w-20 bg-muted rounded mb-2"></div>
+                          <div className="h-3 w-12 bg-muted rounded"></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : filteredCommoditiesData.length > 0 ? (
                   <TradingList data={filteredCommoditiesData} />
                 ) : (
                   <div className="text-center py-8 text-muted-foreground">

@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, TrendingUp, TrendingDown, RefreshCcw, Activity, ChevronLeft, ChevronRight, ShoppingCart, DollarSign, ExternalLink } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, RefreshCcw, Activity, ChevronLeft, ChevronRight, ShoppingCart, DollarSign, ExternalLink, Coins } from "lucide-react";
+import { Tabs as InputTabs, TabsList as InputTabsList, TabsTrigger as InputTabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -76,6 +77,8 @@ const Trading = () => {
   const [showLongDialog, setShowLongDialog] = useState(false);
   const [showShortDialog, setShowShortDialog] = useState(false);
   const [tradeAmount, setTradeAmount] = useState(""); // USD amount
+  const [lotSize, setLotSize] = useState(""); // Lot size (units)
+  const [inputMode, setInputMode] = useState<'amount' | 'lotSize'>('amount');
   const [leverage, setLeverage] = useState(1);
   const [chartScale, setChartScale] = useState(1);
   const [walletBalance, setWalletBalance] = useState<number>(0);
@@ -484,9 +487,17 @@ const Trading = () => {
   };
 
   const handleOpenPosition = async (type: 'long' | 'short') => {
-    if (!tradeAmount || parseFloat(tradeAmount) <= 0) {
-      toast.error("Please enter a valid USD amount");
-      return;
+    // Validate based on input mode
+    if (inputMode === 'amount') {
+      if (!tradeAmount || parseFloat(tradeAmount) <= 0) {
+        toast.error("Please enter a valid USD amount");
+        return;
+      }
+    } else {
+      if (!lotSize || parseFloat(lotSize) <= 0) {
+        toast.error("Please enter a valid lot size");
+        return;
+      }
     }
 
     // Validate currentPrice before proceeding
@@ -496,12 +507,24 @@ const Trading = () => {
     }
 
     try {
-      const usdAmount = parseFloat(tradeAmount); // User enters USD amount
-      const margin = usdAmount / leverage; // Margin is the USD amount divided by leverage
-      const assetQuantity = usdAmount / currentPrice; // Calculate asset quantity from USD
+      let usdAmount: number;
+      let margin: number;
+      let assetQuantity: number;
+
+      if (inputMode === 'amount') {
+        // Amount mode: user enters USD amount
+        usdAmount = parseFloat(tradeAmount);
+        margin = usdAmount / leverage;
+        assetQuantity = usdAmount / currentPrice;
+      } else {
+        // Lot size mode: user enters asset quantity (lot size)
+        assetQuantity = parseFloat(lotSize);
+        usdAmount = assetQuantity * currentPrice; // Total position value
+        margin = (assetQuantity * currentPrice) / leverage; // Margin = (lotSize * price) / leverage
+      }
 
       // Validate calculated values
-      if (isNaN(assetQuantity) || assetQuantity <= 0) {
+      if (isNaN(assetQuantity) || assetQuantity <= 0 || isNaN(margin) || margin <= 0) {
         toast.error("Invalid trade calculation. Please try again.");
         return;
       }
@@ -568,8 +591,9 @@ const Trading = () => {
         reference_id: null
       });
 
-      toast.success(`${type.toUpperCase()} position opened: $${usdAmount.toFixed(2)} (${assetQuantity.toFixed(6)} ${symbol?.toUpperCase()}). Margin: $${margin.toFixed(2)}`);
+      toast.success(`${type.toUpperCase()} position opened: ${assetQuantity.toFixed(6)} ${symbol?.toUpperCase()} @ $${currentPrice.toFixed(2)}. Margin: $${margin.toFixed(2)}`);
       setTradeAmount("");
+      setLotSize("");
       setShowLongDialog(false);
       setShowShortDialog(false);
       fetchWalletBalance(); // Refresh balance
@@ -935,21 +959,57 @@ const Trading = () => {
               </div>
             </div>
 
-            <div>
-              <Label htmlFor="long-amount">Trade Amount (USD)</Label>
-              <div className="relative mt-2">
-                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="long-amount"
-                  type="number"
-                  placeholder="Enter USD amount (e.g., 20, 50, 100)"
-                  value={tradeAmount}
-                  onChange={(e) => setTradeAmount(e.target.value)}
-                  className="pl-9"
-                />
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">Enter the amount in USD you want to trade</p>
+            {/* Input Mode Toggle */}
+            <div className="flex items-center gap-2">
+              <InputTabs value={inputMode} onValueChange={(v) => setInputMode(v as 'amount' | 'lotSize')} className="w-full">
+                <InputTabsList className="grid w-full grid-cols-2">
+                  <InputTabsTrigger value="amount" className="flex items-center gap-1">
+                    <DollarSign className="h-3 w-3" />
+                    Amount (USD)
+                  </InputTabsTrigger>
+                  <InputTabsTrigger value="lotSize" className="flex items-center gap-1">
+                    <Coins className="h-3 w-3" />
+                    Lot Size
+                  </InputTabsTrigger>
+                </InputTabsList>
+              </InputTabs>
             </div>
+
+            {/* Amount Input */}
+            {inputMode === 'amount' ? (
+              <div>
+                <Label htmlFor="long-amount">Trade Amount (USD)</Label>
+                <div className="relative mt-2">
+                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="long-amount"
+                    type="number"
+                    placeholder="Enter USD amount (e.g., 20, 50, 100)"
+                    value={tradeAmount}
+                    onChange={(e) => setTradeAmount(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Enter the amount in USD you want to trade</p>
+              </div>
+            ) : (
+              <div>
+                <Label htmlFor="long-lotsize">Lot Size (Units)</Label>
+                <div className="relative mt-2">
+                  <Coins className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="long-lotsize"
+                    type="number"
+                    placeholder="Enter lot size (e.g., 0.01, 0.1, 1)"
+                    value={lotSize}
+                    onChange={(e) => setLotSize(e.target.value)}
+                    className="pl-9"
+                    step="0.001"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Enter the quantity of {symbol?.toUpperCase()} you want to trade</p>
+              </div>
+            )}
             
             <div className="p-3 bg-muted rounded-lg space-y-2">
               <div className="flex justify-between text-sm">
@@ -959,19 +1019,28 @@ const Trading = () => {
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Asset Quantity:</span>
                 <span className="font-semibold">
-                  {tradeAmount && currentPrice > 0 ? (parseFloat(tradeAmount) / currentPrice).toFixed(6) : "0.000000"} {symbol?.toUpperCase()}
+                  {inputMode === 'amount' 
+                    ? (tradeAmount && currentPrice > 0 ? (parseFloat(tradeAmount) / currentPrice).toFixed(6) : "0.000000")
+                    : (lotSize || "0.000000")
+                  } {symbol?.toUpperCase()}
                 </span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Margin Required:</span>
                 <span className="font-semibold">
-                  ${tradeAmount ? (parseFloat(tradeAmount) / leverage).toFixed(2) : "0.00"}
+                  ${inputMode === 'amount'
+                    ? (tradeAmount ? (parseFloat(tradeAmount) / leverage).toFixed(2) : "0.00")
+                    : (lotSize && currentPrice > 0 ? ((parseFloat(lotSize) * currentPrice) / leverage).toFixed(2) : "0.00")
+                  }
                 </span>
               </div>
               <div className="flex justify-between text-sm border-t border-border pt-2 mt-2">
                 <span className="text-muted-foreground">Position Value:</span>
                 <span className="font-semibold text-lg text-green-500">
-                  ${tradeAmount ? parseFloat(tradeAmount).toFixed(2) : "0.00"}
+                  ${inputMode === 'amount'
+                    ? (tradeAmount ? parseFloat(tradeAmount).toFixed(2) : "0.00")
+                    : (lotSize && currentPrice > 0 ? (parseFloat(lotSize) * currentPrice).toFixed(2) : "0.00")
+                  }
                 </span>
               </div>
             </div>
@@ -979,7 +1048,11 @@ const Trading = () => {
               onClick={() => handleOpenPosition('long')}
               className="w-full bg-green-500 hover:bg-green-600 text-white h-12"
               size="lg"
-              disabled={!tradeAmount || parseFloat(tradeAmount) <= 0 || parseFloat(tradeAmount) / leverage > walletBalance}
+              disabled={
+                inputMode === 'amount'
+                  ? (!tradeAmount || parseFloat(tradeAmount) <= 0 || parseFloat(tradeAmount) / leverage > walletBalance)
+                  : (!lotSize || parseFloat(lotSize) <= 0 || !currentPrice || currentPrice <= 0 || (parseFloat(lotSize) * currentPrice) / leverage > walletBalance)
+              }
             >
               <TrendingUp className="mr-2 h-5 w-5" />
               Open LONG Position
@@ -1009,21 +1082,57 @@ const Trading = () => {
               </div>
             </div>
 
-            <div>
-              <Label htmlFor="short-amount">Trade Amount (USD)</Label>
-              <div className="relative mt-2">
-                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="short-amount"
-                  type="number"
-                  placeholder="Enter USD amount (e.g., 20, 50, 100)"
-                  value={tradeAmount}
-                  onChange={(e) => setTradeAmount(e.target.value)}
-                  className="pl-9"
-                />
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">Enter the amount in USD you want to trade</p>
+            {/* Input Mode Toggle */}
+            <div className="flex items-center gap-2">
+              <InputTabs value={inputMode} onValueChange={(v) => setInputMode(v as 'amount' | 'lotSize')} className="w-full">
+                <InputTabsList className="grid w-full grid-cols-2">
+                  <InputTabsTrigger value="amount" className="flex items-center gap-1">
+                    <DollarSign className="h-3 w-3" />
+                    Amount (USD)
+                  </InputTabsTrigger>
+                  <InputTabsTrigger value="lotSize" className="flex items-center gap-1">
+                    <Coins className="h-3 w-3" />
+                    Lot Size
+                  </InputTabsTrigger>
+                </InputTabsList>
+              </InputTabs>
             </div>
+
+            {/* Amount Input */}
+            {inputMode === 'amount' ? (
+              <div>
+                <Label htmlFor="short-amount">Trade Amount (USD)</Label>
+                <div className="relative mt-2">
+                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="short-amount"
+                    type="number"
+                    placeholder="Enter USD amount (e.g., 20, 50, 100)"
+                    value={tradeAmount}
+                    onChange={(e) => setTradeAmount(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Enter the amount in USD you want to trade</p>
+              </div>
+            ) : (
+              <div>
+                <Label htmlFor="short-lotsize">Lot Size (Units)</Label>
+                <div className="relative mt-2">
+                  <Coins className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="short-lotsize"
+                    type="number"
+                    placeholder="Enter lot size (e.g., 0.01, 0.1, 1)"
+                    value={lotSize}
+                    onChange={(e) => setLotSize(e.target.value)}
+                    className="pl-9"
+                    step="0.001"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Enter the quantity of {symbol?.toUpperCase()} you want to trade</p>
+              </div>
+            )}
             
             <div className="p-3 bg-muted rounded-lg space-y-2">
               <div className="flex justify-between text-sm">
@@ -1033,19 +1142,28 @@ const Trading = () => {
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Asset Quantity:</span>
                 <span className="font-semibold">
-                  {tradeAmount && currentPrice > 0 ? (parseFloat(tradeAmount) / currentPrice).toFixed(6) : "0.000000"} {symbol?.toUpperCase()}
+                  {inputMode === 'amount' 
+                    ? (tradeAmount && currentPrice > 0 ? (parseFloat(tradeAmount) / currentPrice).toFixed(6) : "0.000000")
+                    : (lotSize || "0.000000")
+                  } {symbol?.toUpperCase()}
                 </span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Margin Required:</span>
                 <span className="font-semibold">
-                  ${tradeAmount ? (parseFloat(tradeAmount) / leverage).toFixed(2) : "0.00"}
+                  ${inputMode === 'amount'
+                    ? (tradeAmount ? (parseFloat(tradeAmount) / leverage).toFixed(2) : "0.00")
+                    : (lotSize && currentPrice > 0 ? ((parseFloat(lotSize) * currentPrice) / leverage).toFixed(2) : "0.00")
+                  }
                 </span>
               </div>
               <div className="flex justify-between text-sm border-t border-border pt-2 mt-2">
                 <span className="text-muted-foreground">Position Value:</span>
                 <span className="font-semibold text-lg text-red-500">
-                  ${tradeAmount ? parseFloat(tradeAmount).toFixed(2) : "0.00"}
+                  ${inputMode === 'amount'
+                    ? (tradeAmount ? parseFloat(tradeAmount).toFixed(2) : "0.00")
+                    : (lotSize && currentPrice > 0 ? (parseFloat(lotSize) * currentPrice).toFixed(2) : "0.00")
+                  }
                 </span>
               </div>
             </div>
@@ -1053,7 +1171,11 @@ const Trading = () => {
               onClick={() => handleOpenPosition('short')}
               className="w-full bg-red-500 hover:bg-red-600 text-white h-12"
               size="lg"
-              disabled={!tradeAmount || parseFloat(tradeAmount) <= 0 || parseFloat(tradeAmount) / leverage > walletBalance}
+              disabled={
+                inputMode === 'amount'
+                  ? (!tradeAmount || parseFloat(tradeAmount) <= 0 || parseFloat(tradeAmount) / leverage > walletBalance)
+                  : (!lotSize || parseFloat(lotSize) <= 0 || !currentPrice || currentPrice <= 0 || (parseFloat(lotSize) * currentPrice) / leverage > walletBalance)
+              }
             >
               <TrendingDown className="mr-2 h-5 w-5" />
               Open SHORT Position

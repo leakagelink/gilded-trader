@@ -288,15 +288,18 @@ export const AdminTradeManagement = () => {
               // Calculate base PnL percentage from margin
               const basePnlPercent = position.margin > 0 ? (basePnl / position.margin) * 100 : 0;
               
-              // Add momentum: fluctuate ±5% around the base PnL percentage
-              const momentumOffset = (Math.random() - 0.5) * 10; // -5% to +5%
-              let adjustedPnlPercent = basePnlPercent + momentumOffset;
+              // DIRECTIONAL MOMENTUM:
+              // If PnL is positive (increased by admin), momentum goes ONLY upward (0% to +5% above base)
+              // If PnL is negative (decreased by admin), momentum goes ONLY downward (0% to -5% below base)
+              const momentumOffset = Math.random() * 5; // 0% to 5%
+              let adjustedPnlPercent: number;
               
-              // Keep the sign consistent with base PnL direction
-              if (isPositivePnl && adjustedPnlPercent < 0) {
-                adjustedPnlPercent = Math.abs(momentumOffset);
-              } else if (!isPositivePnl && adjustedPnlPercent > 0) {
-                adjustedPnlPercent = -Math.abs(momentumOffset);
+              if (isPositivePnl) {
+                // Positive PnL: fluctuate from base to base+5%
+                adjustedPnlPercent = basePnlPercent + momentumOffset;
+              } else {
+                // Negative PnL: fluctuate from base to base-5%
+                adjustedPnlPercent = basePnlPercent - momentumOffset;
               }
               
               // Calculate display PnL from adjusted percentage

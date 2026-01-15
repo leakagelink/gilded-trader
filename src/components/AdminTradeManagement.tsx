@@ -132,6 +132,7 @@ export const AdminTradeManagement = () => {
   const [selectedUserBalance, setSelectedUserBalance] = useState<number | null>(null);
   const [userSearchQuery, setUserSearchQuery] = useState("");
   const [fetchedPrice, setFetchedPrice] = useState<number | null>(null);
+  const [selectedLetter, setSelectedLetter] = useState<string | null>(null);
 
   // Get available assets based on asset type
   const availableAssets = useMemo(() => {
@@ -173,13 +174,39 @@ export const AdminTradeManagement = () => {
 
   // Filter users for search in dialog
   const filteredUsersForDialog = useMemo(() => {
-    if (!userSearchQuery.trim()) return users;
-    const query = userSearchQuery.toLowerCase();
-    return users.filter(user => 
-      (user.full_name?.toLowerCase() || '').includes(query) ||
-      (user.email?.toLowerCase() || '').includes(query)
-    );
-  }, [users, userSearchQuery]);
+    let filtered = users;
+    
+    // Apply letter filter first
+    if (selectedLetter) {
+      filtered = filtered.filter(user => {
+        const name = user.full_name?.trim() || '';
+        return name.toUpperCase().startsWith(selectedLetter);
+      });
+    }
+    
+    // Then apply search query
+    if (userSearchQuery.trim()) {
+      const query = userSearchQuery.toLowerCase();
+      filtered = filtered.filter(user => 
+        (user.full_name?.toLowerCase() || '').includes(query) ||
+        (user.email?.toLowerCase() || '').includes(query)
+      );
+    }
+    
+    return filtered;
+  }, [users, userSearchQuery, selectedLetter]);
+
+  // Get available letters from users
+  const availableLetters = useMemo(() => {
+    const letters = new Set<string>();
+    users.forEach(user => {
+      const firstChar = user.full_name?.trim().charAt(0).toUpperCase();
+      if (firstChar && /[A-Z]/.test(firstChar)) {
+        letters.add(firstChar);
+      }
+    });
+    return Array.from(letters).sort();
+  }, [users]);
 
   // Fetch user balance when user is selected for trade
   const fetchUserBalance = async (userId: string) => {
@@ -1393,6 +1420,7 @@ export const AdminTradeManagement = () => {
         setOpenTradeDialog(open);
         if (!open) {
           setUserSearchQuery("");
+          setSelectedLetter(null);
           setSymbol("");
           setAmount("");
           setLotSize("");
@@ -1430,6 +1458,32 @@ export const AdminTradeManagement = () => {
                   className="pl-8 h-9"
                 />
               </div>
+              
+              {/* A-Z Quick Filter */}
+              <div className="flex flex-wrap gap-1 mb-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={selectedLetter === null ? "default" : "outline"}
+                  className="h-6 w-8 p-0 text-xs"
+                  onClick={() => setSelectedLetter(null)}
+                >
+                  All
+                </Button>
+                {availableLetters.map((letter) => (
+                  <Button
+                    key={letter}
+                    type="button"
+                    size="sm"
+                    variant={selectedLetter === letter ? "default" : "outline"}
+                    className="h-6 w-6 p-0 text-xs"
+                    onClick={() => setSelectedLetter(letter)}
+                  >
+                    {letter}
+                  </Button>
+                ))}
+              </div>
+              
               <Select value={selectedUser} onValueChange={handleUserSelect}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select user" />

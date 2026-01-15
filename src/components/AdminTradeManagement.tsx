@@ -1421,36 +1421,31 @@ export const AdminTradeManagement = () => {
 
             <div>
               <Label>Select User</Label>
+              <div className="relative mb-2">
+                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search users..."
+                  value={userSearchQuery}
+                  onChange={(e) => setUserSearchQuery(e.target.value)}
+                  className="pl-8 h-9"
+                />
+              </div>
               <Select value={selectedUser} onValueChange={handleUserSelect}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select user" />
                 </SelectTrigger>
-                <SelectContent>
-                  <div className="px-2 py-2 sticky top-0 bg-popover z-10">
-                    <div className="relative">
-                      <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Search users..."
-                        value={userSearchQuery}
-                        onChange={(e) => setUserSearchQuery(e.target.value)}
-                        className="pl-8 h-8"
-                        onClick={(e) => e.stopPropagation()}
-                      />
+                <SelectContent className="max-h-[250px] overflow-y-auto bg-popover z-50">
+                  {filteredUsersForDialog.length === 0 ? (
+                    <div className="py-4 text-center text-muted-foreground text-sm">
+                      No users found
                     </div>
-                  </div>
-                  <ScrollArea className="max-h-[200px]">
-                    {filteredUsersForDialog.length === 0 ? (
-                      <div className="py-4 text-center text-muted-foreground text-sm">
-                        No users found
-                      </div>
-                    ) : (
-                      filteredUsersForDialog.map((user) => (
-                        <SelectItem key={user.id} value={user.id}>
-                          {user.full_name || 'No Name'} ({user.email})
-                        </SelectItem>
-                      ))
-                    )}
-                  </ScrollArea>
+                  ) : (
+                    filteredUsersForDialog.map((user) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {user.full_name || 'No Name'} ({user.email})
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
               {selectedUser && selectedUserBalance !== null && (

@@ -119,6 +119,8 @@ const AdminPanel = () => {
   const [marketSettings, setMarketSettings] = useState({
     forexEnabled: true,
     commoditiesEnabled: true,
+    forexMomentumEnabled: true,
+    commoditiesMomentumEnabled: true,
   });
 
   useEffect(() => {
@@ -289,6 +291,8 @@ const AdminPanel = () => {
         setMarketSettings({
           forexEnabled: settings.forexEnabled !== 'false',
           commoditiesEnabled: settings.commoditiesEnabled !== 'false',
+          forexMomentumEnabled: settings.forexMomentumEnabled !== 'false',
+          commoditiesMomentumEnabled: settings.commoditiesMomentumEnabled !== 'false',
         });
       }
     } catch (error: any) {
@@ -742,6 +746,8 @@ const AdminPanel = () => {
         // Market settings
         { setting_key: "forex_enabled", setting_value: String(marketSettings.forexEnabled) },
         { setting_key: "commodities_enabled", setting_value: String(marketSettings.commoditiesEnabled) },
+        { setting_key: "forex_momentum_enabled", setting_value: String(marketSettings.forexMomentumEnabled) },
+        { setting_key: "commodities_momentum_enabled", setting_value: String(marketSettings.commoditiesMomentumEnabled) },
       ];
 
       for (const setting of settingsToUpdate) {
@@ -1836,6 +1842,63 @@ const AdminPanel = () => {
                           : !marketSettings.forexEnabled
                           ? "Forex market is disabled for users"
                           : "Commodities market is disabled for users"}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Momentum Control */}
+                <div className="space-y-4 border-t pt-6">
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5 text-purple-500" />
+                    Momentum Control
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Control price momentum animations for each market type on the Dashboard
+                  </p>
+                  
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <DollarSign className="h-5 w-5 text-green-500" />
+                        <div>
+                          <Label className="text-base font-medium">Forex Momentum</Label>
+                          <p className="text-sm text-muted-foreground">Enable/disable price animations for Forex pairs</p>
+                        </div>
+                      </div>
+                      <Switch
+                        checked={marketSettings.forexMomentumEnabled}
+                        onCheckedChange={(checked) =>
+                          setMarketSettings({ ...marketSettings, forexMomentumEnabled: checked })
+                        }
+                      />
+                    </div>
+                    
+                    <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <Gem className="h-5 w-5 text-yellow-500" />
+                        <div>
+                          <Label className="text-base font-medium">Commodities Momentum</Label>
+                          <p className="text-sm text-muted-foreground">Enable/disable price animations for Commodities</p>
+                        </div>
+                      </div>
+                      <Switch
+                        checked={marketSettings.commoditiesMomentumEnabled}
+                        onCheckedChange={(checked) =>
+                          setMarketSettings({ ...marketSettings, commoditiesMomentumEnabled: checked })
+                        }
+                      />
+                    </div>
+                  </div>
+                  
+                  {(!marketSettings.forexMomentumEnabled || !marketSettings.commoditiesMomentumEnabled) && (
+                    <div className="p-3 bg-purple-600/10 border border-purple-600/20 rounded-lg">
+                      <p className="text-sm text-purple-600 font-medium">
+                        {!marketSettings.forexMomentumEnabled && !marketSettings.commoditiesMomentumEnabled
+                          ? "Momentum is disabled for both Forex and Commodities"
+                          : !marketSettings.forexMomentumEnabled
+                          ? "Forex momentum animations are disabled"
+                          : "Commodities momentum animations are disabled"}
                       </p>
                     </div>
                   )}

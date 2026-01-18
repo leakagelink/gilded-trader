@@ -17,14 +17,21 @@ interface TradingItem {
 
 interface TradingListProps {
   data: TradingItem[];
+  momentumEnabled?: boolean;
 }
 
-const TradingList = ({ data }: TradingListProps) => {
+const TradingList = ({ data, momentumEnabled = true }: TradingListProps) => {
   const navigate = useNavigate();
   const [itemMomentum, setItemMomentum] = useState<Record<number, 'up' | 'down' | 'neutral'>>({});
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
+    // Only run momentum updates if enabled
+    if (!momentumEnabled) {
+      setItemMomentum({});
+      return;
+    }
+
     // Simulate real-time momentum updates every second
     intervalRef.current = setInterval(() => {
       const newMomentum: Record<number, 'up' | 'down' | 'neutral'> = {};
@@ -46,7 +53,7 @@ const TradingList = ({ data }: TradingListProps) => {
         clearInterval(intervalRef.current);
       }
     };
-  }, [data.length]);
+  }, [data.length, momentumEnabled]);
 
   const handleClick = (item: TradingItem) => {
     navigate(`/trading/${item.symbol.toLowerCase()}`, {

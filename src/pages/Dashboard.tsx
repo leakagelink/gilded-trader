@@ -23,6 +23,8 @@ const Dashboard = () => {
   const [forexLoading, setForexLoading] = useState(true);
   const [commoditiesLoading, setCommoditiesLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [forexEnabled, setForexEnabled] = useState(true);
+  const [commoditiesEnabled, setCommoditiesEnabled] = useState(true);
 
   const fetchCryptoData = async (isBackgroundRefresh = false) => {
     try {
@@ -110,6 +112,9 @@ const Dashboard = () => {
         return;
       }
 
+      // Fetch market settings
+      await fetchMarketSettings();
+      
       // User is approved, continue with normal dashboard flow
       fetchCryptoData();
       fetchForexData();
@@ -126,6 +131,28 @@ const Dashboard = () => {
       return () => clearInterval(refreshInterval);
     } catch (error) {
       console.error("Error checking user approval:", error);
+    }
+  };
+  
+  const fetchMarketSettings = async () => {
+    try {
+      const { data: settingsData } = await supabase
+        .from("payment_settings")
+        .select("setting_key, setting_value")
+        .in("setting_key", ["forex_enabled", "commodities_enabled"]);
+      
+      if (settingsData) {
+        settingsData.forEach((setting) => {
+          if (setting.setting_key === "forex_enabled") {
+            setForexEnabled(setting.setting_value !== "false");
+          }
+          if (setting.setting_key === "commodities_enabled") {
+            setCommoditiesEnabled(setting.setting_value !== "false");
+          }
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching market settings:", error);
     }
   };
 
@@ -243,25 +270,32 @@ const Dashboard = () => {
             </div>
 
             <Tabs defaultValue="crypto" className="w-full">
-              <TabsList className="grid w-full grid-cols-3 mb-4 sm:mb-6 h-auto p-1 bg-gradient-to-r from-card to-muted/50 backdrop-blur-sm">
+              <TabsList className={`grid w-full mb-4 sm:mb-6 h-auto p-1 bg-gradient-to-r from-card to-muted/50 backdrop-blur-sm ${
+                forexEnabled && commoditiesEnabled ? 'grid-cols-3' : 
+                forexEnabled || commoditiesEnabled ? 'grid-cols-2' : 'grid-cols-1'
+              }`}>
                 <TabsTrigger 
                   value="crypto" 
                   className="text-xs sm:text-sm py-2 sm:py-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-accent data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg font-semibold"
                 >
                   Crypto
                 </TabsTrigger>
-                <TabsTrigger 
-                  value="forex"
-                  className="text-xs sm:text-sm py-2 sm:py-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-accent data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg font-semibold"
-                >
-                  Forex
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="commodities"
-                  className="text-xs sm:text-sm py-2 sm:py-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-accent data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg font-semibold"
-                >
-                  Commodities
-                </TabsTrigger>
+                {forexEnabled && (
+                  <TabsTrigger 
+                    value="forex"
+                    className="text-xs sm:text-sm py-2 sm:py-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-accent data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg font-semibold"
+                  >
+                    Forex
+                  </TabsTrigger>
+                )}
+                {commoditiesEnabled && (
+                  <TabsTrigger 
+                    value="commodities"
+                    className="text-xs sm:text-sm py-2 sm:py-2.5 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-accent data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg font-semibold"
+                  >
+                    Commodities
+                  </TabsTrigger>
+                )}
               </TabsList>
 
               <TabsContent value="crypto">
@@ -303,83 +337,87 @@ const Dashboard = () => {
                 )}
               </TabsContent>
 
-              <TabsContent value="forex">
-                <div className="flex items-center justify-between mb-3 sm:mb-4 md:mb-6">
-                  <h2 className="text-lg sm:text-xl md:text-2xl font-semibold flex items-center gap-2 mb-0">
-                    <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-                    <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                      Forex Markets
-                    </span>
-                  </h2>
-                  <Button variant="ghost" size="icon" onClick={() => fetchForexData()} aria-label="Refresh forex" title="Refresh forex">
-                    <RotateCcw className={`h-4 w-4 ${forexLoading ? "animate-spin" : ""}`} />
-                  </Button>
-                </div>
-                {forexLoading ? (
-                  <div className="space-y-3">
-                    {[1, 2, 3].map((i) => (
-                      <div key={i} className="animate-pulse bg-muted/50 rounded-lg p-4 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-muted"></div>
-                          <div>
-                            <div className="h-4 w-24 bg-muted rounded mb-2"></div>
-                            <div className="h-3 w-16 bg-muted rounded"></div>
+              {forexEnabled && (
+                <TabsContent value="forex">
+                  <div className="flex items-center justify-between mb-3 sm:mb-4 md:mb-6">
+                    <h2 className="text-lg sm:text-xl md:text-2xl font-semibold flex items-center gap-2 mb-0">
+                      <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+                      <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                        Forex Markets
+                      </span>
+                    </h2>
+                    <Button variant="ghost" size="icon" onClick={() => fetchForexData()} aria-label="Refresh forex" title="Refresh forex">
+                      <RotateCcw className={`h-4 w-4 ${forexLoading ? "animate-spin" : ""}`} />
+                    </Button>
+                  </div>
+                  {forexLoading ? (
+                    <div className="space-y-3">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="animate-pulse bg-muted/50 rounded-lg p-4 flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-muted"></div>
+                            <div>
+                              <div className="h-4 w-24 bg-muted rounded mb-2"></div>
+                              <div className="h-3 w-16 bg-muted rounded"></div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="h-4 w-20 bg-muted rounded mb-2"></div>
+                            <div className="h-3 w-12 bg-muted rounded"></div>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <div className="h-4 w-20 bg-muted rounded mb-2"></div>
-                          <div className="h-3 w-12 bg-muted rounded"></div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : filteredForexData.length > 0 ? (
-                  <TradingList data={filteredForexData} />
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    No forex pairs found matching "{searchQuery}"
-                  </div>
-                )}
-              </TabsContent>
+                      ))}
+                    </div>
+                  ) : filteredForexData.length > 0 ? (
+                    <TradingList data={filteredForexData} />
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      No forex pairs found matching "{searchQuery}"
+                    </div>
+                  )}
+                </TabsContent>
+              )}
 
-              <TabsContent value="commodities">
-                <div className="flex items-center justify-between mb-3 sm:mb-4 md:mb-6">
-                  <h2 className="text-lg sm:text-xl md:text-2xl font-semibold flex items-center gap-2 mb-0">
-                    <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-                    <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                      Commodities Markets
-                    </span>
-                  </h2>
-                  <Button variant="ghost" size="icon" onClick={() => fetchCommoditiesData()} aria-label="Refresh commodities" title="Refresh commodities">
-                    <RotateCcw className={`h-4 w-4 ${commoditiesLoading ? "animate-spin" : ""}`} />
-                  </Button>
-                </div>
-                {commoditiesLoading ? (
-                  <div className="space-y-3">
-                    {[1, 2, 3].map((i) => (
-                      <div key={i} className="animate-pulse bg-muted/50 rounded-lg p-4 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-muted"></div>
-                          <div>
-                            <div className="h-4 w-24 bg-muted rounded mb-2"></div>
-                            <div className="h-3 w-16 bg-muted rounded"></div>
+              {commoditiesEnabled && (
+                <TabsContent value="commodities">
+                  <div className="flex items-center justify-between mb-3 sm:mb-4 md:mb-6">
+                    <h2 className="text-lg sm:text-xl md:text-2xl font-semibold flex items-center gap-2 mb-0">
+                      <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+                      <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                        Commodities Markets
+                      </span>
+                    </h2>
+                    <Button variant="ghost" size="icon" onClick={() => fetchCommoditiesData()} aria-label="Refresh commodities" title="Refresh commodities">
+                      <RotateCcw className={`h-4 w-4 ${commoditiesLoading ? "animate-spin" : ""}`} />
+                    </Button>
+                  </div>
+                  {commoditiesLoading ? (
+                    <div className="space-y-3">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="animate-pulse bg-muted/50 rounded-lg p-4 flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-muted"></div>
+                            <div>
+                              <div className="h-4 w-24 bg-muted rounded mb-2"></div>
+                              <div className="h-3 w-16 bg-muted rounded"></div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="h-4 w-20 bg-muted rounded mb-2"></div>
+                            <div className="h-3 w-12 bg-muted rounded"></div>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <div className="h-4 w-20 bg-muted rounded mb-2"></div>
-                          <div className="h-3 w-12 bg-muted rounded"></div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : filteredCommoditiesData.length > 0 ? (
-                  <TradingList data={filteredCommoditiesData} />
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    No commodities found matching "{searchQuery}"
-                  </div>
-                )}
-              </TabsContent>
+                      ))}
+                    </div>
+                  ) : filteredCommoditiesData.length > 0 ? (
+                    <TradingList data={filteredCommoditiesData} />
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      No commodities found matching "{searchQuery}"
+                    </div>
+                  )}
+                </TabsContent>
+              )}
             </Tabs>
           </div>
         </main>

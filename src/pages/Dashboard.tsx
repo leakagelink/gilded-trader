@@ -25,6 +25,8 @@ const Dashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [forexEnabled, setForexEnabled] = useState(true);
   const [commoditiesEnabled, setCommoditiesEnabled] = useState(true);
+  const [forexMomentumEnabled, setForexMomentumEnabled] = useState(true);
+  const [commoditiesMomentumEnabled, setCommoditiesMomentumEnabled] = useState(true);
 
   const fetchCryptoData = async (isBackgroundRefresh = false) => {
     try {
@@ -139,7 +141,7 @@ const Dashboard = () => {
       const { data: settingsData } = await supabase
         .from("payment_settings")
         .select("setting_key, setting_value")
-        .in("setting_key", ["forex_enabled", "commodities_enabled"]);
+        .in("setting_key", ["forex_enabled", "commodities_enabled", "forex_momentum_enabled", "commodities_momentum_enabled"]);
       
       if (settingsData) {
         settingsData.forEach((setting) => {
@@ -148,6 +150,12 @@ const Dashboard = () => {
           }
           if (setting.setting_key === "commodities_enabled") {
             setCommoditiesEnabled(setting.setting_value !== "false");
+          }
+          if (setting.setting_key === "forex_momentum_enabled") {
+            setForexMomentumEnabled(setting.setting_value !== "false");
+          }
+          if (setting.setting_key === "commodities_momentum_enabled") {
+            setCommoditiesMomentumEnabled(setting.setting_value !== "false");
           }
         });
       }
@@ -369,7 +377,7 @@ const Dashboard = () => {
                       ))}
                     </div>
                   ) : filteredForexData.length > 0 ? (
-                    <TradingList data={filteredForexData} />
+                    <TradingList data={filteredForexData} momentumEnabled={forexMomentumEnabled} />
                   ) : (
                     <div className="text-center py-8 text-muted-foreground">
                       No forex pairs found matching "{searchQuery}"
@@ -410,7 +418,7 @@ const Dashboard = () => {
                       ))}
                     </div>
                   ) : filteredCommoditiesData.length > 0 ? (
-                    <TradingList data={filteredCommoditiesData} />
+                    <TradingList data={filteredCommoditiesData} momentumEnabled={commoditiesMomentumEnabled} />
                   ) : (
                     <div className="text-center py-8 text-muted-foreground">
                       No commodities found matching "{searchQuery}"

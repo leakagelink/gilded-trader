@@ -7,8 +7,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { 
   TrendingUp, Shield, Users, Wallet, Settings, SettingsIcon, 
-  Check, X, RefreshCw, Edit, Trash2, DollarSign, FileText, ArrowUpRight, Upload, Loader2, Lock, Phone, Search, ChevronLeft, ChevronRight, Gift, Smartphone, Download 
+  Check, X, RefreshCw, Edit, Trash2, DollarSign, FileText, ArrowUpRight, Upload, Loader2, Lock, Phone, Search, ChevronLeft, ChevronRight, Gift, Smartphone, Download, Globe, Gem
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import logo from "@/assets/logo.png";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -112,6 +113,12 @@ const AdminPanel = () => {
     maxAmount: "2000",
     bonusMax: "600",
     offerTitle: "Christmas Bonus",
+  });
+  
+  // Market settings state
+  const [marketSettings, setMarketSettings] = useState({
+    forexEnabled: true,
+    commoditiesEnabled: true,
   });
 
   useEffect(() => {
@@ -276,6 +283,12 @@ const AdminPanel = () => {
           maxAmount: settings.depositMaxAmount || "2000",
           bonusMax: settings.depositBonusMax || "600",
           offerTitle: settings.depositOfferTitle || "Christmas Bonus",
+        });
+        
+        // Set market settings
+        setMarketSettings({
+          forexEnabled: settings.forexEnabled !== 'false',
+          commoditiesEnabled: settings.commoditiesEnabled !== 'false',
         });
       }
     } catch (error: any) {
@@ -726,6 +739,9 @@ const AdminPanel = () => {
         { setting_key: "deposit_max_amount", setting_value: depositOfferSettings.maxAmount },
         { setting_key: "deposit_bonus_max", setting_value: depositOfferSettings.bonusMax },
         { setting_key: "deposit_offer_title", setting_value: depositOfferSettings.offerTitle },
+        // Market settings
+        { setting_key: "forex_enabled", setting_value: String(marketSettings.forexEnabled) },
+        { setting_key: "commodities_enabled", setting_value: String(marketSettings.commoditiesEnabled) },
       ];
 
       for (const setting of settingsToUpdate) {
@@ -1766,6 +1782,63 @@ const AdminPanel = () => {
                       </div>
                     )}
                   </div>
+                </div>
+
+                {/* Market Settings */}
+                <div className="space-y-4 border-t pt-6">
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                    <Globe className="h-5 w-5 text-blue-500" />
+                    Market Availability
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Control which markets are available to users on the Dashboard
+                  </p>
+                  
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <DollarSign className="h-5 w-5 text-green-500" />
+                        <div>
+                          <Label className="text-base font-medium">Forex Market</Label>
+                          <p className="text-sm text-muted-foreground">EUR/USD, GBP/USD, JPY/USD, etc.</p>
+                        </div>
+                      </div>
+                      <Switch
+                        checked={marketSettings.forexEnabled}
+                        onCheckedChange={(checked) =>
+                          setMarketSettings({ ...marketSettings, forexEnabled: checked })
+                        }
+                      />
+                    </div>
+                    
+                    <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <Gem className="h-5 w-5 text-yellow-500" />
+                        <div>
+                          <Label className="text-base font-medium">Commodities Market</Label>
+                          <p className="text-sm text-muted-foreground">Gold, Silver, Crude Oil, etc.</p>
+                        </div>
+                      </div>
+                      <Switch
+                        checked={marketSettings.commoditiesEnabled}
+                        onCheckedChange={(checked) =>
+                          setMarketSettings({ ...marketSettings, commoditiesEnabled: checked })
+                        }
+                      />
+                    </div>
+                  </div>
+                  
+                  {(!marketSettings.forexEnabled || !marketSettings.commoditiesEnabled) && (
+                    <div className="p-3 bg-amber-600/10 border border-amber-600/20 rounded-lg">
+                      <p className="text-sm text-amber-600 font-medium">
+                        {!marketSettings.forexEnabled && !marketSettings.commoditiesEnabled
+                          ? "Both Forex and Commodities markets are disabled"
+                          : !marketSettings.forexEnabled
+                          ? "Forex market is disabled for users"
+                          : "Commodities market is disabled for users"}
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Deposit Offer Settings */}

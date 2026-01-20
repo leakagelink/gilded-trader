@@ -1,6 +1,6 @@
 import { TrendingUp, TrendingDown, Activity, type LucideIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 
 interface TradingItem {
   name: string;
@@ -23,19 +23,34 @@ interface TradingListProps {
 const TradingList = ({ data, momentumEnabled = true }: TradingListProps) => {
   const navigate = useNavigate();
   const [itemMomentum, setItemMomentum] = useState<Record<number, 'up' | 'down' | 'neutral'>>({});
+  const [priceFluctuations, setPriceFluctuations] = useState<Record<number, number>>({});
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const basePricesRef = useRef<Record<number, number>>({});
+
+  // Store base prices from data
+  useEffect(() => {
+    data.forEach((item, index) => {
+      const numericPrice = parseFloat(item.price.replace(/,/g, ''));
+      if (!isNaN(numericPrice) && !basePricesRef.current[index]) {
+        basePricesRef.current[index] = numericPrice;
+      }
+    });
+  }, [data]);
 
   useEffect(() => {
     // Only run momentum updates if enabled
     if (!momentumEnabled) {
       setItemMomentum({});
+      setPriceFluctuations({});
       return;
     }
 
     // Simulate real-time momentum updates every second
     intervalRef.current = setInterval(() => {
       const newMomentum: Record<number, 'up' | 'down' | 'neutral'> = {};
-      data.forEach((_, index) => {
+      const newFluctuations: Record<number, number> = {};
+      
+      data.forEach((item, index) => {
         const rand = Math.random();
         if (rand > 0.55) {
           newMomentum[index] = 'up';
@@ -44,8 +59,18 @@ const TradingList = ({ data, momentumEnabled = true }: TradingListProps) => {
         } else {
           newMomentum[index] = 'neutral';
         }
+        
+        // Apply micro-fluctuation to price (±0.01% to ±0.15%)
+        const basePrice = basePricesRef.current[index] || parseFloat(item.price.replace(/,/g, ''));
+        if (!isNaN(basePrice)) {
+          const fluctuationPercent = (Math.random() * 0.0015) + 0.0001; // 0.01% to 0.15%
+          const direction = newMomentum[index] === 'up' ? 1 : newMomentum[index] === 'down' ? -1 : (Math.random() > 0.5 ? 1 : -1);
+          newFluctuations[index] = basePrice * (1 + (fluctuationPercent * direction));
+        }
       });
+      
       setItemMomentum(newMomentum);
+      setPriceFluctuations(newFluctuations);
     }, 1000);
 
     return () => {
@@ -54,6 +79,21 @@ const TradingList = ({ data, momentumEnabled = true }: TradingListProps) => {
       }
     };
   }, [data.length, momentumEnabled]);
+
+  // Format price based on its magnitude
+  const formatPrice = (price: number, originalPrice: string): string => {
+    // Check if original has decimal places to maintain format
+    const hasDecimals = originalPrice.includes('.');
+    const originalDecimals = hasDecimals ? originalPrice.split('.')[1]?.replace(/,/g, '').length || 2 : 0;
+    
+    if (price >= 1000) {
+      return price.toLocaleString('en-US', { minimumFractionDigits: Math.min(originalDecimals, 2), maximumFractionDigits: Math.min(originalDecimals, 2) });
+    } else if (price >= 1) {
+      return price.toFixed(Math.min(originalDecimals, 4));
+    } else {
+      return price.toFixed(Math.min(originalDecimals, 6));
+    }
+  };
 
   const handleClick = (item: TradingItem) => {
     navigate(`/trading/${item.symbol.toLowerCase()}`, {
@@ -71,6 +111,10 @@ const TradingList = ({ data, momentumEnabled = true }: TradingListProps) => {
     <div className="space-y-2 sm:space-y-3 w-full overflow-hidden">
       {data.map((item, index) => {
         const IconComponent = item.icon;
+        const displayPrice = momentumEnabled && priceFluctuations[index] 
+          ? formatPrice(priceFluctuations[index], item.price)
+          : item.price;
+        
         return (
           <div
             key={index}
@@ -131,11 +175,11 @@ const TradingList = ({ data, momentumEnabled = true }: TradingListProps) => {
             {/* Right: Price and Percentage */}
             <div className="text-right flex-shrink-0 ml-2 max-w-[100px] sm:max-w-none">
               <div className={`font-bold text-xs sm:text-lg mb-0.5 transition-all duration-300 truncate ${
-                itemMomentum[index] === 'up' ? 'text-green-500' :
-                itemMomentum[index] === 'down' ? 'text-red-500' :
+                itemMomentum[index] === 'up' ? 'text-green-500 scale-105' :
+                itemMomentum[index] === 'down' ? 'text-red-500 scale-95' :
                 ''
               }`}>
-                {item.currencySymbol || '$'}{item.price}
+                {item.currencySymbol || '$'}{displayPrice}
               </div>
               <div className={`text-[10px] sm:text-sm font-semibold flex items-center justify-end gap-0.5 ${
                 item.isPositive 

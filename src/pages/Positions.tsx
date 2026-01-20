@@ -53,6 +53,8 @@ const Positions = () => {
   // Refs to track closing state without causing useEffect rerenders
   const closingIdRef = useRef<string | null>(null);
   const closedSuccessIdRef = useRef<string | null>(null);
+  // Track permanently closed positions to prevent re-adding during price updates
+  const permanentlyClosedIdsRef = useRef<Set<string>>(new Set());
   
   // Keep refs in sync with state
   useEffect(() => {
@@ -90,11 +92,12 @@ const Positions = () => {
 
     const updatePrices = async () => {
       try {
-        // Always get fresh positions from ref, but filter out any that are being closed
+        // Always get fresh positions from ref, but filter out any that are being closed or permanently closed
         const currentPositions = positionsRef.current.filter(p => 
           p.status === 'open' && 
           closingIdRef.current !== p.id && 
-          closedSuccessIdRef.current !== p.id
+          closedSuccessIdRef.current !== p.id &&
+          !permanentlyClosedIdsRef.current.has(p.id)
         );
         if (currentPositions.length === 0) return;
 
@@ -301,9 +304,12 @@ const Positions = () => {
             prev.filter(p => 
               p.status === 'closed' || 
               closingIdRef.current === p.id || 
-              closedSuccessIdRef.current === p.id
+              closedSuccessIdRef.current === p.id ||
+              permanentlyClosedIdsRef.current.has(p.id)
             ).map(p => p.id)
           );
+          // Also add permanently closed IDs
+          permanentlyClosedIdsRef.current.forEach(id => closedIds.add(id));
           // Filter out closed positions and merge with updated prices
           return updatedPositions.filter(p => !closedIds.has(p.id));
         });
@@ -409,9 +415,23 @@ const Positions = () => {
   };
 
   const handleClosePosition = async (position: Position) => {
+    // Check if already permanently closed - prevent double close
+    if (permanentlyClosedIdsRef.current.has(position.id)) {
+      console.log('Position already closed, ignoring duplicate close request:', position.id);
+      toast.info('This position has already been closed');
+      setClosePositionId(null);
+      return;
+    }
+
     try {
+      // IMMEDIATELY mark as permanently closed to prevent any re-adds
+      permanentlyClosedIdsRef.current.add(position.id);
+      
       // Start closing animation
       setClosingPositionId(position.id);
+      
+      // IMMEDIATELY remove from open positions state to prevent re-showing
+      setOpenPositions(prev => prev.filter(p => p.id !== position.id));
       
       const closePrice = position.current_price;
       const pnl = position.position_type === 'long' 
@@ -420,8 +440,8 @@ const Positions = () => {
 
       const closedAt = new Date().toISOString();
 
-      // Close position in database
-      const { error } = await supabase
+      // Close position in database - use status check to prevent double close
+      const { data: updateResult, error } = await supabase
         .from('positions')
         .update({
           status: 'closed',
@@ -430,9 +450,20 @@ const Positions = () => {
           pnl: pnl,
           closed_by: user?.id
         })
-        .eq('id', position.id);
+        .eq('id', position.id)
+        .eq('status', 'open') // CRITICAL: Only update if still open
+        .select();
 
       if (error) throw error;
+
+      // Check if update actually happened (position was still open)
+      if (!updateResult || updateResult.length === 0) {
+        console.log('Position was already closed in database:', position.id);
+        toast.info('Position was already closed');
+        setClosingPositionId(null);
+        setClosePositionId(null);
+        return;
+      }
 
       // Show success animation
       setClosingPositionId(null);
@@ -441,7 +472,7 @@ const Positions = () => {
       // Wait for animation to complete before moving to closed
       await new Promise(resolve => setTimeout(resolve, 800));
 
-      // IMMEDIATELY update local state - move from open to closed
+      // Add to closed positions at the top
       const closedPosition: Position = {
         ...position,
         status: 'closed',
@@ -450,10 +481,13 @@ const Positions = () => {
         pnl: pnl
       };
       
-      // Remove from open positions
-      setOpenPositions(prev => prev.filter(p => p.id !== position.id));
-      // Add to closed positions at the top
-      setClosedPositions(prev => [closedPosition, ...prev]);
+      setClosedPositions(prev => {
+        // Avoid duplicates
+        if (prev.some(p => p.id === position.id)) {
+          return prev;
+        }
+        return [closedPosition, ...prev];
+      });
       
       // Clean up refs and animation state
       setClosedSuccessId(null);
@@ -499,6 +533,8 @@ const Positions = () => {
     } catch (error) {
       console.error('Error closing position:', error);
       toast.error('Failed to close position');
+      // Remove from permanently closed set if error occurred
+      permanentlyClosedIdsRef.current.delete(position.id);
       setClosingPositionId(null);
       setClosedSuccessId(null);
     }

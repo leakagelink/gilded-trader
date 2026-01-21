@@ -380,33 +380,6 @@ const Wallet = () => {
           )}
         </Card>
 
-        {/* Trade History */}
-        <Card className="p-6">
-          <h2 className="text-2xl font-semibold mb-6 flex items-center gap-2">
-            <BarChart3 className="h-6 w-6 text-primary" />
-            Trade History
-          </h2>
-          {loading ? (
-            <p className="text-muted-foreground text-center py-8">Loading trade history...</p>
-          ) : tradeHistory.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">No trade history yet</p>
-          ) : (
-            <div className="space-y-4">
-              {tradeHistory.map((trade, index) => (
-              <div key={index} className="flex items-center justify-between p-4 border border-border/50 rounded-lg">
-                <div>
-                  <div className="font-semibold">{trade.type}</div>
-                  <div className="text-sm text-muted-foreground">{trade.date}</div>
-                </div>
-                <div className="text-right">
-                  <div className={`font-semibold ${trade.isProfit ? "text-green-600" : "text-red-500"}`}>{trade.amount}</div>
-                  <div className="text-sm text-muted-foreground">{trade.status}</div>
-                </div>
-              </div>
-              ))}
-            </div>
-          )}
-        </Card>
       </main>
 
       {/* Deposit Modal */}

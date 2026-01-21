@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { User, Mail, FileCheck, CheckCircle, Clock, XCircle, ChevronRight, Phone, Hash, Copy, Download, Smartphone } from "lucide-react";
+import { User, Mail, FileCheck, CheckCircle, Clock, XCircle, ChevronRight, Phone, Hash, Copy, Download, Smartphone, BarChart3 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -25,6 +25,14 @@ interface KYCStatus {
   status: 'pending' | 'approved' | 'rejected';
 }
 
+interface TradeHistoryItem {
+  type: string;
+  amount: string;
+  date: string;
+  status: string;
+  isProfit: boolean;
+}
+
 const Profile = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
@@ -34,6 +42,7 @@ const Profile = () => {
   const [saving, setSaving] = useState(false);
   const [fullName, setFullName] = useState("");
   const [appDownloadUrl, setAppDownloadUrl] = useState<string | null>(null);
+  const [tradeHistory, setTradeHistory] = useState<TradeHistoryItem[]>([]);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -80,6 +89,26 @@ const Profile = () => {
       
       if (appUrlSetting?.setting_value) {
         setAppDownloadUrl(appUrlSetting.setting_value);
+      }
+
+      // Fetch trade history
+      const { data: tradeTxs } = await supabase
+        .from("wallet_transactions")
+        .select("*")
+        .eq("user_id", user?.id)
+        .eq("type", "trade")
+        .order("created_at", { ascending: false })
+        .limit(10);
+
+      if (tradeTxs) {
+        const formattedTradeTxs = tradeTxs.map((tx) => ({
+          type: "Trade",
+          amount: Number(tx.amount) >= 0 ? `+$${Number(tx.amount).toFixed(2)}` : `-$${Math.abs(Number(tx.amount)).toFixed(2)}`,
+          date: new Date(tx.created_at).toLocaleDateString(),
+          status: tx.status,
+          isProfit: Number(tx.amount) >= 0,
+        }));
+        setTradeHistory(formattedTradeTxs);
       }
     } catch (error: any) {
       console.error("Error fetching profile:", error);
@@ -323,7 +352,7 @@ const Profile = () => {
           </div>
         </Card>
 
-        <Card className="p-6">
+        <Card className="p-6 mb-6">
           <h3 className="text-xl font-semibold mb-4">Account Information</h3>
           <div className="space-y-3">
             <div className="flex justify-between">
@@ -339,6 +368,34 @@ const Profile = () => {
               <span>{user?.email_confirmed_at ? "Yes" : "No"}</span>
             </div>
           </div>
+        </Card>
+
+        {/* Trade History */}
+        <Card className="p-6">
+          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+            <BarChart3 className="h-5 w-5 text-primary" />
+            Trade History
+          </h2>
+          {loading ? (
+            <p className="text-muted-foreground text-center py-8">Loading trade history...</p>
+          ) : tradeHistory.length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">No trade history yet</p>
+          ) : (
+            <div className="space-y-4">
+              {tradeHistory.map((trade, index) => (
+                <div key={index} className="flex items-center justify-between p-4 border border-border/50 rounded-lg">
+                  <div>
+                    <div className="font-semibold">{trade.type}</div>
+                    <div className="text-sm text-muted-foreground">{trade.date}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className={`font-semibold ${trade.isProfit ? "text-green-600" : "text-red-500"}`}>{trade.amount}</div>
+                    <div className="text-sm text-muted-foreground">{trade.status}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </Card>
       </main>
 

@@ -55,10 +55,6 @@ const Positions = () => {
   const closedSuccessIdRef = useRef<string | null>(null);
   // Track permanently closed positions to prevent re-adding during price updates
   const permanentlyClosedIdsRef = useRef<Set<string>>(new Set());
-  // Admin momentum control settings
-  const [forexMomentumEnabled, setForexMomentumEnabled] = useState(false);
-  const [commoditiesMomentumEnabled, setCommoditiesMomentumEnabled] = useState(false);
-  const momentumSettingsRef = useRef({ forex: false, commodities: false });
   
   // Keep refs in sync with state
   useEffect(() => {
@@ -70,40 +66,6 @@ const Positions = () => {
       }
     });
   }, [openPositions]);
-
-  // Sync momentum settings to ref
-  useEffect(() => {
-    momentumSettingsRef.current = { forex: forexMomentumEnabled, commodities: commoditiesMomentumEnabled };
-  }, [forexMomentumEnabled, commoditiesMomentumEnabled]);
-
-  // Fetch momentum control settings from admin panel
-  useEffect(() => {
-    const fetchMomentumSettings = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('payment_settings')
-          .select('setting_key, setting_value')
-          .in('setting_key', ['forex_momentum_enabled', 'commodities_momentum_enabled']);
-
-        if (!error && data) {
-          data.forEach(setting => {
-            if (setting.setting_key === 'forex_momentum_enabled') {
-              setForexMomentumEnabled(setting.setting_value === 'true');
-            } else if (setting.setting_key === 'commodities_momentum_enabled') {
-              setCommoditiesMomentumEnabled(setting.setting_value === 'true');
-            }
-          });
-        }
-      } catch (err) {
-        console.error('Error fetching momentum settings:', err);
-      }
-    };
-
-    fetchMomentumSettings();
-    // Poll for settings changes every 5 seconds
-    const settingsInterval = setInterval(fetchMomentumSettings, 5000);
-    return () => clearInterval(settingsInterval);
-  }, []);
 
   // Sync closing state refs
   useEffect(() => {
@@ -141,10 +103,6 @@ const Positions = () => {
 
         // Define commodity symbols for detection
         const commoditySymbols = ['GOLD', 'XAU', 'SILVER', 'XAG', 'CRUDE', 'WTI', 'OIL', 'COPPER', 'PLATINUM', 'PALLADIUM', 'GAS', 'NATURALGAS'];
-
-        // Get current momentum settings from ref
-        const forexMomentumStopped = momentumSettingsRef.current.forex;
-        const commoditiesMomentumStopped = momentumSettingsRef.current.commodities;
 
         // Fetch real crypto prices from CoinMarketCap for live trades
         let cryptoPrices: Record<string, number> = {};
@@ -186,16 +144,6 @@ const Positions = () => {
           currentPositions.map(async (position) => {
             let currentPrice = position.current_price;
             let pnl: number;
-
-            // Check if this is a Forex or Commodity trade
-            const isForex = position.symbol.includes('/');
-            const isCommodity = commoditySymbols.some(c => position.symbol.toUpperCase().includes(c));
-
-            // If momentum is stopped for this market type, keep price frozen
-            if ((isForex && forexMomentumStopped) || (isCommodity && commoditiesMomentumStopped)) {
-              // Keep the current price and PnL frozen - no updates
-              return position;
-            }
 
             // Check if this is an edited trade (admin adjusted PnL)
             if (position.price_mode === 'edited') {
@@ -266,6 +214,9 @@ const Positions = () => {
                 : (position.entry_price - currentPrice) * position.amount * position.leverage;
             } else {
               // For live trades, use real market prices
+              const isForex = position.symbol.includes('/');
+              const isCommodity = commoditySymbols.some(c => position.symbol.toUpperCase().includes(c));
+              
               let priceFound = false;
               
               if (isCommodity && commodityPrices[position.symbol.toUpperCase()]) {

@@ -229,6 +229,7 @@ export type Database = {
           status: Database["public"]["Enums"]["position_status"]
           stop_loss: number | null
           symbol: string
+          take_profit: number | null
           updated_at: string
           user_id: string
         }
@@ -250,6 +251,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["position_status"]
           stop_loss?: number | null
           symbol: string
+          take_profit?: number | null
           updated_at?: string
           user_id: string
         }
@@ -271,6 +273,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["position_status"]
           stop_loss?: number | null
           symbol?: string
+          take_profit?: number | null
           updated_at?: string
           user_id?: string
         }

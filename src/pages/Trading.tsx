@@ -81,6 +81,7 @@ const Trading = () => {
   const [inputMode, setInputMode] = useState<'amount' | 'lotSize'>('amount');
   const [leverage, setLeverage] = useState(1);
   const [stopLoss, setStopLoss] = useState(""); // Stop loss price
+  const [takeProfit, setTakeProfit] = useState(""); // Take profit price
   const [chartScale, setChartScale] = useState(1);
   const [walletBalance, setWalletBalance] = useState<number>(0);
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -572,6 +573,19 @@ const Trading = () => {
         }
       }
 
+      // Validate take profit if provided
+      const takeProfitValue = takeProfit ? parseFloat(takeProfit) : null;
+      if (takeProfitValue !== null) {
+        if (type === 'long' && takeProfitValue <= currentPrice) {
+          toast.error("Take profit must be above entry price for LONG positions");
+          return;
+        }
+        if (type === 'short' && takeProfitValue >= currentPrice) {
+          toast.error("Take profit must be below entry price for SHORT positions");
+          return;
+        }
+      }
+
       // Open position - amount is asset quantity, margin is USD
       const { error } = await supabase.from('positions').insert({
         user_id: user?.id,
@@ -583,7 +597,8 @@ const Trading = () => {
         leverage: leverage,
         margin: margin, // USD margin
         status: 'open',
-        stop_loss: stopLossValue
+        stop_loss: stopLossValue,
+        take_profit: takeProfitValue
       });
 
       if (error) {
@@ -607,10 +622,12 @@ const Trading = () => {
       });
 
       const slMessage = stopLossValue ? ` | SL: $${stopLossValue.toFixed(2)}` : '';
-      toast.success(`${type.toUpperCase()} position opened: ${assetQuantity.toFixed(6)} ${symbol?.toUpperCase()} @ $${currentPrice.toFixed(2)}${slMessage}. Margin: $${margin.toFixed(2)}`);
+      const tpMessage = takeProfitValue ? ` | TP: $${takeProfitValue.toFixed(2)}` : '';
+      toast.success(`${type.toUpperCase()} position opened: ${assetQuantity.toFixed(6)} ${symbol?.toUpperCase()} @ $${currentPrice.toFixed(2)}${slMessage}${tpMessage}. Margin: $${margin.toFixed(2)}`);
       setTradeAmount("");
       setLotSize("");
       setStopLoss("");
+      setTakeProfit("");
       setShowLongDialog(false);
       setShowShortDialog(false);
       fetchWalletBalance(); // Refresh balance
@@ -1045,6 +1062,24 @@ const Trading = () => {
               </div>
               <p className="text-xs text-muted-foreground mt-1">Position auto-closes if price drops to this level</p>
             </div>
+
+            {/* Take Profit Input for Long */}
+            <div>
+              <Label htmlFor="long-takeprofit">Take Profit Price (Optional)</Label>
+              <div className="relative mt-2">
+                <TrendingUp className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
+                <Input
+                  id="long-takeprofit"
+                  type="number"
+                  placeholder="Enter take profit price (above entry)"
+                  value={takeProfit}
+                  onChange={(e) => setTakeProfit(e.target.value)}
+                  className="pl-9 border-green-500/30 focus:border-green-500"
+                  step="0.01"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Position auto-closes when price reaches this profit target</p>
+            </div>
             
             <div className="p-3 bg-muted rounded-lg space-y-2">
               <div className="flex justify-between text-sm">
@@ -1185,6 +1220,24 @@ const Trading = () => {
                 />
               </div>
               <p className="text-xs text-muted-foreground mt-1">Position auto-closes if price rises to this level</p>
+            </div>
+
+            {/* Take Profit Input for Short */}
+            <div>
+              <Label htmlFor="short-takeprofit">Take Profit Price (Optional)</Label>
+              <div className="relative mt-2">
+                <TrendingDown className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
+                <Input
+                  id="short-takeprofit"
+                  type="number"
+                  placeholder="Enter take profit price (below entry)"
+                  value={takeProfit}
+                  onChange={(e) => setTakeProfit(e.target.value)}
+                  className="pl-9 border-green-500/30 focus:border-green-500"
+                  step="0.01"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Position auto-closes when price reaches this profit target</p>
             </div>
             
             <div className="p-3 bg-muted rounded-lg space-y-2">

@@ -35,6 +35,7 @@ interface Position {
   close_price?: number;
   price_mode?: string;
   stop_loss?: number | null;
+  take_profit?: number | null;
 }
 
 const Positions = () => {
@@ -298,24 +299,44 @@ const Positions = () => {
           })
         );
 
-        // Check for stop loss triggers and auto-close positions
+        // Check for stop loss and take profit triggers and auto-close positions
         for (const position of updatedPositions) {
-          if (position.stop_loss && !permanentlyClosedIdsRef.current.has(position.id)) {
+          if (!permanentlyClosedIdsRef.current.has(position.id)) {
             let shouldClose = false;
+            let closeReason = '';
             
-            // For LONG positions: close if current price drops to or below stop loss
-            if (position.position_type === 'long' && position.current_price <= position.stop_loss) {
-              shouldClose = true;
+            // Check Stop Loss
+            if (position.stop_loss) {
+              // For LONG positions: close if current price drops to or below stop loss
+              if (position.position_type === 'long' && position.current_price <= position.stop_loss) {
+                shouldClose = true;
+                closeReason = 'stop_loss';
+              }
+              // For SHORT positions: close if current price rises to or above stop loss
+              else if (position.position_type === 'short' && position.current_price >= position.stop_loss) {
+                shouldClose = true;
+                closeReason = 'stop_loss';
+              }
             }
-            // For SHORT positions: close if current price rises to or above stop loss
-            else if (position.position_type === 'short' && position.current_price >= position.stop_loss) {
-              shouldClose = true;
+            
+            // Check Take Profit
+            if (!shouldClose && position.take_profit) {
+              // For LONG positions: close if current price rises to or above take profit
+              if (position.position_type === 'long' && position.current_price >= position.take_profit) {
+                shouldClose = true;
+                closeReason = 'take_profit';
+              }
+              // For SHORT positions: close if current price drops to or below take profit
+              else if (position.position_type === 'short' && position.current_price <= position.take_profit) {
+                shouldClose = true;
+                closeReason = 'take_profit';
+              }
             }
             
             if (shouldClose) {
-              console.log('Stop loss triggered for position:', position.id, 'at price:', position.current_price);
+              console.log(`${closeReason} triggered for position:`, position.id, 'at price:', position.current_price);
               // Auto-close the position
-              handleStopLossClose(position);
+              handleAutoClose(position, closeReason as 'stop_loss' | 'take_profit');
             }
           }
         }
@@ -563,8 +584,8 @@ const Positions = () => {
     }
   };
 
-  // Auto-close position when stop loss is triggered
-  const handleStopLossClose = async (position: Position) => {
+  // Auto-close position when stop loss or take profit is triggered
+  const handleAutoClose = async (position: Position, reason: 'stop_loss' | 'take_profit') => {
     // Check if already permanently closed - prevent double close
     if (permanentlyClosedIdsRef.current.has(position.id)) {
       return;
@@ -577,7 +598,11 @@ const Positions = () => {
       // IMMEDIATELY remove from open positions state
       setOpenPositions(prev => prev.filter(p => p.id !== position.id));
       
-      const closePrice = position.stop_loss || position.current_price;
+      // Determine close price based on trigger reason
+      const closePrice = reason === 'stop_loss' 
+        ? (position.stop_loss || position.current_price)
+        : (position.take_profit || position.current_price);
+        
       const pnl = position.position_type === 'long' 
         ? (closePrice - position.entry_price) * position.amount * position.leverage
         : (position.entry_price - closePrice) * position.amount * position.leverage;
@@ -655,9 +680,13 @@ const Positions = () => {
         });
       }
 
-      toast.warning(`⚠️ Stop Loss triggered for ${position.symbol}! Position closed at $${closePrice.toFixed(2)}. PnL: ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`);
+      if (reason === 'stop_loss') {
+        toast.warning(`⚠️ Stop Loss triggered for ${position.symbol}! Position closed at $${closePrice.toFixed(2)}. PnL: ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`);
+      } else {
+        toast.success(`🎯 Take Profit reached for ${position.symbol}! Position closed at $${closePrice.toFixed(2)}. PnL: +$${pnl.toFixed(2)}`);
+      }
     } catch (error) {
-      console.error('Error auto-closing position on stop loss:', error);
+      console.error(`Error auto-closing position on ${reason}:`, error);
       permanentlyClosedIdsRef.current.delete(position.id);
     }
   };
@@ -772,13 +801,26 @@ const Positions = () => {
             <p className="text-muted-foreground">Margin</p>
             <p className="font-semibold">${position.margin.toFixed(2)}</p>
           </div>
-          {position.stop_loss && (
-            <div className="col-span-2">
-              <p className="text-muted-foreground flex items-center gap-1">
-                <span className="inline-block w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
-                Stop Loss
-              </p>
-              <p className="font-semibold text-red-500">${position.stop_loss.toFixed(2)}</p>
+          {(position.stop_loss || position.take_profit) && (
+            <div className="col-span-2 grid grid-cols-2 gap-2">
+              {position.stop_loss && (
+                <div>
+                  <p className="text-muted-foreground flex items-center gap-1 text-xs">
+                    <span className="inline-block w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                    Stop Loss
+                  </p>
+                  <p className="font-semibold text-red-500">${position.stop_loss.toFixed(2)}</p>
+                </div>
+              )}
+              {position.take_profit && (
+                <div>
+                  <p className="text-muted-foreground flex items-center gap-1 text-xs">
+                    <span className="inline-block w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                    Take Profit
+                  </p>
+                  <p className="font-semibold text-green-500">${position.take_profit.toFixed(2)}</p>
+                </div>
+              )}
             </div>
           )}
         </div>

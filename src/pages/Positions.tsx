@@ -34,6 +34,7 @@ interface Position {
   closed_at?: string;
   close_price?: number;
   price_mode?: string;
+  stop_loss?: number | null;
 }
 
 const Positions = () => {
@@ -297,6 +298,28 @@ const Positions = () => {
           })
         );
 
+        // Check for stop loss triggers and auto-close positions
+        for (const position of updatedPositions) {
+          if (position.stop_loss && !permanentlyClosedIdsRef.current.has(position.id)) {
+            let shouldClose = false;
+            
+            // For LONG positions: close if current price drops to or below stop loss
+            if (position.position_type === 'long' && position.current_price <= position.stop_loss) {
+              shouldClose = true;
+            }
+            // For SHORT positions: close if current price rises to or above stop loss
+            else if (position.position_type === 'short' && position.current_price >= position.stop_loss) {
+              shouldClose = true;
+            }
+            
+            if (shouldClose) {
+              console.log('Stop loss triggered for position:', position.id, 'at price:', position.current_price);
+              // Auto-close the position
+              handleStopLossClose(position);
+            }
+          }
+        }
+
         // Update state immediately for real-time UI updates
         // Use functional update to preserve any positions that were removed during this update
         setOpenPositions(prev => {
@@ -540,6 +563,105 @@ const Positions = () => {
     }
   };
 
+  // Auto-close position when stop loss is triggered
+  const handleStopLossClose = async (position: Position) => {
+    // Check if already permanently closed - prevent double close
+    if (permanentlyClosedIdsRef.current.has(position.id)) {
+      return;
+    }
+
+    try {
+      // IMMEDIATELY mark as permanently closed to prevent any re-adds
+      permanentlyClosedIdsRef.current.add(position.id);
+      
+      // IMMEDIATELY remove from open positions state
+      setOpenPositions(prev => prev.filter(p => p.id !== position.id));
+      
+      const closePrice = position.stop_loss || position.current_price;
+      const pnl = position.position_type === 'long' 
+        ? (closePrice - position.entry_price) * position.amount * position.leverage
+        : (position.entry_price - closePrice) * position.amount * position.leverage;
+
+      const closedAt = new Date().toISOString();
+
+      // Close position in database - use status check to prevent double close
+      const { data: updateResult, error } = await supabase
+        .from('positions')
+        .update({
+          status: 'closed',
+          closed_at: closedAt,
+          close_price: closePrice,
+          pnl: pnl,
+          closed_by: user?.id
+        })
+        .eq('id', position.id)
+        .eq('status', 'open')
+        .select();
+
+      if (error) throw error;
+
+      // Check if update actually happened
+      if (!updateResult || updateResult.length === 0) {
+        return;
+      }
+
+      // Add to closed positions
+      const closedPosition: Position = {
+        ...position,
+        status: 'closed',
+        closed_at: closedAt,
+        close_price: closePrice,
+        pnl: pnl
+      };
+      
+      setClosedPositions(prev => {
+        if (prev.some(p => p.id === position.id)) {
+          return prev;
+        }
+        return [closedPosition, ...prev];
+      });
+      
+      // Clean up refs
+      delete previousPricesRef.current[position.id];
+      delete basePnlRef.current[position.id];
+
+      // Get current wallet balance and update
+      const { data: wallet, error: walletError } = await supabase
+        .from('user_wallets')
+        .select('balance')
+        .eq('user_id', user?.id)
+        .eq('currency', 'USD')
+        .single();
+
+      if (!walletError && wallet) {
+        const currentBalance = wallet.balance || 0;
+        const finalAmount = position.margin + pnl;
+        const newBalance = currentBalance + finalAmount;
+
+        await supabase
+          .from('user_wallets')
+          .update({ balance: newBalance })
+          .eq('user_id', user?.id)
+          .eq('currency', 'USD');
+
+        // Record transaction
+        await supabase.from('wallet_transactions').insert({
+          user_id: user?.id,
+          type: 'trade',
+          amount: finalAmount,
+          currency: 'USD',
+          status: 'Completed',
+          reference_id: position.id
+        });
+      }
+
+      toast.warning(`⚠️ Stop Loss triggered for ${position.symbol}! Position closed at $${closePrice.toFixed(2)}. PnL: ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`);
+    } catch (error) {
+      console.error('Error auto-closing position on stop loss:', error);
+      permanentlyClosedIdsRef.current.delete(position.id);
+    }
+  };
+
   const calculatePnL = (position: Position) => {
     if (position.status === 'closed') {
       return position.pnl || 0;
@@ -650,6 +772,15 @@ const Positions = () => {
             <p className="text-muted-foreground">Margin</p>
             <p className="font-semibold">${position.margin.toFixed(2)}</p>
           </div>
+          {position.stop_loss && (
+            <div className="col-span-2">
+              <p className="text-muted-foreground flex items-center gap-1">
+                <span className="inline-block w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                Stop Loss
+              </p>
+              <p className="font-semibold text-red-500">${position.stop_loss.toFixed(2)}</p>
+            </div>
+          )}
         </div>
 
         <div className={`mt-4 p-3 rounded-lg transition-all duration-300 ${

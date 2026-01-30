@@ -80,6 +80,7 @@ const Trading = () => {
   const [lotSize, setLotSize] = useState(""); // Lot size (units)
   const [inputMode, setInputMode] = useState<'amount' | 'lotSize'>('amount');
   const [leverage, setLeverage] = useState(1);
+  const [stopLoss, setStopLoss] = useState(""); // Stop loss price
   const [chartScale, setChartScale] = useState(1);
   const [walletBalance, setWalletBalance] = useState<number>(0);
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -558,6 +559,19 @@ const Trading = () => {
 
       if (updateError) throw updateError;
 
+      // Validate stop loss if provided
+      const stopLossValue = stopLoss ? parseFloat(stopLoss) : null;
+      if (stopLossValue !== null) {
+        if (type === 'long' && stopLossValue >= currentPrice) {
+          toast.error("Stop loss must be below entry price for LONG positions");
+          return;
+        }
+        if (type === 'short' && stopLossValue <= currentPrice) {
+          toast.error("Stop loss must be above entry price for SHORT positions");
+          return;
+        }
+      }
+
       // Open position - amount is asset quantity, margin is USD
       const { error } = await supabase.from('positions').insert({
         user_id: user?.id,
@@ -568,7 +582,8 @@ const Trading = () => {
         current_price: currentPrice,
         leverage: leverage,
         margin: margin, // USD margin
-        status: 'open'
+        status: 'open',
+        stop_loss: stopLossValue
       });
 
       if (error) {
@@ -591,9 +606,11 @@ const Trading = () => {
         reference_id: null
       });
 
-      toast.success(`${type.toUpperCase()} position opened: ${assetQuantity.toFixed(6)} ${symbol?.toUpperCase()} @ $${currentPrice.toFixed(2)}. Margin: $${margin.toFixed(2)}`);
+      const slMessage = stopLossValue ? ` | SL: $${stopLossValue.toFixed(2)}` : '';
+      toast.success(`${type.toUpperCase()} position opened: ${assetQuantity.toFixed(6)} ${symbol?.toUpperCase()} @ $${currentPrice.toFixed(2)}${slMessage}. Margin: $${margin.toFixed(2)}`);
       setTradeAmount("");
       setLotSize("");
+      setStopLoss("");
       setShowLongDialog(false);
       setShowShortDialog(false);
       fetchWalletBalance(); // Refresh balance
@@ -1010,6 +1027,24 @@ const Trading = () => {
                 <p className="text-xs text-muted-foreground mt-1">Enter the quantity of {symbol?.toUpperCase()} you want to trade</p>
               </div>
             )}
+
+            {/* Stop Loss Input for Long */}
+            <div>
+              <Label htmlFor="long-stoploss">Stop Loss Price (Optional)</Label>
+              <div className="relative mt-2">
+                <TrendingDown className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-red-500" />
+                <Input
+                  id="long-stoploss"
+                  type="number"
+                  placeholder="Enter stop loss price (below entry)"
+                  value={stopLoss}
+                  onChange={(e) => setStopLoss(e.target.value)}
+                  className="pl-9 border-red-500/30 focus:border-red-500"
+                  step="0.01"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Position auto-closes if price drops to this level</p>
+            </div>
             
             <div className="p-3 bg-muted rounded-lg space-y-2">
               <div className="flex justify-between text-sm">
@@ -1133,6 +1168,24 @@ const Trading = () => {
                 <p className="text-xs text-muted-foreground mt-1">Enter the quantity of {symbol?.toUpperCase()} you want to trade</p>
               </div>
             )}
+
+            {/* Stop Loss Input for Short */}
+            <div>
+              <Label htmlFor="short-stoploss">Stop Loss Price (Optional)</Label>
+              <div className="relative mt-2">
+                <TrendingUp className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-red-500" />
+                <Input
+                  id="short-stoploss"
+                  type="number"
+                  placeholder="Enter stop loss price (above entry)"
+                  value={stopLoss}
+                  onChange={(e) => setStopLoss(e.target.value)}
+                  className="pl-9 border-red-500/30 focus:border-red-500"
+                  step="0.01"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Position auto-closes if price rises to this level</p>
+            </div>
             
             <div className="p-3 bg-muted rounded-lg space-y-2">
               <div className="flex justify-between text-sm">

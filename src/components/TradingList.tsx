@@ -20,7 +20,7 @@ interface TradingListProps {
   momentumEnabled?: boolean;
 }
 
-const TradingList = ({ data, momentumEnabled = true }: TradingListProps) => {
+const TradingList = ({ data, momentumEnabled = false }: TradingListProps) => {
   const navigate = useNavigate();
   const [itemMomentum, setItemMomentum] = useState<Record<number, 'up' | 'down' | 'neutral'>>({});
   const [priceFluctuations, setPriceFluctuations] = useState<Record<number, number>>({});

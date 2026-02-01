@@ -686,30 +686,42 @@ export const AdminKYCManagement = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
+            <div className="space-y-2">
               <Label>Select User</Label>
-              <Select value={selectedUserId} onValueChange={setSelectedUserId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select user" />
-                </SelectTrigger>
-                <SelectContent>
-                  <div className="px-2 py-2 sticky top-0 bg-popover z-10">
-                    <Input
-                      placeholder="Search users..."
-                      value={userSearchQuery}
-                      onChange={(e) => setUserSearchQuery(e.target.value)}
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                  </div>
-                  <ScrollArea className="max-h-[200px]">
-                    {filteredUsersForManualKyc.map((user) => (
-                      <SelectItem key={user.id} value={user.id}>
-                        {user.full_name || 'No Name'} ({user.email})
-                      </SelectItem>
-                    ))}
-                  </ScrollArea>
-                </SelectContent>
-              </Select>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search users by name or email..."
+                  value={userSearchQuery}
+                  onChange={(e) => setUserSearchQuery(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <div className="border rounded-md bg-background max-h-[200px] overflow-y-auto">
+                {filteredUsersForManualKyc.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    {userSearchQuery ? "No users found" : "No users without KYC"}
+                  </p>
+                ) : (
+                  filteredUsersForManualKyc.map((user) => (
+                    <div
+                      key={user.id}
+                      onClick={() => setSelectedUserId(user.id)}
+                      className={`px-3 py-2 cursor-pointer hover:bg-muted transition-colors ${
+                        selectedUserId === user.id ? 'bg-primary/10 border-l-2 border-primary' : ''
+                      }`}
+                    >
+                      <p className="font-medium text-sm">{user.full_name || 'No Name'}</p>
+                      <p className="text-xs text-muted-foreground">{user.email}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+              {selectedUserId && (
+                <p className="text-xs text-green-600">
+                  ✓ Selected: {usersWithoutKyc.find(u => u.id === selectedUserId)?.full_name || usersWithoutKyc.find(u => u.id === selectedUserId)?.email}
+                </p>
+              )}
             </div>
             {selectedUserId && (
               <>

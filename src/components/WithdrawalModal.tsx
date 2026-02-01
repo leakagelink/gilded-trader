@@ -146,7 +146,7 @@ const WithdrawalModal = ({ open, onOpenChange, onSuccess, availableBalance }: Wi
               max={availableBalance}
             />
             <p className="text-xs text-muted-foreground">
-              Minimum withdrawal: $10.00
+              Minimum withdrawal: $1.00
             </p>
           </div>
 
@@ -242,7 +242,7 @@ const WithdrawalModal = ({ open, onOpenChange, onSuccess, availableBalance }: Wi
           <Button
             className="w-full"
             onClick={handleSubmit}
-            disabled={loading || !amount || parseFloat(amount) < 10}
+            disabled={loading || !amount || parseFloat(amount) < 1}
           >
             {loading ? "Submitting..." : "Submit Withdrawal Request"}
           </Button>

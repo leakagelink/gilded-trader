@@ -151,12 +151,13 @@ const Dashboard = () => {
           if (setting.setting_key === "commodities_enabled") {
             setCommoditiesEnabled(setting.setting_value !== "false");
           }
-          if (setting.setting_key === "forex_momentum_enabled") {
-            setForexMomentumEnabled(setting.setting_value !== "false");
-          }
-          if (setting.setting_key === "commodities_momentum_enabled") {
-            setCommoditiesMomentumEnabled(setting.setting_value !== "false");
-          }
+          // Momentum disabled - do not override from database
+          // if (setting.setting_key === "forex_momentum_enabled") {
+          //   setForexMomentumEnabled(setting.setting_value !== "false");
+          // }
+          // if (setting.setting_key === "commodities_momentum_enabled") {
+          //   setCommoditiesMomentumEnabled(setting.setting_value !== "false");
+          // }
         });
       }
     } catch (error) {

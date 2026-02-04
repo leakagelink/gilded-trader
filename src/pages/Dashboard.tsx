@@ -25,8 +25,8 @@ const Dashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [forexEnabled, setForexEnabled] = useState(true);
   const [commoditiesEnabled, setCommoditiesEnabled] = useState(true);
-  const [forexMomentumEnabled, setForexMomentumEnabled] = useState(false);
-  const [commoditiesMomentumEnabled, setCommoditiesMomentumEnabled] = useState(false);
+  const [forexMomentumEnabled, setForexMomentumEnabled] = useState(true);
+  const [commoditiesMomentumEnabled, setCommoditiesMomentumEnabled] = useState(true);
 
   const fetchCryptoData = async (isBackgroundRefresh = false) => {
     try {
@@ -151,13 +151,12 @@ const Dashboard = () => {
           if (setting.setting_key === "commodities_enabled") {
             setCommoditiesEnabled(setting.setting_value !== "false");
           }
-          // Momentum disabled - do not override from database
-          // if (setting.setting_key === "forex_momentum_enabled") {
-          //   setForexMomentumEnabled(setting.setting_value !== "false");
-          // }
-          // if (setting.setting_key === "commodities_momentum_enabled") {
-          //   setCommoditiesMomentumEnabled(setting.setting_value !== "false");
-          // }
+          if (setting.setting_key === "forex_momentum_enabled") {
+            setForexMomentumEnabled(setting.setting_value !== "false");
+          }
+          if (setting.setting_key === "commodities_momentum_enabled") {
+            setCommoditiesMomentumEnabled(setting.setting_value !== "false");
+          }
         });
       }
     } catch (error) {
@@ -378,7 +377,7 @@ const Dashboard = () => {
                       ))}
                     </div>
                   ) : filteredForexData.length > 0 ? (
-                    <TradingList data={filteredForexData} momentumEnabled={false} />
+                    <TradingList data={filteredForexData} momentumEnabled={forexMomentumEnabled} />
                   ) : (
                     <div className="text-center py-8 text-muted-foreground">
                       No forex pairs found matching "{searchQuery}"
@@ -419,7 +418,7 @@ const Dashboard = () => {
                       ))}
                     </div>
                   ) : filteredCommoditiesData.length > 0 ? (
-                    <TradingList data={filteredCommoditiesData} momentumEnabled={false} />
+                    <TradingList data={filteredCommoditiesData} momentumEnabled={commoditiesMomentumEnabled} />
                   ) : (
                     <div className="text-center py-8 text-muted-foreground">
                       No commodities found matching "{searchQuery}"

@@ -875,6 +875,17 @@ export const AdminTradeManagement = () => {
 
       // Update position
       const newCurrentPrice = currentPriceEdit ? parseFloat(currentPriceEdit) : newEntryPrice;
+      const currentPriceChanged = newCurrentPrice !== selectedPosition.current_price;
+      
+      // If admin changed current price, set price_mode to 'edited' so it won't be overridden by live market
+      const newPriceMode = currentPriceChanged ? 'edited' : selectedPosition.price_mode;
+      
+      // Calculate PnL based on the new current price
+      const priceDiff = selectedPosition.position_type === 'long' 
+        ? newCurrentPrice - newEntryPrice 
+        : newEntryPrice - newCurrentPrice;
+      const newPnl = priceDiff * newAmount;
+
       const { error } = await supabase
         .from('positions')
         .update({
@@ -882,6 +893,8 @@ export const AdminTradeManagement = () => {
           entry_price: newEntryPrice,
           current_price: newCurrentPrice,
           margin: newMargin,
+          pnl: newPnl,
+          price_mode: newPriceMode,
           updated_at: new Date().toISOString()
         })
         .eq('id', selectedPosition.id);

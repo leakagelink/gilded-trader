@@ -722,6 +722,20 @@ export const AdminTradeManagement = () => {
         return;
       }
 
+      // Check for existing open position on same symbol + same direction for this user
+      const { data: existingPosition, error: existingError } = await supabase
+        .from('positions')
+        .select('*')
+        .eq('user_id', selectedUser)
+        .eq('symbol', symbol.toUpperCase())
+        .eq('position_type', positionType)
+        .eq('status', 'open')
+        .maybeSingle();
+
+      if (existingError) {
+        console.error('Error checking existing position:', existingError);
+      }
+
       // Deduct margin from wallet
       await supabase
         .from('user_wallets')
@@ -729,41 +743,90 @@ export const AdminTradeManagement = () => {
         .eq('user_id', selectedUser)
         .eq('currency', 'USD');
 
-      // Create position
-      const { error } = await supabase.from('positions').insert({
-        user_id: selectedUser,
-        symbol: symbol.toUpperCase(),
-        position_type: positionType,
-        amount: positionSize, // Units of asset being traded
-        entry_price: price,
-        current_price: price,
-        leverage: lev,
-        margin: margin, // USD investment amount
-        status: 'open',
-        price_mode: priceMode
-      });
+      if (existingPosition) {
+        // AVERAGE INTO EXISTING POSITION
+        const oldAmount = Number(existingPosition.amount);
+        const oldEntryPrice = Number(existingPosition.entry_price);
+        const oldMargin = Number(existingPosition.margin);
 
-      if (error) {
-        // Rollback wallet deduction
-        await supabase
-          .from('user_wallets')
-          .update({ balance: currentBalance })
-          .eq('user_id', selectedUser)
-          .eq('currency', 'USD');
-        throw error;
+        const newTotalAmount = oldAmount + positionSize;
+        const newAvgEntryPrice = ((oldAmount * oldEntryPrice) + (positionSize * price)) / newTotalAmount;
+        const newTotalMargin = oldMargin + margin;
+        const newLeverage = Math.round((newTotalAmount * newAvgEntryPrice) / newTotalMargin);
+
+        const { error: avgError } = await supabase
+          .from('positions')
+          .update({
+            amount: newTotalAmount,
+            entry_price: newAvgEntryPrice,
+            current_price: price,
+            margin: newTotalMargin,
+            leverage: newLeverage,
+            price_mode: priceMode,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', existingPosition.id)
+          .eq('status', 'open');
+
+        if (avgError) {
+          // Rollback wallet deduction
+          await supabase
+            .from('user_wallets')
+            .update({ balance: currentBalance })
+            .eq('user_id', selectedUser)
+            .eq('currency', 'USD');
+          throw avgError;
+        }
+
+        // Record transaction
+        await supabase.from('wallet_transactions').insert({
+          user_id: selectedUser,
+          type: 'trade',
+          amount: -margin,
+          currency: 'USD',
+          status: 'Completed',
+          reference_id: null
+        });
+
+        toast.success(`Averaged into existing ${positionType.toUpperCase()} position. New avg entry: $${newAvgEntryPrice.toFixed(2)}, Total margin: $${newTotalMargin.toFixed(2)}`);
+      } else {
+        // CREATE NEW POSITION
+        const { error } = await supabase.from('positions').insert({
+          user_id: selectedUser,
+          symbol: symbol.toUpperCase(),
+          position_type: positionType,
+          amount: positionSize,
+          entry_price: price,
+          current_price: price,
+          leverage: lev,
+          margin: margin,
+          status: 'open',
+          price_mode: priceMode
+        });
+
+        if (error) {
+          // Rollback wallet deduction
+          await supabase
+            .from('user_wallets')
+            .update({ balance: currentBalance })
+            .eq('user_id', selectedUser)
+            .eq('currency', 'USD');
+          throw error;
+        }
+
+        // Record transaction
+        await supabase.from('wallet_transactions').insert({
+          user_id: selectedUser,
+          type: 'trade',
+          amount: -margin,
+          currency: 'USD',
+          status: 'Completed',
+          reference_id: null
+        });
+
+        toast.success(`Trade opened for user`);
       }
 
-      // Record transaction
-      await supabase.from('wallet_transactions').insert({
-        user_id: selectedUser,
-        type: 'trade',
-        amount: -margin,
-        currency: 'USD',
-        status: 'Completed',
-        reference_id: null
-      });
-
-      toast.success(`Trade opened for user`);
       setOpenTradeDialog(false);
       resetForm();
       fetchPositions();

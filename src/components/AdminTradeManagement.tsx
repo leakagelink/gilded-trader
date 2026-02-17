@@ -133,6 +133,7 @@ export const AdminTradeManagement = () => {
   const [userSearchQuery, setUserSearchQuery] = useState("");
   const [fetchedPrice, setFetchedPrice] = useState<number | null>(null);
   const [selectedLetter, setSelectedLetter] = useState<string | null>(null);
+  const [currentPriceEdit, setCurrentPriceEdit] = useState("");
 
   // Get available assets based on asset type
   const availableAssets = useMemo(() => {
@@ -873,12 +874,13 @@ export const AdminTradeManagement = () => {
         .eq('currency', 'USD');
 
       // Update position
+      const newCurrentPrice = currentPriceEdit ? parseFloat(currentPriceEdit) : newEntryPrice;
       const { error } = await supabase
         .from('positions')
         .update({
           amount: newAmount,
           entry_price: newEntryPrice,
-          current_price: newEntryPrice,
+          current_price: newCurrentPrice,
           margin: newMargin,
           updated_at: new Date().toISOString()
         })
@@ -951,6 +953,7 @@ export const AdminTradeManagement = () => {
     setSelectedPosition(position);
     setAmount(position.amount.toString());
     setEntryPrice(position.entry_price.toString());
+    setCurrentPriceEdit(position.current_price.toString());
     setEditTradeDialog(true);
   };
 
@@ -1761,7 +1764,7 @@ export const AdminTradeManagement = () => {
                 onChange={(e) => setAmount(e.target.value)}
               />
             </div>
-            <div>
+             <div>
               <Label>Entry Price</Label>
               <Input
                 type="number"
@@ -1769,8 +1772,16 @@ export const AdminTradeManagement = () => {
                 onChange={(e) => setEntryPrice(e.target.value)}
               />
             </div>
+            <div>
+              <Label>Current Price</Label>
+              <Input
+                type="number"
+                value={currentPriceEdit}
+                onChange={(e) => setCurrentPriceEdit(e.target.value)}
+              />
+            </div>
             <p className="text-sm text-muted-foreground">
-              Note: Editing trade will update current price to match entry price and adjust momentum accordingly.
+              Note: You can edit current price independently from entry price to control PnL display.
             </p>
           </div>
           <DialogFooter>

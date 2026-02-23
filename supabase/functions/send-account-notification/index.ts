@@ -104,7 +104,7 @@ const handler = async (req: Request): Promise<Response> => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: "CoinGoldFX <onboarding@resend.dev>",
+        from: "CoinGoldFX <noreply@coingoldfx.in>",
         to: [email],
         subject: subject,
         html: htmlContent,

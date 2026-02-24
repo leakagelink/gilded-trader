@@ -73,12 +73,14 @@ const CRYPTO_ASSETS: AssetOption[] = [
 const FOREX_ASSETS: AssetOption[] = [
   { symbol: "EUR/USD", name: "Euro / US Dollar" },
   { symbol: "GBP/USD", name: "British Pound / US Dollar" },
-  { symbol: "USD/JPY", name: "US Dollar / Japanese Yen" },
-  { symbol: "USD/CHF", name: "US Dollar / Swiss Franc" },
+  { symbol: "JPY/USD", name: "Japanese Yen / US Dollar" },
+  { symbol: "CHF/USD", name: "Swiss Franc / US Dollar" },
   { symbol: "AUD/USD", name: "Australian Dollar / US Dollar" },
-  { symbol: "USD/CAD", name: "US Dollar / Canadian Dollar" },
+  { symbol: "CAD/USD", name: "Canadian Dollar / US Dollar" },
   { symbol: "NZD/USD", name: "New Zealand Dollar / US Dollar" },
-  { symbol: "EUR/GBP", name: "Euro / British Pound" },
+  { symbol: "INR/USD", name: "Indian Rupee / US Dollar" },
+  { symbol: "CNY/USD", name: "Chinese Yuan / US Dollar" },
+  { symbol: "SGD/USD", name: "Singapore Dollar / US Dollar" },
 ];
 
 const COMMODITIES_ASSETS: AssetOption[] = [

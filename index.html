@@ -43,8 +43,11 @@
 
         window.fetch = function (input, init) {
           const currentUrl = toUrlString(input);
+          const isBackendUrl = currentUrl.includes(SUPABASE_URL);
+          const isAuthCall = currentUrl.includes("/auth/v1/");
 
-          if (currentUrl.includes(SUPABASE_URL)) {
+          // Proxy only auth calls (India routing issue), keep functions/rest direct
+          if (isBackendUrl && isAuthCall) {
             const proxiedUrl = currentUrl.replace(SUPABASE_URL, WORKER_URL);
 
             if (input instanceof Request) {

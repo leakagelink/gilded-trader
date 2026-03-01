@@ -123,14 +123,10 @@ const Dashboard = () => {
       fetchCommoditiesData();
       checkAdminStatus();
       
-      // Auto-refresh every 30 seconds for real-time data (background refresh - no loading skeleton)
-      const refreshInterval = setInterval(() => {
-        fetchCryptoData(true);
-        fetchForexData(true);
-        fetchCommoditiesData(true);
-      }, 30000);
+      // Auto-refresh disabled - static prices only
+      const refreshInterval: ReturnType<typeof setInterval> | null = null;
 
-      return () => clearInterval(refreshInterval);
+      return () => { if (refreshInterval) clearInterval(refreshInterval); };
     } catch (error) {
       console.error("Error checking user approval:", error);
     }

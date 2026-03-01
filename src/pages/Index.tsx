@@ -105,9 +105,7 @@ const Index = () => {
     };
 
     fetchCryptoPrices();
-    const interval = setInterval(fetchCryptoPrices, 1000);
-
-    return () => clearInterval(interval);
+    // Live momentum disabled - fetch once only
   }, []);
 
   // Generate fake recent activities

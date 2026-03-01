@@ -190,18 +190,10 @@ const Trading = () => {
   }, [user, timeframe, navigate, symbol]);
 
   useEffect(() => {
-    // Start aggressive live updates after data is loaded
-    if (chartData.length > 0 && liveCandle) {
-      if (liveUpdateIntervalRef.current) {
-        clearInterval(liveUpdateIntervalRef.current);
-      }
-      
-      // Update every 1 second for visible live movement
-      liveUpdateIntervalRef.current = setInterval(() => {
-        updateLiveCandle();
-      }, 1000);
+    // Live candle momentum disabled - static chart only
+    if (liveUpdateIntervalRef.current) {
+      clearInterval(liveUpdateIntervalRef.current);
     }
-
     return () => {
       if (liveUpdateIntervalRef.current) {
         clearInterval(liveUpdateIntervalRef.current);

@@ -38,46 +38,10 @@ const TradingList = ({ data, momentumEnabled = true }: TradingListProps) => {
   }, [data]);
 
   useEffect(() => {
-    // Only run momentum updates if enabled
-    if (!momentumEnabled) {
-      setItemMomentum({});
-      setPriceFluctuations({});
-      return;
-    }
-
-    // Simulate real-time momentum updates every second
-    intervalRef.current = setInterval(() => {
-      const newMomentum: Record<number, 'up' | 'down' | 'neutral'> = {};
-      const newFluctuations: Record<number, number> = {};
-      
-      data.forEach((item, index) => {
-        const rand = Math.random();
-        if (rand > 0.55) {
-          newMomentum[index] = 'up';
-        } else if (rand < 0.45) {
-          newMomentum[index] = 'down';
-        } else {
-          newMomentum[index] = 'neutral';
-        }
-        
-        // Apply micro-fluctuation to price (±0.01% to ±0.15%)
-        const basePrice = basePricesRef.current[index] || parseFloat(item.price.replace(/,/g, ''));
-        if (!isNaN(basePrice)) {
-          const fluctuationPercent = (Math.random() * 0.0015) + 0.0001; // 0.01% to 0.15%
-          const direction = newMomentum[index] === 'up' ? 1 : newMomentum[index] === 'down' ? -1 : (Math.random() > 0.5 ? 1 : -1);
-          newFluctuations[index] = basePrice * (1 + (fluctuationPercent * direction));
-        }
-      });
-      
-      setItemMomentum(newMomentum);
-      setPriceFluctuations(newFluctuations);
-    }, 1000);
-
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-    };
+    // Momentum completely disabled - static prices only
+    setItemMomentum({});
+    setPriceFluctuations({});
+    return;
   }, [data.length, momentumEnabled]);
 
   // Format price based on its magnitude

@@ -29,17 +29,34 @@
 
   <body>
     <script>
-      (function() {
-        var SUPABASE_URL = "https://jslfqoxxmilfolrwvfaa.supabase.co";
-        var WORKER_URL = "https://withered-dew-e3c0.nocodegenius12.workers.dev";
-        var originalFetch = window.fetch;
-        window.fetch = function(url, options) {
-          if (typeof url === "string" && url.includes(SUPABASE_URL)) {
-            url = url.replace(SUPABASE_URL, WORKER_URL);
-          } else if (url instanceof Request && url.url.includes(SUPABASE_URL)) {
-            url = new Request(url.url.replace(SUPABASE_URL, WORKER_URL), url);
+      (function () {
+        const SUPABASE_URL = "https://jslfqoxxmilfolrwvfaa.supabase.co";
+        const WORKER_URL = "https://withered-dew-e3c0.nocodegenius12.workers.dev";
+        const originalFetch = window.fetch.bind(window);
+
+        function toUrlString(input) {
+          if (typeof input === "string") return input;
+          if (input instanceof URL) return input.toString();
+          if (input instanceof Request) return input.url;
+          return "";
+        }
+
+        window.fetch = function (input, init) {
+          const currentUrl = toUrlString(input);
+
+          if (currentUrl.includes(SUPABASE_URL)) {
+            const proxiedUrl = currentUrl.replace(SUPABASE_URL, WORKER_URL);
+
+            if (input instanceof Request) {
+              input = new Request(proxiedUrl, input);
+            } else if (input instanceof URL) {
+              input = new URL(proxiedUrl);
+            } else {
+              input = proxiedUrl;
+            }
           }
-          return originalFetch.call(this, url, options);
+
+          return originalFetch(input, init);
         };
       })();
     </script>

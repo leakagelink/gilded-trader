@@ -28,6 +28,21 @@
   </head>
 
   <body>
+    <script>
+      (function() {
+        var SUPABASE_URL = "https://jslfqoxxmilfolrwvfaa.supabase.co";
+        var WORKER_URL = "https://withered-dew-e3c0.nocodegenius12.workers.dev";
+        var originalFetch = window.fetch;
+        window.fetch = function(url, options) {
+          if (typeof url === "string" && url.includes(SUPABASE_URL)) {
+            url = url.replace(SUPABASE_URL, WORKER_URL);
+          } else if (url instanceof Request && url.url.includes(SUPABASE_URL)) {
+            url = new Request(url.url.replace(SUPABASE_URL, WORKER_URL), url);
+          }
+          return originalFetch.call(this, url, options);
+        };
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

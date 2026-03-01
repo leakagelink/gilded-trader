@@ -436,10 +436,8 @@ export const AdminTradeManagement = () => {
       }
     };
 
-    updatePrices();
-    const interval = setInterval(updatePrices, 5000); // 5 seconds for admin to edit trades
-
-    return () => clearInterval(interval);
+    // Live momentum disabled - admin trade management shows static prices
+    // No interval updates
   }, [positions.length]);
 
   const fetchUsers = async () => {

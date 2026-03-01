@@ -166,11 +166,8 @@ const AdminPositions = () => {
       }
     };
 
-    // Update prices immediately and then every 1 second
-    updatePrices();
-    const interval = setInterval(updatePrices, 1000);
-
-    return () => clearInterval(interval);
+    // Live momentum disabled - admin positions show static prices
+    // No interval updates
   }, [isAdmin]);
 
   const checkAdminAndFetch = async () => {

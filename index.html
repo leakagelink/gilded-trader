@@ -34,20 +34,36 @@
         const WORKER_URL = "https://withered-dew-e3c0.nocodegenius12.workers.dev";
         const originalFetch = window.fetch.bind(window);
 
-        function toUrlString(input) {
+        function getUrlString(input) {
           if (typeof input === "string") return input;
           if (input instanceof URL) return input.toString();
           if (input instanceof Request) return input.url;
           return "";
         }
 
-        window.fetch = function (input, init) {
-          const currentUrl = toUrlString(input);
-          const isBackendUrl = currentUrl.includes(SUPABASE_URL);
-          const isAuthCall = currentUrl.includes("/auth/v1/");
+        function shouldProxyAuthOnly(rawUrl) {
+          try {
+            const url = new URL(rawUrl);
+            if (url.origin !== SUPABASE_URL) return false;
 
-          // Proxy only auth calls (India routing issue), keep functions/rest direct
-          if (isBackendUrl && isAuthCall) {
+            const path = url.pathname;
+            const isAuth = path.startsWith("/auth/v1/");
+            const isExcluded =
+              path.startsWith("/functions/v1/") ||
+              path.startsWith("/rest/v1/") ||
+              path.startsWith("/storage/v1/") ||
+              path.startsWith("/realtime/v1/");
+
+            return isAuth && !isExcluded;
+          } catch {
+            return false;
+          }
+        }
+
+        window.fetch = function (input, init) {
+          const currentUrl = getUrlString(input);
+
+          if (shouldProxyAuthOnly(currentUrl)) {
             const proxiedUrl = currentUrl.replace(SUPABASE_URL, WORKER_URL);
 
             if (input instanceof Request) {

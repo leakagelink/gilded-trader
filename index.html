@@ -41,20 +41,10 @@
           return "";
         }
 
-        function shouldProxyAuthOnly(rawUrl) {
+        function shouldProxy(rawUrl) {
           try {
             const url = new URL(rawUrl);
-            if (url.origin !== SUPABASE_URL) return false;
-
-            const path = url.pathname;
-            const isAuth = path.startsWith("/auth/v1/");
-            const isExcluded =
-              path.startsWith("/functions/v1/") ||
-              path.startsWith("/rest/v1/") ||
-              path.startsWith("/storage/v1/") ||
-              path.startsWith("/realtime/v1/");
-
-            return isAuth && !isExcluded;
+            return url.origin === SUPABASE_URL;
           } catch {
             return false;
           }
@@ -63,7 +53,7 @@
         window.fetch = function (input, init) {
           const currentUrl = getUrlString(input);
 
-          if (shouldProxyAuthOnly(currentUrl)) {
+          if (shouldProxy(currentUrl)) {
             const proxiedUrl = currentUrl.replace(SUPABASE_URL, WORKER_URL);
 
             if (input instanceof Request) {

@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appName: 'gilded-trader',
   webDir: 'dist',
   server: {
-    url: 'https://b8e7981e-f1e5-42f2-a65f-5dfb4f20e752.lovableproject.com?forceHideBadge=true',
+    url: 'https://coingoldfx.in',
     cleartext: true
   }
 };

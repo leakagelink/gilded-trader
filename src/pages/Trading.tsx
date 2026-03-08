@@ -190,9 +190,10 @@ const Trading = () => {
   }, [user, timeframe, navigate, symbol]);
 
   useEffect(() => {
-    // Live candle momentum disabled - static chart only
-    if (liveUpdateIntervalRef.current) {
-      clearInterval(liveUpdateIntervalRef.current);
+    if (chartData.length > 0 && liveCandle) {
+      liveUpdateIntervalRef.current = setInterval(() => {
+        updateLiveCandle();
+      }, 2000);
     }
     return () => {
       if (liveUpdateIntervalRef.current) {

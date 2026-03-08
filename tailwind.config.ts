@@ -107,8 +107,8 @@ export default {
           "100%": { backgroundPosition: "200% 0" },
         },
         "glow": {
-          "0%, 100%": { boxShadow: "0 0 20px hsl(180 80% 45% / 0.3)" },
-          "50%": { boxShadow: "0 0 40px hsl(180 80% 45% / 0.6)" },
+          "0%, 100%": { boxShadow: "0 0 20px hsl(350 65% 35% / 0.3)" },
+          "50%": { boxShadow: "0 0 40px hsl(350 65% 35% / 0.6)" },
         },
         "spin-slow": {
           "0%": { transform: "rotate(0deg)" },

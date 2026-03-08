@@ -137,6 +137,26 @@ const Settings = () => {
             </div>
           </Card>
 
+          {/* App Download */}
+          {appDownloadUrl && (
+            <Card className="p-6 bg-gradient-to-r from-primary/10 to-accent/10 border-primary/20">
+              <div className="flex items-center gap-2 mb-4">
+                <Smartphone className="h-5 w-5 text-primary" />
+                <h2 className="text-xl font-semibold">Download App</h2>
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">
+                Download our mobile app for the best trading experience on your phone.
+              </p>
+              <Button
+                onClick={() => window.open(appDownloadUrl, '_blank')}
+                className="w-full bg-gradient-to-r from-primary to-accent text-primary-foreground"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Download APK
+              </Button>
+            </Card>
+          )}
+
           <Button
             onClick={handleSave}
             className="w-full bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary"

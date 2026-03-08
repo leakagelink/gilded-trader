@@ -1,15 +1,34 @@
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Settings as SettingsIcon, Bell, Shield, Lock } from "lucide-react";
+import { Settings as SettingsIcon, Bell, Shield, Lock, Download, Smartphone, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import BottomNav from "@/components/BottomNav";
 import logo from "@/assets/logo.png";
+import { supabase } from "@/integrations/supabase/client";
 
 const Settings = () => {
   const navigate = useNavigate();
+  const [appDownloadUrl, setAppDownloadUrl] = useState<string | null>(null);
+  const [loadingUrl, setLoadingUrl] = useState(true);
+
+  useEffect(() => {
+    const fetchAppUrl = async () => {
+      const { data } = await supabase
+        .from("payment_settings")
+        .select("setting_value")
+        .eq("setting_key", "app_download_url")
+        .maybeSingle();
+      if (data?.setting_value) {
+        setAppDownloadUrl(data.setting_value);
+      }
+      setLoadingUrl(false);
+    };
+    fetchAppUrl();
+  }, []);
 
   const handleSave = () => {
     toast.success("Settings saved successfully!");

@@ -38,10 +38,50 @@ const TradingList = ({ data, momentumEnabled = true }: TradingListProps) => {
   }, [data]);
 
   useEffect(() => {
-    // Momentum completely disabled - static prices only
-    setItemMomentum({});
-    setPriceFluctuations({});
-    return;
+    if (!momentumEnabled) {
+      setItemMomentum({});
+      setPriceFluctuations({});
+      return;
+    }
+
+    // Initialize base prices
+    const initPrices: Record<number, number> = {};
+    data.forEach((item, index) => {
+      const numericPrice = parseFloat(item.price.replace(/,/g, ''));
+      if (!isNaN(numericPrice)) {
+        initPrices[index] = numericPrice;
+      }
+    });
+    basePricesRef.current = { ...basePricesRef.current, ...initPrices };
+
+    // Live momentum micro-fluctuations
+    intervalRef.current = setInterval(() => {
+      const newMomentum: Record<number, 'up' | 'down' | 'neutral'> = {};
+      const newFluctuations: Record<number, number> = {};
+
+      data.forEach((_, index) => {
+        const basePrice = basePricesRef.current[index];
+        if (!basePrice) return;
+
+        const direction = Math.random();
+        const fluctuationPercent = (Math.random() * 0.0014 + 0.0001); // ±0.01% to ±0.15%
+        const sign = direction > 0.5 ? 1 : -1;
+        const newPrice = basePrice * (1 + sign * fluctuationPercent);
+
+        newFluctuations[index] = newPrice;
+        newMomentum[index] = sign > 0 ? 'up' : 'down';
+      });
+
+      setPriceFluctuations(newFluctuations);
+      setItemMomentum(newMomentum);
+    }, 2000);
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
   }, [data.length, momentumEnabled]);
 
   // Format price based on its magnitude

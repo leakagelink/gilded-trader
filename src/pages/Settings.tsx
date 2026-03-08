@@ -1,15 +1,34 @@
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Settings as SettingsIcon, Bell, Shield, Lock } from "lucide-react";
+import { Settings as SettingsIcon, Bell, Shield, Lock, Download, Smartphone, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import BottomNav from "@/components/BottomNav";
 import logo from "@/assets/logo.png";
+import { supabase } from "@/integrations/supabase/client";
 
 const Settings = () => {
   const navigate = useNavigate();
+  const [appDownloadUrl, setAppDownloadUrl] = useState<string | null>(null);
+  const [loadingUrl, setLoadingUrl] = useState(true);
+
+  useEffect(() => {
+    const fetchAppUrl = async () => {
+      const { data } = await supabase
+        .from("payment_settings")
+        .select("setting_value")
+        .eq("setting_key", "app_download_url")
+        .maybeSingle();
+      if (data?.setting_value) {
+        setAppDownloadUrl(data.setting_value);
+      }
+      setLoadingUrl(false);
+    };
+    fetchAppUrl();
+  }, []);
 
   const handleSave = () => {
     toast.success("Settings saved successfully!");
@@ -117,6 +136,26 @@ const Settings = () => {
               </div>
             </div>
           </Card>
+
+          {/* App Download */}
+          {appDownloadUrl && (
+            <Card className="p-6 bg-gradient-to-r from-primary/10 to-accent/10 border-primary/20">
+              <div className="flex items-center gap-2 mb-4">
+                <Smartphone className="h-5 w-5 text-primary" />
+                <h2 className="text-xl font-semibold">Download App</h2>
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">
+                Download our mobile app for the best trading experience on your phone.
+              </p>
+              <Button
+                onClick={() => window.open(appDownloadUrl, '_blank')}
+                className="w-full bg-gradient-to-r from-primary to-accent text-primary-foreground"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Download APK
+              </Button>
+            </Card>
+          )}
 
           <Button
             onClick={handleSave}

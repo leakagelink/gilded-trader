@@ -436,8 +436,13 @@ export const AdminTradeManagement = () => {
       }
     };
 
-    // Live momentum disabled - admin trade management shows static prices
-    // No interval updates
+    // Initial fetch
+    updatePrices();
+
+    // Live momentum updates every 3 seconds
+    const intervalId = setInterval(updatePrices, 3000);
+
+    return () => clearInterval(intervalId);
   }, [positions.length]);
 
   const fetchUsers = async () => {

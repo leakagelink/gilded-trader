@@ -88,10 +88,179 @@ const Positions = () => {
 
   // Real-time price updates for open positions
   const hasOpenPositions = openPositions.length > 0;
-  
-  // Live momentum disabled - positions show static prices from database
+
   useEffect(() => {
-    // No price updates - momentum completely stopped
+    if (!user || !hasOpenPositions) return;
+
+    const COMMODITY_SYMBOLS = new Set(["XAU", "XAG", "WTI", "BRENT", "NG", "XCU", "XPT", "XPD"]);
+
+    const updatePrices = async () => {
+      try {
+        const currentPositions = positionsRef.current.filter(
+          (p) => p.status === "open" && !permanentlyClosedIdsRef.current.has(p.id)
+        );
+
+        if (currentPositions.length === 0) return;
+
+        const livePositions = currentPositions.filter(
+          (p) => p.price_mode !== "manual" && p.price_mode !== "edited"
+        );
+
+        const cryptoSymbols = Array.from(
+          new Set(
+            livePositions
+              .filter((p) => !p.symbol.includes("/") && !COMMODITY_SYMBOLS.has(p.symbol.toUpperCase()))
+              .map((p) => p.symbol.toUpperCase())
+          )
+        );
+
+        const [cryptoResponse, forexResponse, commoditiesResponse] = await Promise.all([
+          cryptoSymbols.length > 0
+            ? supabase.functions.invoke("fetch-crypto-data", { body: { symbols: cryptoSymbols } })
+            : Promise.resolve({ data: null, error: null }),
+          livePositions.some((p) => p.symbol.includes("/"))
+            ? supabase.functions.invoke("fetch-forex-data")
+            : Promise.resolve({ data: null, error: null }),
+          livePositions.some((p) => COMMODITY_SYMBOLS.has(p.symbol.toUpperCase()))
+            ? supabase.functions.invoke("fetch-commodities-data")
+            : Promise.resolve({ data: null, error: null }),
+        ]);
+
+        const cryptoPrices: Record<string, number> = {};
+        if (!cryptoResponse.error && cryptoResponse.data?.cryptoData) {
+          cryptoResponse.data.cryptoData.forEach((coin: any) => {
+            if (coin.symbol && coin.price) {
+              cryptoPrices[coin.symbol.toUpperCase()] = parseFloat(coin.price);
+            }
+          });
+        }
+
+        const forexPrices: Record<string, number> = {};
+        if (!forexResponse.error && forexResponse.data?.forexData) {
+          forexResponse.data.forexData.forEach((fx: any) => {
+            const key = (fx.symbol || fx.name || "").toUpperCase();
+            const price = parseFloat(fx.price);
+            if (key && !Number.isNaN(price) && price > 0) {
+              forexPrices[key] = price;
+            }
+          });
+        }
+
+        const commodityPrices: Record<string, number> = {};
+        if (!commoditiesResponse.error && commoditiesResponse.data?.commoditiesData) {
+          commoditiesResponse.data.commoditiesData.forEach((commodity: any) => {
+            const key = (commodity.symbol || "").toUpperCase();
+            const price = parseFloat(commodity.price);
+            if (key && !Number.isNaN(price) && price > 0) {
+              commodityPrices[key] = price;
+            }
+          });
+        }
+
+        const autoCloseQueue: Array<{ position: Position; reason: "stop_loss" | "take_profit" }> = [];
+
+        const updatedPositions = currentPositions.map((position) => {
+          let currentPrice = position.current_price;
+          let pnl = position.pnl || 0;
+
+          if (position.price_mode === "edited") {
+            if (basePnlRef.current[position.id] === undefined) {
+              basePnlRef.current[position.id] = position.pnl || 0;
+            }
+
+            const basePnl = basePnlRef.current[position.id];
+            const basePnlPercent = position.margin > 0 ? (basePnl / position.margin) * 100 : 0;
+            const momentumOffset = Math.random() * 5;
+            const adjustedPnlPercent = basePnl >= 0 ? basePnlPercent + momentumOffset : basePnlPercent - momentumOffset;
+
+            pnl = (adjustedPnlPercent / 100) * position.margin;
+            currentPrice =
+              position.position_type === "long"
+                ? position.entry_price + pnl / (position.amount * position.leverage)
+                : position.entry_price - pnl / (position.amount * position.leverage);
+            currentPrice = Math.max(0.0001, currentPrice);
+          } else if (position.price_mode === "manual") {
+            const randomPercent = (Math.random() * 4 + 1) * (Math.random() > 0.5 ? 1 : -1);
+            currentPrice = position.entry_price * (1 + randomPercent / 100);
+          } else {
+            const symbol = position.symbol.toUpperCase();
+            if (symbol.includes("/")) {
+              currentPrice = forexPrices[symbol] || currentPrice;
+            } else if (COMMODITY_SYMBOLS.has(symbol)) {
+              currentPrice = commodityPrices[symbol] || currentPrice;
+            } else {
+              currentPrice = cryptoPrices[symbol] || currentPrice;
+            }
+          }
+
+          const previousPrice = previousPricesRef.current[position.id];
+          if (previousPrice !== undefined && previousPrice !== currentPrice) {
+            const direction = currentPrice > previousPrice ? "up" : "down";
+            setPriceChanges((prev) => ({ ...prev, [position.id]: { direction, flash: true } }));
+            setTimeout(() => {
+              setPriceChanges((prev) => ({ ...prev, [position.id]: { ...prev[position.id], flash: false } }));
+            }, 500);
+          }
+          previousPricesRef.current[position.id] = currentPrice;
+
+          pnl =
+            position.position_type === "long"
+              ? (currentPrice - position.entry_price) * position.amount * position.leverage
+              : (position.entry_price - currentPrice) * position.amount * position.leverage;
+
+          if (position.stop_loss && !permanentlyClosedIdsRef.current.has(position.id)) {
+            const hitStopLoss =
+              (position.position_type === "long" && currentPrice <= position.stop_loss) ||
+              (position.position_type === "short" && currentPrice >= position.stop_loss);
+            if (hitStopLoss) {
+              autoCloseQueue.push({ position: { ...position, current_price: currentPrice, pnl }, reason: "stop_loss" });
+            }
+          }
+
+          if (position.take_profit && !permanentlyClosedIdsRef.current.has(position.id)) {
+            const hitTakeProfit =
+              (position.position_type === "long" && currentPrice >= position.take_profit) ||
+              (position.position_type === "short" && currentPrice <= position.take_profit);
+            if (hitTakeProfit) {
+              autoCloseQueue.push({ position: { ...position, current_price: currentPrice, pnl }, reason: "take_profit" });
+            }
+          }
+
+          if (position.price_mode !== "edited") {
+            supabase
+              .from("positions")
+              .update({
+                current_price: currentPrice,
+                pnl,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", position.id)
+              .eq("status", "open")
+              .then(({ error }) => {
+                if (error) console.error("Error updating position:", error);
+              });
+          }
+
+          return {
+            ...position,
+            current_price: currentPrice,
+            pnl,
+          };
+        });
+
+        setOpenPositions(updatedPositions);
+
+        autoCloseQueue.forEach(({ position, reason }) => {
+          handleAutoClose(position, reason);
+        });
+      } catch (error) {
+        console.error("Error updating position prices:", error);
+      }
+    };
+
+    updatePrices();
+    const intervalId = setInterval(updatePrices, 3000);
+    return () => clearInterval(intervalId);
   }, [user, hasOpenPositions]);
 
   // Subscribe to real-time updates for position changes (when admin edits a trade)

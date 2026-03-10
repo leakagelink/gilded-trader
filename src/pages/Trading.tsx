@@ -73,7 +73,7 @@ const Trading = () => {
   const [priceDirection, setPriceDirection] = useState<'up' | 'down' | 'neutral'>('neutral');
   const [swipeIndicator, setSwipeIndicator] = useState<'left' | 'right' | null>(null);
   const prevPriceRef = useRef<number>(0);
-  const liveUpdateIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const liveUpdateIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [showLongDialog, setShowLongDialog] = useState(false);
   const [showShortDialog, setShowShortDialog] = useState(false);
   const [tradeAmount, setTradeAmount] = useState(""); // USD amount

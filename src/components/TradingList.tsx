@@ -24,7 +24,7 @@ const TradingList = ({ data, momentumEnabled = true }: TradingListProps) => {
   const navigate = useNavigate();
   const [itemMomentum, setItemMomentum] = useState<Record<number, 'up' | 'down' | 'neutral'>>({});
   const [priceFluctuations, setPriceFluctuations] = useState<Record<number, number>>({});
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const basePricesRef = useRef<Record<number, number>>({});
 
   // Store base prices from data

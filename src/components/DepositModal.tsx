@@ -32,7 +32,7 @@ const DepositModal = ({ open, onOpenChange, onSuccess }: DepositModalProps) => {
   const [countdown, setCountdown] = useState(COUNTDOWN_DURATION);
   const [isAutoLocked, setIsAutoLocked] = useState(false);
   const [depositRequestId, setDepositRequestId] = useState<string | null>(null);
-  const countdownRef = useRef<NodeJS.Timeout | null>(null);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const { toast } = useToast();
 
   // Payment details from database

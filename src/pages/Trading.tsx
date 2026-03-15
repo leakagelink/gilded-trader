@@ -84,8 +84,34 @@ const Trading = () => {
   const [takeProfit, setTakeProfit] = useState(""); // Take profit price
   const [chartScale, setChartScale] = useState(1);
   const [walletBalance, setWalletBalance] = useState<number>(0);
+  const [momentumEnabled, setMomentumEnabled] = useState(true);
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const touchStartDistance = useRef<number>(0);
+
+  // Fetch momentum settings for forex/commodities
+  useEffect(() => {
+    const fetchMomentumSetting = async () => {
+      if (!symbol) return;
+      const sym = symbol.toUpperCase();
+      const isForex = ['EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CHF', 'CNY', 'INR', 'NZD', 'SGD'].includes(sym);
+      const isCommoditySymbol = ['XAU', 'XAG', 'WTI', 'NG', 'HG', 'XPT', 'XPD', 'BRENT'].includes(sym);
+      
+      if (!isForex && !isCommoditySymbol) {
+        setMomentumEnabled(true);
+        return;
+      }
+
+      const settingKey = isForex ? 'forex_momentum_enabled' : 'commodities_momentum_enabled';
+      const { data } = await supabase
+        .from('payment_settings')
+        .select('setting_value')
+        .eq('setting_key', settingKey)
+        .maybeSingle();
+      
+      setMomentumEnabled(data?.setting_value !== 'false');
+    };
+    fetchMomentumSetting();
+  }, [symbol]);
 
   // Fetch wallet balance
   const fetchWalletBalance = async () => {
@@ -190,7 +216,7 @@ const Trading = () => {
   }, [user, timeframe, navigate, symbol]);
 
   useEffect(() => {
-    if (chartData.length > 0 && liveCandle) {
+    if (chartData.length > 0 && liveCandle && momentumEnabled) {
       liveUpdateIntervalRef.current = setInterval(() => {
         updateLiveCandle();
       }, 2000);
@@ -200,7 +226,7 @@ const Trading = () => {
         clearInterval(liveUpdateIntervalRef.current);
       }
     };
-  }, [chartData.length, liveCandle?.timestamp]);
+  }, [chartData.length, liveCandle?.timestamp, momentumEnabled]);
 
   // Check if symbol is a forex pair
   const isForexPair = (sym: string) => {

@@ -216,7 +216,7 @@ const Trading = () => {
   }, [user, timeframe, navigate, symbol]);
 
   useEffect(() => {
-    if (chartData.length > 0 && liveCandle) {
+    if (chartData.length > 0 && liveCandle && momentumEnabled) {
       liveUpdateIntervalRef.current = setInterval(() => {
         updateLiveCandle();
       }, 2000);
@@ -226,7 +226,7 @@ const Trading = () => {
         clearInterval(liveUpdateIntervalRef.current);
       }
     };
-  }, [chartData.length, liveCandle?.timestamp]);
+  }, [chartData.length, liveCandle?.timestamp, momentumEnabled]);
 
   // Check if symbol is a forex pair
   const isForexPair = (sym: string) => {

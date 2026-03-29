@@ -102,6 +102,28 @@ const Positions = () => {
 
         if (currentPositions.length === 0) return;
 
+        // Check if it's weekend (Saturday=6, Sunday=0)
+        const today = new Date().getDay();
+        const isWeekend = today === 0 || today === 6;
+
+        // Fetch momentum settings from payment_settings
+        let forexMomentumEnabled = true;
+        let commoditiesMomentumEnabled = true;
+        try {
+          const { data: settingsData } = await supabase
+            .from("payment_settings")
+            .select("setting_key, setting_value")
+            .in("setting_key", ["forex_momentum_enabled", "commodities_momentum_enabled"]);
+          if (settingsData) {
+            settingsData.forEach((s) => {
+              if (s.setting_key === "forex_momentum_enabled") forexMomentumEnabled = s.setting_value !== "false";
+              if (s.setting_key === "commodities_momentum_enabled") commoditiesMomentumEnabled = s.setting_value !== "false";
+            });
+          }
+        } catch (err) {
+          console.error("Error fetching momentum settings:", err);
+        }
+
         const livePositions = currentPositions.filter(
           (p) => p.price_mode !== "manual" && p.price_mode !== "edited"
         );
@@ -164,6 +186,16 @@ const Positions = () => {
           let pnl = position.pnl || 0;
 
           if (position.price_mode === "edited") {
+            const symbol = position.symbol.toUpperCase();
+            const isForex = symbol.includes("/");
+            const isCommodity = COMMODITY_SYMBOLS.has(symbol);
+            
+            // Skip momentum for forex/commodities on weekends or when momentum disabled
+            if ((isForex && (isWeekend || !forexMomentumEnabled)) || 
+                (isCommodity && (isWeekend || !commoditiesMomentumEnabled))) {
+              return { ...position };
+            }
+            
             if (basePnlRef.current[position.id] === undefined) {
               basePnlRef.current[position.id] = position.pnl || 0;
             }
@@ -180,13 +212,32 @@ const Positions = () => {
                 : position.entry_price - pnl / (position.amount * position.leverage);
             currentPrice = Math.max(0.0001, currentPrice);
           } else if (position.price_mode === "manual") {
+            const symbol = position.symbol.toUpperCase();
+            const isForex = symbol.includes("/");
+            const isCommodity = COMMODITY_SYMBOLS.has(symbol);
+            
+            // Skip momentum for forex/commodities on weekends or when momentum disabled
+            if ((isForex && (isWeekend || !forexMomentumEnabled)) || 
+                (isCommodity && (isWeekend || !commoditiesMomentumEnabled))) {
+              return { ...position };
+            }
+            
             const randomPercent = (Math.random() * 4 + 1) * (Math.random() > 0.5 ? 1 : -1);
             currentPrice = position.entry_price * (1 + randomPercent / 100);
           } else {
             const symbol = position.symbol.toUpperCase();
-            if (symbol.includes("/")) {
+            const isForex = symbol.includes("/");
+            const isCommodity = COMMODITY_SYMBOLS.has(symbol);
+            
+            // Skip momentum for forex/commodities on weekends or when momentum disabled
+            if ((isForex && (isWeekend || !forexMomentumEnabled)) || 
+                (isCommodity && (isWeekend || !commoditiesMomentumEnabled))) {
+              return { ...position };
+            }
+            
+            if (isForex) {
               currentPrice = forexPrices[symbol] || currentPrice;
-            } else if (COMMODITY_SYMBOLS.has(symbol)) {
+            } else if (isCommodity) {
               currentPrice = commodityPrices[symbol] || currentPrice;
             } else {
               currentPrice = cryptoPrices[symbol] || currentPrice;

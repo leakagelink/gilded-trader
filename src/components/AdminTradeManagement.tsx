@@ -282,11 +282,34 @@ export const AdminTradeManagement = () => {
   useEffect(() => {
     if (positions.length === 0) return;
 
+    const COMMODITY_SYMBOLS = new Set(["XAU", "XAG", "WTI", "BRENT", "NG", "XCU", "XPT", "XPD"]);
+    
     const updatePrices = async () => {
       try {
-        // Use ref to get latest positions to avoid stale closure
         const currentPositions = positionsRef.current;
         if (currentPositions.length === 0) return;
+
+        // Check if it's weekend (Saturday=6, Sunday=0)
+        const today = new Date().getDay();
+        const isWeekend = today === 0 || today === 6;
+
+        // Fetch momentum settings
+        let forexMomentumEnabled = true;
+        let commoditiesMomentumEnabled = true;
+        try {
+          const { data: settingsData } = await supabase
+            .from("payment_settings")
+            .select("setting_key, setting_value")
+            .in("setting_key", ["forex_momentum_enabled", "commodities_momentum_enabled"]);
+          if (settingsData) {
+            settingsData.forEach((s) => {
+              if (s.setting_key === "forex_momentum_enabled") forexMomentumEnabled = s.setting_value !== "false";
+              if (s.setting_key === "commodities_momentum_enabled") commoditiesMomentumEnabled = s.setting_value !== "false";
+            });
+          }
+        } catch (err) {
+          console.error("Error fetching momentum settings:", err);
+        }
 
         // Fetch real crypto prices from CoinMarketCap for live trades
         let cryptoPrices: Record<string, number> = {};
@@ -306,79 +329,76 @@ export const AdminTradeManagement = () => {
             let currentPrice = position.current_price;
             let pnl: number;
 
+            const symbol = position.symbol.toUpperCase();
+            const isForex = symbol.includes('/');
+            const isCommodity = COMMODITY_SYMBOLS.has(symbol);
+
             // Check if this is an edited trade (admin adjusted PnL)
             if (position.price_mode === 'edited') {
-              // Get the base PnL from ref (admin-set value) or initialize from DB value
+              // Skip momentum for forex/commodities on weekends or when momentum disabled
+              if ((isForex && (isWeekend || !forexMomentumEnabled)) || 
+                  (isCommodity && (isWeekend || !commoditiesMomentumEnabled))) {
+                return position;
+              }
+              
               if (basePnlRef.current[position.id] === undefined) {
                 basePnlRef.current[position.id] = position.pnl || 0;
               }
               const basePnl = basePnlRef.current[position.id];
               const isPositivePnl = basePnl >= 0;
-              
-              // Calculate base PnL percentage from margin
               const basePnlPercent = position.margin > 0 ? (basePnl / position.margin) * 100 : 0;
-              
-              // DIRECTIONAL MOMENTUM:
-              // If PnL is positive (increased by admin), momentum goes ONLY upward (0% to +5% above base)
-              // If PnL is negative (decreased by admin), momentum goes ONLY downward (0% to -5% below base)
-              const momentumOffset = Math.random() * 5; // 0% to 5%
+              const momentumOffset = Math.random() * 5;
               let adjustedPnlPercent: number;
               
               if (isPositivePnl) {
-                // Positive PnL: fluctuate from base to base+5%
                 adjustedPnlPercent = basePnlPercent + momentumOffset;
               } else {
-                // Negative PnL: fluctuate from base to base-5%
                 adjustedPnlPercent = basePnlPercent - momentumOffset;
               }
               
-              // Calculate display PnL from adjusted percentage
               pnl = (adjustedPnlPercent / 100) * position.margin;
               
-              // Calculate current price from PnL for display
               if (position.position_type === 'long') {
                 currentPrice = position.entry_price + (pnl / (position.amount * position.leverage));
               } else {
                 currentPrice = position.entry_price - (pnl / (position.amount * position.leverage));
               }
-              
-              // Ensure price doesn't go negative
               currentPrice = Math.max(0.0001, currentPrice);
               
-              // Track price changes for visual indicators
               const previousPrice = previousPricesRef.current[position.id];
               if (previousPrice !== undefined && previousPrice !== currentPrice) {
                 const direction = currentPrice > previousPrice ? 'up' : 'down';
                 setPriceChanges(prev => ({ ...prev, [position.id]: { direction, flash: true } }));
-                
                 setTimeout(() => {
                   setPriceChanges(prev => ({ ...prev, [position.id]: { ...prev[position.id], flash: false } }));
                 }, 500);
               }
               previousPricesRef.current[position.id] = currentPrice;
               
-              // DO NOT update database for edited trades - keep base pnl intact
-              return {
-                ...position,
-                current_price: currentPrice,
-                pnl: pnl
-              };
+              return { ...position, current_price: currentPrice, pnl };
             } else if (position.price_mode === 'manual') {
-              // Generate fake momentum between 1-5% for manual trades around entry price
+              // Skip momentum for forex/commodities on weekends or when momentum disabled
+              if ((isForex && (isWeekend || !forexMomentumEnabled)) || 
+                  (isCommodity && (isWeekend || !commoditiesMomentumEnabled))) {
+                return position;
+              }
+              
               const randomPercent = (Math.random() * 4 + 1) * (Math.random() > 0.5 ? 1 : -1);
               currentPrice = position.entry_price * (1 + randomPercent / 100);
             } else {
-              // For live trades, use real market prices
-              const isForex = position.symbol.includes('/');
+              // Skip momentum for forex/commodities on weekends or when momentum disabled
+              if ((isForex && (isWeekend || !forexMomentumEnabled)) || 
+                  (isCommodity && (isWeekend || !commoditiesMomentumEnabled))) {
+                return position;
+              }
               
-              if (!isForex && cryptoPrices[position.symbol.toUpperCase()]) {
-                currentPrice = cryptoPrices[position.symbol.toUpperCase()];
+              if (!isForex && !isCommodity && cryptoPrices[symbol]) {
+                currentPrice = cryptoPrices[symbol];
               } else if (isForex) {
                 try {
                   const { data, error } = await supabase.functions.invoke('fetch-forex-data', {
                     body: { symbol: position.symbol }
                   });
-
                   if (!error && data?.currentPrice) {
                     currentPrice = data.currentPrice;
                   }

@@ -283,6 +283,7 @@ export const AdminTradeManagement = () => {
     if (positions.length === 0) return;
 
     const COMMODITY_SYMBOLS = new Set(["XAU", "XAG", "WTI", "BRENT", "NG", "XCU", "XPT", "XPD"]);
+    const FOREX_BASE_SYMBOLS = new Set(["EUR", "GBP", "JPY", "AUD", "CAD", "CHF", "NZD", "INR", "CNY", "SGD"]);
     
     const updatePrices = async () => {
       try {
@@ -330,7 +331,7 @@ export const AdminTradeManagement = () => {
             let pnl: number;
 
             const symbol = position.symbol.toUpperCase();
-            const isForex = symbol.includes('/');
+            const isForex = symbol.includes('/') || FOREX_BASE_SYMBOLS.has(symbol);
             const isCommodity = COMMODITY_SYMBOLS.has(symbol);
 
             // Check if this is an edited trade (admin adjusted PnL)

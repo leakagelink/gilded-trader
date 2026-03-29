@@ -124,7 +124,7 @@ const DepositModal = ({ open, onOpenChange, onSuccess }: DepositModalProps) => {
 
       toast({
         title: "Payment Locked!",
-        description: "Your deposit is now in locked balance. Broker will verify and confirm.",
+        description: "Your deposit is now in locked balance. Admin will verify and confirm.",
       });
     } catch (error: any) {
       console.error("Error locking deposit:", error);
@@ -287,8 +287,8 @@ const DepositModal = ({ open, onOpenChange, onSuccess }: DepositModalProps) => {
       toast({
         title: "Success!",
         description: isAutoLocked 
-           ? "Transaction ID submitted. Your deposit is in locked balance awaiting broker confirmation."
-           : "Deposit request submitted successfully. Awaiting broker approval.",
+          ? "Transaction ID submitted. Your deposit is in locked balance awaiting admin confirmation."
+          : "Deposit request submitted successfully. Awaiting admin approval.",
       });
 
       setAmount("");

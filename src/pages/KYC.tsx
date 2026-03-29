@@ -335,7 +335,7 @@ const KYC = () => {
               <div className="flex-1">
                 <p className="font-semibold">KYC Status: {getStatusBadge(kycData.status)}</p>
                 {kycData.status === "pending" && (
-                  <p className="text-sm text-muted-foreground">Your KYC is under review. Please wait for broker approval.</p>
+                  <p className="text-sm text-muted-foreground">Your KYC is under review. Please wait for admin approval.</p>
                 )}
                 {kycData.status === "approved" && (
                   <p className="text-sm text-muted-foreground">Your KYC has been verified successfully!</p>

@@ -113,7 +113,7 @@ const Admin = () => {
           </Button>
           <div className="flex items-center gap-2">
             <Shield className="h-5 w-5" />
-            <h1 className="text-xl font-bold">Broker Dashboard</h1>
+            <h1 className="text-xl font-bold">Admin Dashboard</h1>
           </div>
           <div className="w-10" />
         </div>

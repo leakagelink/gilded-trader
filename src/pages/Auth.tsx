@@ -141,7 +141,7 @@ const Auth = () => {
       }
 
       if (data.user) {
-        toast.success("Account created! Awaiting broker approval to access your account.");
+        toast.success("Account created! Awaiting admin approval to access your account.");
         navigate("/pending-approval");
       }
     } catch (error) {

@@ -68,7 +68,7 @@ const PendingApproval = () => {
         <CardContent className="space-y-6">
           <div className="text-center space-y-2">
             <p className="text-muted-foreground">
-              Your account has been created successfully and is currently under review by our broker team.
+              Your account has been created successfully and is currently under review by our admin team.
             </p>
             <p className="text-sm text-muted-foreground">
               You will be able to access your account once it's approved. This typically takes up to 24 hours.
@@ -82,7 +82,7 @@ const PendingApproval = () => {
             </div>
             <div className="flex items-center gap-2 text-sm">
               <Clock className="h-4 w-4 text-yellow-500 animate-pulse" />
-              <span>Awaiting broker approval (within 24 hours)</span>
+              <span>Awaiting admin approval (within 24 hours)</span>
             </div>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <div className="h-4 w-4 rounded-full border-2 border-muted-foreground/30" />

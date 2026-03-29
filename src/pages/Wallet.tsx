@@ -248,7 +248,7 @@ const Wallet = () => {
                 <span className="text-2xl">₹</span>
               </div>
               <div className="text-3xl font-bold text-amber-500">₹{wallet.lockedBalance}</div>
-              <p className="text-xs text-muted-foreground mt-1">Pending admin verification</p>
+              <p className="text-xs text-muted-foreground mt-1">Pending broker verification</p>
             </Card>
           ))}
         </div>

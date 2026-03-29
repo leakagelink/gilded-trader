@@ -102,6 +102,28 @@ const Positions = () => {
 
         if (currentPositions.length === 0) return;
 
+        // Check if it's weekend (Saturday=6, Sunday=0)
+        const today = new Date().getDay();
+        const isWeekend = today === 0 || today === 6;
+
+        // Fetch momentum settings from payment_settings
+        let forexMomentumEnabled = true;
+        let commoditiesMomentumEnabled = true;
+        try {
+          const { data: settingsData } = await supabase
+            .from("payment_settings")
+            .select("setting_key, setting_value")
+            .in("setting_key", ["forex_momentum_enabled", "commodities_momentum_enabled"]);
+          if (settingsData) {
+            settingsData.forEach((s) => {
+              if (s.setting_key === "forex_momentum_enabled") forexMomentumEnabled = s.setting_value !== "false";
+              if (s.setting_key === "commodities_momentum_enabled") commoditiesMomentumEnabled = s.setting_value !== "false";
+            });
+          }
+        } catch (err) {
+          console.error("Error fetching momentum settings:", err);
+        }
+
         const livePositions = currentPositions.filter(
           (p) => p.price_mode !== "manual" && p.price_mode !== "edited"
         );

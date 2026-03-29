@@ -211,7 +211,7 @@ const Dashboard = () => {
           
           <div className="flex items-center gap-1 sm:gap-2">
             {isAdmin && (
-              <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-10 sm:w-10" onClick={() => navigate("/admin")} title="Admin Dashboard">
+              <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-10 sm:w-10" onClick={() => navigate("/admin")} title="Broker Dashboard">
                 <Shield className="h-4 w-4 sm:h-5 sm:w-5" />
               </Button>
             )}

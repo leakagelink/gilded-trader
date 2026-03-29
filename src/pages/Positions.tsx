@@ -186,6 +186,16 @@ const Positions = () => {
           let pnl = position.pnl || 0;
 
           if (position.price_mode === "edited") {
+            const symbol = position.symbol.toUpperCase();
+            const isForex = symbol.includes("/");
+            const isCommodity = COMMODITY_SYMBOLS.has(symbol);
+            
+            // Skip momentum for forex/commodities on weekends or when momentum disabled
+            if ((isForex && (isWeekend || !forexMomentumEnabled)) || 
+                (isCommodity && (isWeekend || !commoditiesMomentumEnabled))) {
+              return { ...position };
+            }
+            
             if (basePnlRef.current[position.id] === undefined) {
               basePnlRef.current[position.id] = position.pnl || 0;
             }

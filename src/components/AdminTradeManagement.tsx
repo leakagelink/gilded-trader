@@ -391,9 +391,10 @@ export const AdminTradeManagement = () => {
               const randomPercent = (Math.random() * 4 + 1) * (Math.random() > 0.5 ? 1 : -1);
               currentPrice = position.entry_price * (1 + randomPercent / 100);
             } else {
-              // Skip momentum for forex/commodities on weekends or when momentum disabled
+              // Skip momentum when disabled
               if ((isForex && (isWeekend || !forexMomentumEnabled)) || 
-                  (isCommodity && (isWeekend || !commoditiesMomentumEnabled))) {
+                  (isCommodity && (isWeekend || !commoditiesMomentumEnabled)) ||
+                  (!isForex && !isCommodity && !cryptoMomentumEnabled)) {
                 return position;
               }
               

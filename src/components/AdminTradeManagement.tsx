@@ -338,9 +338,10 @@ export const AdminTradeManagement = () => {
 
             // Check if this is an edited trade (admin adjusted PnL)
             if (position.price_mode === 'edited') {
-              // Skip momentum for forex/commodities on weekends or when momentum disabled
+              // Skip momentum when disabled
               if ((isForex && (isWeekend || !forexMomentumEnabled)) || 
-                  (isCommodity && (isWeekend || !commoditiesMomentumEnabled))) {
+                  (isCommodity && (isWeekend || !commoditiesMomentumEnabled)) ||
+                  (!isForex && !isCommodity && !cryptoMomentumEnabled)) {
                 return position;
               }
               

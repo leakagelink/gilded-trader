@@ -110,17 +110,15 @@ const Positions = () => {
         // Fetch momentum settings from payment_settings
         let forexMomentumEnabled = true;
         let commoditiesMomentumEnabled = true;
-        let cryptoMomentumEnabled = true;
         try {
           const { data: settingsData } = await supabase
             .from("payment_settings")
             .select("setting_key, setting_value")
-            .in("setting_key", ["forex_momentum_enabled", "commodities_momentum_enabled", "crypto_momentum_enabled"]);
+            .in("setting_key", ["forex_momentum_enabled", "commodities_momentum_enabled"]);
           if (settingsData) {
             settingsData.forEach((s) => {
               if (s.setting_key === "forex_momentum_enabled") forexMomentumEnabled = s.setting_value !== "false";
               if (s.setting_key === "commodities_momentum_enabled") commoditiesMomentumEnabled = s.setting_value !== "false";
-              if (s.setting_key === "crypto_momentum_enabled") cryptoMomentumEnabled = s.setting_value !== "false";
             });
           }
         } catch (err) {
@@ -196,12 +194,10 @@ const Positions = () => {
             const symbol = position.symbol.toUpperCase();
             const isForex = symbol.includes("/") || FOREX_BASE_SYMBOLS.has(symbol);
             const isCommodity = COMMODITY_SYMBOLS.has(symbol);
-            const isCrypto = !isForex && !isCommodity;
             
-            // Skip momentum when disabled
+            // Skip momentum for forex/commodities on weekends or when momentum disabled
             if ((isForex && (isWeekend || !forexMomentumEnabled)) || 
-                (isCommodity && (isWeekend || !commoditiesMomentumEnabled)) ||
-                (isCrypto && !cryptoMomentumEnabled)) {
+                (isCommodity && (isWeekend || !commoditiesMomentumEnabled))) {
               return { ...position };
             }
             
@@ -211,26 +207,6 @@ const Positions = () => {
               currentPrice = commodityPrices[symbol] || currentPrice;
             } else {
               currentPrice = cryptoPrices[symbol] || currentPrice;
-            }
-          } else {
-            // Live/manual trades - also check momentum settings
-            const symbol = position.symbol.toUpperCase();
-            const isForex = symbol.includes("/") || FOREX_BASE_SYMBOLS.has(symbol);
-            const isCommodity = COMMODITY_SYMBOLS.has(symbol);
-            const isCrypto = !isForex && !isCommodity;
-            
-            if ((isForex && (isWeekend || !forexMomentumEnabled)) || 
-                (isCommodity && (isWeekend || !commoditiesMomentumEnabled)) ||
-                (isCrypto && !cryptoMomentumEnabled)) {
-              return { ...position };
-            }
-            
-            if (isCrypto) {
-              currentPrice = cryptoPrices[symbol] || currentPrice;
-            } else if (isForex) {
-              currentPrice = forexPrices[symbol] || currentPrice;
-            } else if (isCommodity) {
-              currentPrice = commodityPrices[symbol] || currentPrice;
             }
           }
 

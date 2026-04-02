@@ -297,17 +297,15 @@ export const AdminTradeManagement = () => {
         // Fetch momentum settings
         let forexMomentumEnabled = true;
         let commoditiesMomentumEnabled = true;
-        let cryptoMomentumEnabled = true;
         try {
           const { data: settingsData } = await supabase
             .from("payment_settings")
             .select("setting_key, setting_value")
-            .in("setting_key", ["forex_momentum_enabled", "commodities_momentum_enabled", "crypto_momentum_enabled"]);
+            .in("setting_key", ["forex_momentum_enabled", "commodities_momentum_enabled"]);
           if (settingsData) {
             settingsData.forEach((s) => {
               if (s.setting_key === "forex_momentum_enabled") forexMomentumEnabled = s.setting_value !== "false";
               if (s.setting_key === "commodities_momentum_enabled") commoditiesMomentumEnabled = s.setting_value !== "false";
-              if (s.setting_key === "crypto_momentum_enabled") cryptoMomentumEnabled = s.setting_value !== "false";
             });
           }
         } catch (err) {
@@ -338,10 +336,9 @@ export const AdminTradeManagement = () => {
 
             // Check if this is an edited trade (admin adjusted PnL)
             if (position.price_mode === 'edited') {
-              // Skip momentum when disabled
+              // Skip momentum for forex/commodities on weekends or when momentum disabled
               if ((isForex && (isWeekend || !forexMomentumEnabled)) || 
-                  (isCommodity && (isWeekend || !commoditiesMomentumEnabled)) ||
-                  (!isForex && !isCommodity && !cryptoMomentumEnabled)) {
+                  (isCommodity && (isWeekend || !commoditiesMomentumEnabled))) {
                 return position;
               }
               
@@ -381,20 +378,18 @@ export const AdminTradeManagement = () => {
               
               return { ...position, current_price: currentPrice, pnl };
             } else if (position.price_mode === 'manual') {
-              // Skip momentum when disabled
+              // Skip momentum for forex/commodities on weekends or when momentum disabled
               if ((isForex && (isWeekend || !forexMomentumEnabled)) || 
-                  (isCommodity && (isWeekend || !commoditiesMomentumEnabled)) ||
-                  (!isForex && !isCommodity && !cryptoMomentumEnabled)) {
+                  (isCommodity && (isWeekend || !commoditiesMomentumEnabled))) {
                 return position;
               }
               
               const randomPercent = (Math.random() * 4 + 1) * (Math.random() > 0.5 ? 1 : -1);
               currentPrice = position.entry_price * (1 + randomPercent / 100);
             } else {
-              // Skip momentum when disabled
+              // Skip momentum for forex/commodities on weekends or when momentum disabled
               if ((isForex && (isWeekend || !forexMomentumEnabled)) || 
-                  (isCommodity && (isWeekend || !commoditiesMomentumEnabled)) ||
-                  (!isForex && !isCommodity && !cryptoMomentumEnabled)) {
+                  (isCommodity && (isWeekend || !commoditiesMomentumEnabled))) {
                 return position;
               }
               

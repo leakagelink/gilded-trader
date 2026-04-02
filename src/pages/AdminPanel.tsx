@@ -121,6 +121,7 @@ const AdminPanel = () => {
     commoditiesEnabled: true,
     forexMomentumEnabled: true,
     commoditiesMomentumEnabled: true,
+    cryptoMomentumEnabled: true,
   });
 
   useEffect(() => {

@@ -142,7 +142,7 @@ const Dashboard = () => {
       const { data: settingsData } = await supabase
         .from("payment_settings")
         .select("setting_key, setting_value")
-        .in("setting_key", ["forex_enabled", "commodities_enabled", "forex_momentum_enabled", "commodities_momentum_enabled"]);
+        .in("setting_key", ["forex_enabled", "commodities_enabled", "forex_momentum_enabled", "commodities_momentum_enabled", "crypto_momentum_enabled"]);
       
       if (settingsData) {
         settingsData.forEach((setting) => {

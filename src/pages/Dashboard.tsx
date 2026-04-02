@@ -27,6 +27,7 @@ const Dashboard = () => {
   const [commoditiesEnabled, setCommoditiesEnabled] = useState(true);
   const [forexMomentumEnabled, setForexMomentumEnabled] = useState(true);
   const [commoditiesMomentumEnabled, setCommoditiesMomentumEnabled] = useState(true);
+  const [cryptoMomentumEnabled, setCryptoMomentumEnabled] = useState(true);
 
   const fetchCryptoData = async (isBackgroundRefresh = false) => {
     try {

@@ -341,7 +341,7 @@ const Dashboard = () => {
                     ))}
                   </div>
                 ) : filteredCryptoData.length > 0 ? (
-                  <TradingList data={filteredCryptoData} />
+                  <TradingList data={filteredCryptoData} momentumEnabled={cryptoMomentumEnabled} />
                 ) : (
                   <div className="text-center py-8 text-muted-foreground">
                     No cryptocurrencies found matching "{searchQuery}"

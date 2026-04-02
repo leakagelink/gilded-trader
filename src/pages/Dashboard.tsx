@@ -27,6 +27,7 @@ const Dashboard = () => {
   const [commoditiesEnabled, setCommoditiesEnabled] = useState(true);
   const [forexMomentumEnabled, setForexMomentumEnabled] = useState(true);
   const [commoditiesMomentumEnabled, setCommoditiesMomentumEnabled] = useState(true);
+  const [cryptoMomentumEnabled, setCryptoMomentumEnabled] = useState(true);
 
   const fetchCryptoData = async (isBackgroundRefresh = false) => {
     try {
@@ -141,7 +142,7 @@ const Dashboard = () => {
       const { data: settingsData } = await supabase
         .from("payment_settings")
         .select("setting_key, setting_value")
-        .in("setting_key", ["forex_enabled", "commodities_enabled", "forex_momentum_enabled", "commodities_momentum_enabled"]);
+        .in("setting_key", ["forex_enabled", "commodities_enabled", "forex_momentum_enabled", "commodities_momentum_enabled", "crypto_momentum_enabled"]);
       
       if (settingsData) {
         settingsData.forEach((setting) => {
@@ -156,6 +157,9 @@ const Dashboard = () => {
           }
           if (setting.setting_key === "commodities_momentum_enabled") {
             setCommoditiesMomentumEnabled(setting.setting_value !== "false");
+          }
+          if (setting.setting_key === "crypto_momentum_enabled") {
+            setCryptoMomentumEnabled(setting.setting_value !== "false");
           }
         });
       }
@@ -337,7 +341,7 @@ const Dashboard = () => {
                     ))}
                   </div>
                 ) : filteredCryptoData.length > 0 ? (
-                  <TradingList data={filteredCryptoData} />
+                  <TradingList data={filteredCryptoData} momentumEnabled={cryptoMomentumEnabled} />
                 ) : (
                   <div className="text-center py-8 text-muted-foreground">
                     No cryptocurrencies found matching "{searchQuery}"

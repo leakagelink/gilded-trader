@@ -158,6 +158,9 @@ const Dashboard = () => {
           if (setting.setting_key === "commodities_momentum_enabled") {
             setCommoditiesMomentumEnabled(setting.setting_value !== "false");
           }
+          if (setting.setting_key === "crypto_momentum_enabled") {
+            setCryptoMomentumEnabled(setting.setting_value !== "false");
+          }
         });
       }
     } catch (error) {

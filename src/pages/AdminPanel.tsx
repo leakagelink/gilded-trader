@@ -294,6 +294,7 @@ const AdminPanel = () => {
           commoditiesEnabled: settings.commoditiesEnabled !== 'false',
           forexMomentumEnabled: settings.forexMomentumEnabled !== 'false',
           commoditiesMomentumEnabled: settings.commoditiesMomentumEnabled !== 'false',
+          cryptoMomentumEnabled: settings.cryptoMomentumEnabled !== 'false',
         });
       }
     } catch (error: any) {

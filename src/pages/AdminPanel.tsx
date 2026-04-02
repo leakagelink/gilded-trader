@@ -1863,6 +1863,22 @@ const AdminPanel = () => {
                   <div className="space-y-3">
                     <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
                       <div className="flex items-center gap-3">
+                        <Coins className="h-5 w-5 text-orange-500" />
+                        <div>
+                          <Label className="text-base font-medium">Crypto Momentum</Label>
+                          <p className="text-sm text-muted-foreground">Enable/disable price animations for Crypto</p>
+                        </div>
+                      </div>
+                      <Switch
+                        checked={marketSettings.cryptoMomentumEnabled}
+                        onCheckedChange={(checked) =>
+                          setMarketSettings({ ...marketSettings, cryptoMomentumEnabled: checked })
+                        }
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
+                      <div className="flex items-center gap-3">
                         <DollarSign className="h-5 w-5 text-green-500" />
                         <div>
                           <Label className="text-base font-medium">Forex Momentum</Label>
@@ -1894,14 +1910,16 @@ const AdminPanel = () => {
                     </div>
                   </div>
                   
-                  {(!marketSettings.forexMomentumEnabled || !marketSettings.commoditiesMomentumEnabled) && (
+                  {(!marketSettings.cryptoMomentumEnabled || !marketSettings.forexMomentumEnabled || !marketSettings.commoditiesMomentumEnabled) && (
                     <div className="p-3 bg-purple-600/10 border border-purple-600/20 rounded-lg">
                       <p className="text-sm text-purple-600 font-medium">
-                        {!marketSettings.forexMomentumEnabled && !marketSettings.commoditiesMomentumEnabled
-                          ? "Momentum is disabled for both Forex and Commodities"
-                          : !marketSettings.forexMomentumEnabled
-                          ? "Forex momentum animations are disabled"
-                          : "Commodities momentum animations are disabled"}
+                        {!marketSettings.cryptoMomentumEnabled && !marketSettings.forexMomentumEnabled && !marketSettings.commoditiesMomentumEnabled
+                          ? "Momentum is disabled for all markets (Crypto, Forex & Commodities)"
+                          : [
+                              !marketSettings.cryptoMomentumEnabled && "Crypto",
+                              !marketSettings.forexMomentumEnabled && "Forex",
+                              !marketSettings.commoditiesMomentumEnabled && "Commodities",
+                            ].filter(Boolean).join(" & ") + " momentum is disabled"}
                       </p>
                     </div>
                   )}

@@ -381,9 +381,10 @@ export const AdminTradeManagement = () => {
               
               return { ...position, current_price: currentPrice, pnl };
             } else if (position.price_mode === 'manual') {
-              // Skip momentum for forex/commodities on weekends or when momentum disabled
+              // Skip momentum when disabled
               if ((isForex && (isWeekend || !forexMomentumEnabled)) || 
-                  (isCommodity && (isWeekend || !commoditiesMomentumEnabled))) {
+                  (isCommodity && (isWeekend || !commoditiesMomentumEnabled)) ||
+                  (!isForex && !isCommodity && !cryptoMomentumEnabled)) {
                 return position;
               }
               

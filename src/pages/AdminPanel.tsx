@@ -750,6 +750,7 @@ const AdminPanel = () => {
         { setting_key: "commodities_enabled", setting_value: String(marketSettings.commoditiesEnabled) },
         { setting_key: "forex_momentum_enabled", setting_value: String(marketSettings.forexMomentumEnabled) },
         { setting_key: "commodities_momentum_enabled", setting_value: String(marketSettings.commoditiesMomentumEnabled) },
+        { setting_key: "crypto_momentum_enabled", setting_value: String(marketSettings.cryptoMomentumEnabled) },
       ];
 
       for (const setting of settingsToUpdate) {

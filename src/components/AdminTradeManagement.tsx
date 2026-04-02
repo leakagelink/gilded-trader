@@ -12,6 +12,7 @@ import { TrendingUp, TrendingDown, Edit, X, ArrowUp, ArrowDown, Plus, Minus, Sea
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { isCommoditySymbol, isForexSymbol } from "@/lib/marketSymbols";
 
 interface User {
   id: string;
@@ -281,9 +282,6 @@ export const AdminTradeManagement = () => {
   // Real-time price updates for open positions
   useEffect(() => {
     if (positions.length === 0) return;
-
-    const COMMODITY_SYMBOLS = new Set(["XAU", "XAG", "WTI", "BRENT", "NG", "XCU", "XPT", "XPD"]);
-    const FOREX_BASE_SYMBOLS = new Set(["EUR", "GBP", "JPY", "AUD", "CAD", "CHF", "NZD", "INR", "CNY", "SGD"]);
     
     const updatePrices = async () => {
       try {
@@ -312,17 +310,61 @@ export const AdminTradeManagement = () => {
           console.error("Error fetching momentum settings:", err);
         }
 
-        // Fetch real crypto prices from CoinMarketCap for live trades
-        let cryptoPrices: Record<string, number> = {};
-        try {
-          const { data: cryptoData, error: cryptoError } = await supabase.functions.invoke('fetch-crypto-data');
-          if (!cryptoError && cryptoData?.cryptoData) {
-            cryptoData.cryptoData.forEach((coin: any) => {
+        const livePositions = currentPositions.filter(
+          (p) => p.price_mode !== 'manual' && p.price_mode !== 'edited'
+        );
+
+        const cryptoSymbols = Array.from(
+          new Set(
+            livePositions
+              .filter((p) => !isForexSymbol(p.symbol) && !isCommoditySymbol(p.symbol))
+              .map((p) => p.symbol.toUpperCase())
+          )
+        );
+
+        const [cryptoResponse, forexResponse, commoditiesResponse] = await Promise.all([
+          cryptoSymbols.length > 0
+            ? supabase.functions.invoke('fetch-crypto-data', { body: { symbols: cryptoSymbols } })
+            : Promise.resolve({ data: null, error: null }),
+          livePositions.some((p) => isForexSymbol(p.symbol))
+            ? supabase.functions.invoke('fetch-forex-data')
+            : Promise.resolve({ data: null, error: null }),
+          livePositions.some((p) => isCommoditySymbol(p.symbol))
+            ? supabase.functions.invoke('fetch-commodities-data')
+            : Promise.resolve({ data: null, error: null }),
+        ]);
+
+        const cryptoPrices: Record<string, number> = {};
+        if (!cryptoResponse.error && cryptoResponse.data?.cryptoData) {
+          cryptoResponse.data.cryptoData.forEach((coin: any) => {
+            if (coin.symbol && coin.price) {
               cryptoPrices[coin.symbol.toUpperCase()] = parseFloat(coin.price);
-            });
-          }
-        } catch (err) {
-          console.error('Error fetching crypto prices:', err);
+            }
+          });
+        }
+
+        const forexPrices: Record<string, number> = {};
+        if (!forexResponse.error && forexResponse.data?.forexData) {
+          forexResponse.data.forexData.forEach((forex: any) => {
+            const price = parseFloat(forex.price);
+            if (Number.isNaN(price) || price <= 0) return;
+
+            const forexSymbol = (forex.symbol || '').toUpperCase();
+            const forexName = (forex.name || '').toUpperCase();
+            if (forexSymbol) forexPrices[forexSymbol] = price;
+            if (forexName) forexPrices[forexName] = price;
+          });
+        }
+
+        const commodityPrices: Record<string, number> = {};
+        if (!commoditiesResponse.error && commoditiesResponse.data?.commoditiesData) {
+          commoditiesResponse.data.commoditiesData.forEach((commodity: any) => {
+            const commoditySymbol = (commodity.symbol || '').toUpperCase();
+            const price = parseFloat(commodity.price);
+            if (commoditySymbol && !Number.isNaN(price) && price > 0) {
+              commodityPrices[commoditySymbol] = price;
+            }
+          });
         }
         
         const updatedPositions = await Promise.all(
@@ -331,8 +373,8 @@ export const AdminTradeManagement = () => {
             let pnl: number;
 
             const symbol = position.symbol.toUpperCase();
-            const isForex = symbol.includes('/') || FOREX_BASE_SYMBOLS.has(symbol);
-            const isCommodity = COMMODITY_SYMBOLS.has(symbol);
+            const isForex = isForexSymbol(symbol);
+            const isCommodity = isCommoditySymbol(symbol);
 
             // Check if this is an edited trade (admin adjusted PnL)
             if (position.price_mode === 'edited') {
@@ -393,19 +435,12 @@ export const AdminTradeManagement = () => {
                 return position;
               }
               
-              if (!isForex && !isCommodity && cryptoPrices[symbol]) {
-                currentPrice = cryptoPrices[symbol];
+              if (!isForex && !isCommodity) {
+                currentPrice = cryptoPrices[symbol] || currentPrice;
               } else if (isForex) {
-                try {
-                  const { data, error } = await supabase.functions.invoke('fetch-forex-data', {
-                    body: { symbol: position.symbol }
-                  });
-                  if (!error && data?.currentPrice) {
-                    currentPrice = data.currentPrice;
-                  }
-                } catch (err) {
-                  console.error('Error fetching forex price:', err);
-                }
+                currentPrice = forexPrices[symbol] || currentPrice;
+              } else if (isCommodity) {
+                currentPrice = commodityPrices[symbol] || currentPrice;
               }
 
               if (currentPrice <= 0) return position;

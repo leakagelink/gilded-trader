@@ -18,6 +18,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import BottomNav from "@/components/BottomNav";
+import { isCommoditySymbol, isForexSymbol } from "@/lib/marketSymbols";
 
 interface Position {
   id: string;
@@ -92,9 +93,6 @@ const Positions = () => {
   useEffect(() => {
     if (!user || !hasOpenPositions) return;
 
-    const COMMODITY_SYMBOLS = new Set(["XAU", "XAG", "WTI", "BRENT", "NG", "XCU", "XPT", "XPD"]);
-    const FOREX_BASE_SYMBOLS = new Set(["EUR", "GBP", "JPY", "AUD", "CAD", "CHF", "NZD", "INR", "CNY", "SGD"]);
-
     const updatePrices = async () => {
       try {
         const currentPositions = positionsRef.current.filter(
@@ -132,11 +130,7 @@ const Positions = () => {
         const cryptoSymbols = Array.from(
           new Set(
             livePositions
-              .filter((p) => {
-                const symbol = p.symbol.toUpperCase();
-                const isForex = symbol.includes("/") || FOREX_BASE_SYMBOLS.has(symbol);
-                return !isForex && !COMMODITY_SYMBOLS.has(symbol);
-              })
+              .filter((p) => !isForexSymbol(p.symbol) && !isCommoditySymbol(p.symbol))
               .map((p) => p.symbol.toUpperCase())
           )
         );
@@ -145,10 +139,10 @@ const Positions = () => {
           cryptoSymbols.length > 0
             ? supabase.functions.invoke("fetch-crypto-data", { body: { symbols: cryptoSymbols } })
             : Promise.resolve({ data: null, error: null }),
-          livePositions.some((p) => p.symbol.includes("/"))
+          livePositions.some((p) => isForexSymbol(p.symbol))
             ? supabase.functions.invoke("fetch-forex-data")
             : Promise.resolve({ data: null, error: null }),
-          livePositions.some((p) => COMMODITY_SYMBOLS.has(p.symbol.toUpperCase()))
+          livePositions.some((p) => isCommoditySymbol(p.symbol))
             ? supabase.functions.invoke("fetch-commodities-data")
             : Promise.resolve({ data: null, error: null }),
         ]);
@@ -165,11 +159,13 @@ const Positions = () => {
         const forexPrices: Record<string, number> = {};
         if (!forexResponse.error && forexResponse.data?.forexData) {
           forexResponse.data.forexData.forEach((fx: any) => {
-            const key = (fx.symbol || fx.name || "").toUpperCase();
             const price = parseFloat(fx.price);
-            if (key && !Number.isNaN(price) && price > 0) {
-              forexPrices[key] = price;
-            }
+            if (Number.isNaN(price) || price <= 0) return;
+
+            const symbolKey = (fx.symbol || "").toUpperCase();
+            const nameKey = (fx.name || "").toUpperCase();
+            if (symbolKey) forexPrices[symbolKey] = price;
+            if (nameKey) forexPrices[nameKey] = price;
           });
         }
 
@@ -189,24 +185,58 @@ const Positions = () => {
         const updatedPositions = currentPositions.map((position) => {
           let currentPrice = position.current_price;
           let pnl = position.pnl || 0;
+          const symbol = position.symbol.toUpperCase();
+          const isForex = isForexSymbol(symbol);
+          const isCommodity = isCommoditySymbol(symbol);
+
+          const isMarketFrozen =
+            (isForex && (isWeekend || !forexMomentumEnabled)) ||
+            (isCommodity && (isWeekend || !commoditiesMomentumEnabled));
 
           if (position.price_mode === "edited") {
-            const symbol = position.symbol.toUpperCase();
-            const isForex = symbol.includes("/") || FOREX_BASE_SYMBOLS.has(symbol);
-            const isCommodity = COMMODITY_SYMBOLS.has(symbol);
-            
-            // Skip momentum for forex/commodities on weekends or when momentum disabled
-            if ((isForex && (isWeekend || !forexMomentumEnabled)) || 
-                (isCommodity && (isWeekend || !commoditiesMomentumEnabled))) {
+            if (isMarketFrozen) {
               return { ...position };
             }
-            
+
+            if (basePnlRef.current[position.id] === undefined) {
+              basePnlRef.current[position.id] = position.pnl || 0;
+            }
+
+            const basePnl = basePnlRef.current[position.id];
+            const basePnlPercent = position.margin > 0 ? (basePnl / position.margin) * 100 : 0;
+            const momentumOffset = Math.random() * 5;
+            const adjustedPnlPercent = basePnl >= 0
+              ? basePnlPercent + momentumOffset
+              : basePnlPercent - momentumOffset;
+
+            pnl = (adjustedPnlPercent / 100) * position.margin;
+            currentPrice = position.position_type === "long"
+              ? position.entry_price + (pnl / (position.amount * position.leverage))
+              : position.entry_price - (pnl / (position.amount * position.leverage));
+
+            currentPrice = Math.max(0.0001, currentPrice);
+          } else if (position.price_mode === "manual") {
+            if (isMarketFrozen) {
+              return { ...position };
+            }
+
+            const randomPercent = (Math.random() * 4 + 1) * (Math.random() > 0.5 ? 1 : -1);
+            currentPrice = position.entry_price * (1 + randomPercent / 100);
+          } else {
+            if (isMarketFrozen) {
+              return { ...position };
+            }
+
             if (isForex) {
               currentPrice = forexPrices[symbol] || currentPrice;
             } else if (isCommodity) {
               currentPrice = commodityPrices[symbol] || currentPrice;
             } else {
               currentPrice = cryptoPrices[symbol] || currentPrice;
+            }
+
+            if (currentPrice <= 0) {
+              return { ...position };
             }
           }
 

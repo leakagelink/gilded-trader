@@ -110,15 +110,17 @@ const Positions = () => {
         // Fetch momentum settings from payment_settings
         let forexMomentumEnabled = true;
         let commoditiesMomentumEnabled = true;
+        let cryptoMomentumEnabled = true;
         try {
           const { data: settingsData } = await supabase
             .from("payment_settings")
             .select("setting_key, setting_value")
-            .in("setting_key", ["forex_momentum_enabled", "commodities_momentum_enabled"]);
+            .in("setting_key", ["forex_momentum_enabled", "commodities_momentum_enabled", "crypto_momentum_enabled"]);
           if (settingsData) {
             settingsData.forEach((s) => {
               if (s.setting_key === "forex_momentum_enabled") forexMomentumEnabled = s.setting_value !== "false";
               if (s.setting_key === "commodities_momentum_enabled") commoditiesMomentumEnabled = s.setting_value !== "false";
+              if (s.setting_key === "crypto_momentum_enabled") cryptoMomentumEnabled = s.setting_value !== "false";
             });
           }
         } catch (err) {

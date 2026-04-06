@@ -570,6 +570,30 @@ export const AdminKYCManagement = () => {
                   <Label className="text-muted-foreground">Status</Label>
                   <div className="mt-1">{getStatusBadge(selectedKYC.status)}</div>
                 </div>
+                {(selectedKYC as any).occupation_type && (
+                  <div>
+                    <Label className="text-muted-foreground">Occupation</Label>
+                    <p className="font-medium capitalize">{(selectedKYC as any).occupation_type}</p>
+                  </div>
+                )}
+                {(selectedKYC as any).business_type && (
+                  <div>
+                    <Label className="text-muted-foreground">Business Type</Label>
+                    <p className="font-medium capitalize">{(selectedKYC as any).business_type.replace(/_/g, " ")}</p>
+                  </div>
+                )}
+                {(selectedKYC as any).job_title && (
+                  <div>
+                    <Label className="text-muted-foreground">Job Title</Label>
+                    <p className="font-medium">{(selectedKYC as any).job_title}</p>
+                  </div>
+                )}
+                {(selectedKYC as any).annual_income && (
+                  <div>
+                    <Label className="text-muted-foreground">Annual Income</Label>
+                    <p className="font-medium capitalize">{(selectedKYC as any).annual_income.replace(/_/g, " ")}</p>
+                  </div>
+                )}
                 {selectedKYC.rejection_reason && (
                   <div className="col-span-2">
                     <Label className="text-muted-foreground">Rejection Reason</Label>

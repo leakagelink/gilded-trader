@@ -45,7 +45,7 @@ const DepositRequests = () => {
       if (!hasAdminRole) {
         toast({
           title: "Access Denied",
-          description: "You need admin privileges to access this page",
+          description: "You need broker privileges to access this page",
           variant: "destructive",
         });
         navigate("/dashboard");

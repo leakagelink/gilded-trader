@@ -35,7 +35,7 @@ serve(async (req) => {
       .maybeSingle();
 
     if (roleError || !roles) {
-      throw new Error("Admin access required");
+      throw new Error("Broker access required");
     }
 
     // Get user ID to delete from request

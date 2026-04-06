@@ -50,7 +50,7 @@ const handler = async (req: Request): Promise<Response> => {
               Hi <strong>${userName || 'Trader'}</strong>,
             </p>
             <p style="font-size: 16px; color: #374151; line-height: 1.6;">
-              Great news! Your TradePro account has been <strong style="color: #10b981;">activated</strong> by our admin team.
+              Great news! Your TradePro account has been <strong style="color: #10b981;">activated</strong> by our broker team.
             </p>
             <div style="background: #ecfdf5; border: 1px solid #10b981; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">
               <p style="margin: 0; color: #065f46; font-size: 18px; font-weight: bold;">✅ Your account is ready!</p>

@@ -58,7 +58,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (rolesError || !roles || roles.length === 0) {
       return new Response(
-        JSON.stringify({ error: "Admin access required" }),
+        JSON.stringify({ error: "Broker access required" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

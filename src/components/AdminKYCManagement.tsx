@@ -85,7 +85,11 @@ export const AdminKYCManagement = () => {
     address: "",
     city: "",
     postal_code: "",
-    id_document_type: "passport"
+    id_document_type: "passport",
+    occupation_type: "",
+    business_type: "",
+    job_title: "",
+    annual_income: ""
   });
   const [uploading, setUploading] = useState(false);
   const [uploadedDocumentPath, setUploadedDocumentPath] = useState<string | null>(null);
@@ -177,7 +181,11 @@ export const AdminKYCManagement = () => {
       address: "",
       city: "",
       postal_code: "",
-      id_document_type: "passport"
+      id_document_type: "passport",
+      occupation_type: "",
+      business_type: "",
+      job_title: "",
+      annual_income: ""
     });
     setUploadedDocumentPath(null);
   };
@@ -245,8 +253,12 @@ export const AdminKYCManagement = () => {
         p_city: manualKycForm.city,
         p_postal_code: manualKycForm.postal_code,
         p_id_document_type: manualKycForm.id_document_type,
-        p_document_url: uploadedDocumentPath
-      });
+        p_document_url: uploadedDocumentPath,
+        p_occupation_type: manualKycForm.occupation_type || null,
+        p_business_type: manualKycForm.occupation_type === "business" ? manualKycForm.business_type : null,
+        p_job_title: manualKycForm.occupation_type === "job" ? manualKycForm.job_title : null,
+        p_annual_income: manualKycForm.annual_income || null
+      } as any);
 
       if (error) throw error;
 
@@ -558,6 +570,30 @@ export const AdminKYCManagement = () => {
                   <Label className="text-muted-foreground">Status</Label>
                   <div className="mt-1">{getStatusBadge(selectedKYC.status)}</div>
                 </div>
+                {(selectedKYC as any).occupation_type && (
+                  <div>
+                    <Label className="text-muted-foreground">Occupation</Label>
+                    <p className="font-medium capitalize">{(selectedKYC as any).occupation_type}</p>
+                  </div>
+                )}
+                {(selectedKYC as any).business_type && (
+                  <div>
+                    <Label className="text-muted-foreground">Business Type</Label>
+                    <p className="font-medium capitalize">{(selectedKYC as any).business_type.replace(/_/g, " ")}</p>
+                  </div>
+                )}
+                {(selectedKYC as any).job_title && (
+                  <div>
+                    <Label className="text-muted-foreground">Job Title</Label>
+                    <p className="font-medium">{(selectedKYC as any).job_title}</p>
+                  </div>
+                )}
+                {(selectedKYC as any).annual_income && (
+                  <div>
+                    <Label className="text-muted-foreground">Annual Income</Label>
+                    <p className="font-medium capitalize">{(selectedKYC as any).annual_income.replace(/_/g, " ")}</p>
+                  </div>
+                )}
                 {selectedKYC.rejection_reason && (
                   <div className="col-span-2">
                     <Label className="text-muted-foreground">Rejection Reason</Label>
@@ -744,6 +780,54 @@ export const AdminKYCManagement = () => {
                       <SelectItem value="passport">Passport</SelectItem>
                       <SelectItem value="aadhar">Aadhar Card</SelectItem>
                       <SelectItem value="pan">PAN Card</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Occupation *</Label>
+                  <Select value={manualKycForm.occupation_type} onValueChange={(v) => setManualKycForm(p => ({...p, occupation_type: v, business_type: v !== "business" ? "" : p.business_type, job_title: v !== "job" ? "" : p.job_title}))}>
+                    <SelectTrigger><SelectValue placeholder="Select occupation" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="student">Student</SelectItem>
+                      <SelectItem value="business">Business</SelectItem>
+                      <SelectItem value="job">Job</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {manualKycForm.occupation_type === "business" && (
+                  <div>
+                    <Label>Business Type *</Label>
+                    <Select value={manualKycForm.business_type} onValueChange={(v) => setManualKycForm(p => ({...p, business_type: v}))}>
+                      <SelectTrigger><SelectValue placeholder="Select business type" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="sole_proprietorship">Sole Proprietorship</SelectItem>
+                        <SelectItem value="partnership">Partnership</SelectItem>
+                        <SelectItem value="private_limited">Private Limited</SelectItem>
+                        <SelectItem value="llp">LLP</SelectItem>
+                        <SelectItem value="freelancer">Freelancer</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                {manualKycForm.occupation_type === "job" && (
+                  <div>
+                    <Label>Job Title *</Label>
+                    <Input value={manualKycForm.job_title} onChange={(e) => setManualKycForm(p => ({...p, job_title: e.target.value}))} placeholder="Enter job title" />
+                  </div>
+                )}
+                <div>
+                  <Label>Annual Income *</Label>
+                  <Select value={manualKycForm.annual_income} onValueChange={(v) => setManualKycForm(p => ({...p, annual_income: v}))}>
+                    <SelectTrigger><SelectValue placeholder="Select annual income" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="below_1_lakh">Below ₹1 Lakh</SelectItem>
+                      <SelectItem value="1_5_lakh">₹1 - ₹5 Lakh</SelectItem>
+                      <SelectItem value="5_10_lakh">₹5 - ₹10 Lakh</SelectItem>
+                      <SelectItem value="10_25_lakh">₹10 - ₹25 Lakh</SelectItem>
+                      <SelectItem value="25_50_lakh">₹25 - ₹50 Lakh</SelectItem>
+                      <SelectItem value="50_lakh_1_crore">₹50 Lakh - ₹1 Crore</SelectItem>
+                      <SelectItem value="above_1_crore">Above ₹1 Crore</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

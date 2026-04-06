@@ -98,7 +98,7 @@ const Admin = () => {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <Shield className="h-12 w-12 mx-auto mb-4 animate-pulse" />
-          <p>Verifying admin access...</p>
+          <p>Verifying broker access...</p>
         </div>
       </div>
     );

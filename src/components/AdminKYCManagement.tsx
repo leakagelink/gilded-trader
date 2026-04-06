@@ -253,8 +253,12 @@ export const AdminKYCManagement = () => {
         p_city: manualKycForm.city,
         p_postal_code: manualKycForm.postal_code,
         p_id_document_type: manualKycForm.id_document_type,
-        p_document_url: uploadedDocumentPath
-      });
+        p_document_url: uploadedDocumentPath,
+        p_occupation_type: manualKycForm.occupation_type || null,
+        p_business_type: manualKycForm.occupation_type === "business" ? manualKycForm.business_type : null,
+        p_job_title: manualKycForm.occupation_type === "job" ? manualKycForm.job_title : null,
+        p_annual_income: manualKycForm.annual_income || null
+      } as any);
 
       if (error) throw error;
 

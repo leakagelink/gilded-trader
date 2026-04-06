@@ -839,7 +839,7 @@ const AdminPanel = () => {
           <div className="flex items-center gap-2">
             <img src={logo} alt="CoinGoldFX Admin" className="h-10 w-auto object-contain" />
             <span className="text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              Admin Panel
+              Broker Panel
             </span>
           </div>
           <Button variant="ghost" onClick={() => navigate("/dashboard")}>

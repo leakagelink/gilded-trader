@@ -826,7 +826,7 @@ const AdminPanel = () => {
   if (!isAdmin) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <p className="text-muted-foreground">Verifying admin access...</p>
+        <p className="text-muted-foreground">Verifying broker access...</p>
       </div>
     );
   }

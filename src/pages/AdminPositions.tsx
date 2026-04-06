@@ -260,7 +260,7 @@ const AdminPositions = () => {
 
       if (error) throw error;
 
-      toast.success(`Position closed by admin: ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} PnL`);
+      toast.success(`Position closed by broker: ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} PnL`);
       setClosePositionId(null);
       fetchPositions();
     } catch (error) {

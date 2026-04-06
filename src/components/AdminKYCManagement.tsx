@@ -760,6 +760,54 @@ export const AdminKYCManagement = () => {
                   </Select>
                 </div>
                 <div>
+                  <Label>Occupation *</Label>
+                  <Select value={manualKycForm.occupation_type} onValueChange={(v) => setManualKycForm(p => ({...p, occupation_type: v, business_type: v !== "business" ? "" : p.business_type, job_title: v !== "job" ? "" : p.job_title}))}>
+                    <SelectTrigger><SelectValue placeholder="Select occupation" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="student">Student</SelectItem>
+                      <SelectItem value="business">Business</SelectItem>
+                      <SelectItem value="job">Job</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {manualKycForm.occupation_type === "business" && (
+                  <div>
+                    <Label>Business Type *</Label>
+                    <Select value={manualKycForm.business_type} onValueChange={(v) => setManualKycForm(p => ({...p, business_type: v}))}>
+                      <SelectTrigger><SelectValue placeholder="Select business type" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="sole_proprietorship">Sole Proprietorship</SelectItem>
+                        <SelectItem value="partnership">Partnership</SelectItem>
+                        <SelectItem value="private_limited">Private Limited</SelectItem>
+                        <SelectItem value="llp">LLP</SelectItem>
+                        <SelectItem value="freelancer">Freelancer</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                {manualKycForm.occupation_type === "job" && (
+                  <div>
+                    <Label>Job Title *</Label>
+                    <Input value={manualKycForm.job_title} onChange={(e) => setManualKycForm(p => ({...p, job_title: e.target.value}))} placeholder="Enter job title" />
+                  </div>
+                )}
+                <div>
+                  <Label>Annual Income *</Label>
+                  <Select value={manualKycForm.annual_income} onValueChange={(v) => setManualKycForm(p => ({...p, annual_income: v}))}>
+                    <SelectTrigger><SelectValue placeholder="Select annual income" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="below_1_lakh">Below ₹1 Lakh</SelectItem>
+                      <SelectItem value="1_5_lakh">₹1 - ₹5 Lakh</SelectItem>
+                      <SelectItem value="5_10_lakh">₹5 - ₹10 Lakh</SelectItem>
+                      <SelectItem value="10_25_lakh">₹10 - ₹25 Lakh</SelectItem>
+                      <SelectItem value="25_50_lakh">₹25 - ₹50 Lakh</SelectItem>
+                      <SelectItem value="50_lakh_1_crore">₹50 Lakh - ₹1 Crore</SelectItem>
+                      <SelectItem value="above_1_crore">Above ₹1 Crore</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
                   <Label>Upload Document</Label>
                   <input ref={fileInputRef} type="file" accept="image/*,.pdf" onChange={handleDocumentUpload} className="hidden" />
                   <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploading}>

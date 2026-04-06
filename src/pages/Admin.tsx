@@ -197,9 +197,9 @@ const Admin = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle>Admin Actions</CardTitle>
+            <CardTitle>Broker Actions</CardTitle>
             <CardDescription>
-              Additional administrative tools and settings
+              Additional broker tools and settings
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">

@@ -492,7 +492,7 @@ const AdminPanel = () => {
               status: "rejected",
               amount: deposit.amount,
               currency: deposit.currency,
-              rejectionReason: "Rejected by admin",
+              rejectionReason: "Rejected by broker",
             },
           });
         } catch (emailError) {

@@ -830,7 +830,7 @@ const Index = () => {
                 </AccordionTrigger>
                 <AccordionContent className="text-xs sm:text-base text-muted-foreground leading-relaxed">
                   We support multiple payment methods including UPI, Net Banking, and bank transfers. Deposits are typically processed 
-                  instantly, while withdrawals are processed within 24-48 hours after admin approval for security purposes.
+                  instantly, while withdrawals are processed within 24-48 hours after broker approval for security purposes.
                 </AccordionContent>
               </AccordionItem>
 

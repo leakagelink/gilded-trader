@@ -488,8 +488,8 @@ const AdminPositions = () => {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Close User Position?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to close this user's position as an admin? This action cannot be undone.
+             <AlertDialogDescription>
+               Are you sure you want to close this user's position? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

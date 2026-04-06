@@ -207,7 +207,7 @@ const Admin = () => {
               User Approvals
             </Button>
             <Button onClick={() => navigate("/admin-panel")} variant="outline" className="w-full">
-              Open Admin Panel
+              Open Broker Panel
             </Button>
             <Button onClick={() => navigate("/deposit-requests")} variant="outline" className="w-full">
               View Deposit Requests

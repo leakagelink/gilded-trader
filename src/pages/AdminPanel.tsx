@@ -837,7 +837,7 @@ const AdminPanel = () => {
       <header className="border-b border-border/40 backdrop-blur-sm bg-background/80 sticky top-0 z-50">
         <div className="flex items-center justify-between px-4 py-4">
           <div className="flex items-center gap-2">
-            <img src={logo} alt="CoinGoldFX Admin" className="h-10 w-auto object-contain" />
+            <img src={logo} alt="CoinGoldFX Broker" className="h-10 w-auto object-contain" />
             <span className="text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
               Broker Panel
             </span>

@@ -181,7 +181,11 @@ export const AdminKYCManagement = () => {
       address: "",
       city: "",
       postal_code: "",
-      id_document_type: "passport"
+      id_document_type: "passport",
+      occupation_type: "",
+      business_type: "",
+      job_title: "",
+      annual_income: ""
     });
     setUploadedDocumentPath(null);
   };

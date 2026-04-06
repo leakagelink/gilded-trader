@@ -45,7 +45,7 @@ const DepositRequests = () => {
       if (!hasAdminRole) {
         toast({
           title: "Access Denied",
-          description: "You need admin privileges to access this page",
+          description: "You need broker privileges to access this page",
           variant: "destructive",
         });
         navigate("/dashboard");
@@ -172,7 +172,7 @@ const DepositRequests = () => {
               status: "rejected",
               amount: deposit.amount,
               currency: deposit.currency,
-              rejectionReason: "Rejected by admin",
+              rejectionReason: "Rejected by broker",
             },
           });
         } catch (emailError) {
@@ -210,7 +210,7 @@ const DepositRequests = () => {
   if (!isAdmin) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <p className="text-muted-foreground">Verifying admin access...</p>
+        <p className="text-muted-foreground">Verifying broker access...</p>
       </div>
     );
   }
@@ -221,11 +221,11 @@ const DepositRequests = () => {
       <header className="border-b border-border/40 backdrop-blur-sm bg-background/80 sticky top-0 z-50">
         <div className="flex items-center justify-between px-4 py-4">
           <div className="flex items-center gap-2">
-            <img src={logo} alt="CoinGoldFX Admin" className="h-10 w-auto object-contain" />
+            <img src={logo} alt="CoinGoldFX Broker" className="h-10 w-auto object-contain" />
           </div>
-          <Button variant="ghost" onClick={() => navigate("/admin")}>
-            Back to Admin
-          </Button>
+           <Button variant="ghost" onClick={() => navigate("/admin")}>
+             Back to Broker
+           </Button>
         </div>
       </header>
 

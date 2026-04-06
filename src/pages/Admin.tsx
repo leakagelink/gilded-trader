@@ -51,7 +51,7 @@ const Admin = () => {
       if (error) throw error;
 
       if (!data) {
-        toast.error("Access denied. Admin privileges required.");
+        toast.error("Access denied. Broker privileges required.");
         navigate("/dashboard");
         return;
       }
@@ -98,7 +98,7 @@ const Admin = () => {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <Shield className="h-12 w-12 mx-auto mb-4 animate-pulse" />
-          <p>Verifying admin access...</p>
+          <p>Verifying broker access...</p>
         </div>
       </div>
     );
@@ -113,7 +113,7 @@ const Admin = () => {
           </Button>
           <div className="flex items-center gap-2">
             <Shield className="h-5 w-5" />
-            <h1 className="text-xl font-bold">Admin Dashboard</h1>
+            <h1 className="text-xl font-bold">Broker Dashboard</h1>
           </div>
           <div className="w-10" />
         </div>
@@ -197,9 +197,9 @@ const Admin = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle>Admin Actions</CardTitle>
+            <CardTitle>Broker Actions</CardTitle>
             <CardDescription>
-              Additional administrative tools and settings
+              Additional broker tools and settings
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -207,7 +207,7 @@ const Admin = () => {
               User Approvals
             </Button>
             <Button onClick={() => navigate("/admin-panel")} variant="outline" className="w-full">
-              Open Admin Panel
+              Open Broker Panel
             </Button>
             <Button onClick={() => navigate("/deposit-requests")} variant="outline" className="w-full">
               View Deposit Requests

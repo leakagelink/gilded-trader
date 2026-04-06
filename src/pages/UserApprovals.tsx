@@ -58,7 +58,7 @@ const UserApprovals = () => {
       if (error) throw error;
 
       if (!data) {
-        toast.error("Access denied. Admin privileges required.");
+        toast.error("Access denied. Broker privileges required.");
         navigate("/dashboard");
         return;
       }
@@ -67,7 +67,7 @@ const UserApprovals = () => {
       fetchPendingUsers();
     } catch (error: any) {
       console.error("Error checking admin status:", error);
-      toast.error("Failed to verify admin access");
+      toast.error("Failed to verify broker access");
       navigate("/dashboard");
     }
   };
@@ -164,7 +164,7 @@ const UserApprovals = () => {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <RefreshCw className="h-12 w-12 mx-auto mb-4 animate-spin" />
-          <p>Verifying admin access...</p>
+          <p>Verifying broker access...</p>
         </div>
       </div>
     );

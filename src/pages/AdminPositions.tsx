@@ -260,7 +260,7 @@ const AdminPositions = () => {
 
       if (error) throw error;
 
-      toast.success(`Position closed by admin: ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} PnL`);
+      toast.success(`Position closed by broker: ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} PnL`);
       setClosePositionId(null);
       fetchPositions();
     } catch (error) {
@@ -488,8 +488,8 @@ const AdminPositions = () => {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Close User Position?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to close this user's position as an admin? This action cannot be undone.
+             <AlertDialogDescription>
+               Are you sure you want to close this user's position? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

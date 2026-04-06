@@ -223,9 +223,9 @@ const DepositRequests = () => {
           <div className="flex items-center gap-2">
             <img src={logo} alt="CoinGoldFX Broker" className="h-10 w-auto object-contain" />
           </div>
-          <Button variant="ghost" onClick={() => navigate("/admin")}>
-            Back to Admin
-          </Button>
+           <Button variant="ghost" onClick={() => navigate("/admin")}>
+             Back to Broker
+           </Button>
         </div>
       </header>
 

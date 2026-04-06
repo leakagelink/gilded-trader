@@ -67,7 +67,7 @@ const UserApprovals = () => {
       fetchPendingUsers();
     } catch (error: any) {
       console.error("Error checking admin status:", error);
-      toast.error("Failed to verify admin access");
+      toast.error("Failed to verify broker access");
       navigate("/dashboard");
     }
   };

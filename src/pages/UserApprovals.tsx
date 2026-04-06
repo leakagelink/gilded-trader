@@ -58,7 +58,7 @@ const UserApprovals = () => {
       if (error) throw error;
 
       if (!data) {
-        toast.error("Access denied. Admin privileges required.");
+        toast.error("Access denied. Broker privileges required.");
         navigate("/dashboard");
         return;
       }

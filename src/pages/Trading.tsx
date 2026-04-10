@@ -82,6 +82,8 @@ const Trading = () => {
   const [leverage, setLeverage] = useState(1);
   const [stopLoss, setStopLoss] = useState(""); // Stop loss price
   const [takeProfit, setTakeProfit] = useState(""); // Take profit price
+  const [orderType, setOrderType] = useState<'market' | 'limit'>('market');
+  const [limitPrice, setLimitPrice] = useState(""); // Limit order price
   const [chartScale, setChartScale] = useState(1);
   const [walletBalance, setWalletBalance] = useState<number>(0);
   const chartContainerRef = useRef<HTMLDivElement>(null);

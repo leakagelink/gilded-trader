@@ -36,12 +36,29 @@ export const AdminAPIManagement = () => {
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [storedPassword, setStoredPassword] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchStoredPassword();
+  }, []);
 
   useEffect(() => {
     if (isUnlocked) {
       fetchAPIKeys();
     }
   }, [isUnlocked]);
+
+  const fetchStoredPassword = async () => {
+    const { data } = await supabase
+      .from("payment_settings")
+      .select("setting_value")
+      .eq("setting_key", "api_management_password")
+      .maybeSingle();
+    
+    if (data?.setting_value) {
+      setStoredPassword(data.setting_value);
+    }
+  };
 
   const fetchAPIKeys = async () => {
     const { data, error } = await supabase

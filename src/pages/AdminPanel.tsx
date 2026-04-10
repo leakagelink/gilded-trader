@@ -2005,6 +2005,36 @@ const AdminPanel = () => {
                   )}
                 </div>
 
+                </div>
+
+                {/* API Management Password */}
+                <div className="space-y-4 border-t pt-6">
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                    <Lock className="h-5 w-5 text-red-500" />
+                    Broker Panel API Password
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Change the password used to unlock API Key Management section
+                  </p>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="apiPassword">New Password</Label>
+                      <Input
+                        id="apiPassword"
+                        type="password"
+                        placeholder="Enter new API management password"
+                        value={paymentSettings.apiPassword || ""}
+                        onChange={(e) =>
+                          setPaymentSettings({ ...paymentSettings, apiPassword: e.target.value })
+                        }
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Leave empty to keep the current password unchanged
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 <Button onClick={handleSavePaymentSettings} className="w-full">
                   Save All Settings
                 </Button>

@@ -757,8 +757,6 @@ const AdminPanel = () => {
         settingsToUpdate.push({ setting_key: "api_management_password", setting_value: paymentSettings.apiPassword.trim() });
       }
 
-      const settingsToSave = settingsToUpdate;
-      ];
 
       for (const setting of settingsToUpdate) {
         const { error } = await supabase

@@ -2042,6 +2042,48 @@ const AdminPanel = () => {
                   </div>
                 </div>
 
+                {/* Login Password Change */}
+                <div className="space-y-4 pt-4 border-t border-border">
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                    <Lock className="h-5 w-5 text-orange-500" />
+                    Login Password Change
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Change your login password for this broker account
+                  </p>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="newLoginPassword">New Login Password</Label>
+                      <Input
+                        id="newLoginPassword"
+                        type="password"
+                        placeholder="Enter new login password"
+                        value={newLoginPassword}
+                        onChange={(e) => setNewLoginPassword(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="confirmLoginPassword">Confirm Password</Label>
+                      <Input
+                        id="confirmLoginPassword"
+                        type="password"
+                        placeholder="Confirm new login password"
+                        value={confirmLoginPassword}
+                        onChange={(e) => setConfirmLoginPassword(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <Button 
+                    onClick={handleChangeLoginPassword} 
+                    variant="outline"
+                    disabled={changingLoginPassword || !newLoginPassword}
+                    className="w-full"
+                  >
+                    {changingLoginPassword ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Lock className="h-4 w-4 mr-2" />}
+                    Change Login Password
+                  </Button>
+                </div>
+
                 <Button onClick={handleSavePaymentSettings} className="w-full">
                   Save All Settings
                 </Button>

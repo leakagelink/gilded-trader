@@ -301,6 +301,45 @@ const Positions = () => {
         autoCloseQueue.forEach(({ position, reason }) => {
           handleAutoClose(position, reason);
         });
+
+        // Check and execute pending limit orders
+        try {
+          const { data: limitOrders } = await supabase
+            .from('limit_orders')
+            .select('*')
+            .eq('user_id', user?.id)
+            .eq('status', 'pending' as any);
+
+          if (limitOrders && limitOrders.length > 0) {
+            for (const order of limitOrders) {
+              const sym = order.symbol.toUpperCase();
+              const isForex = isForexSymbol(sym);
+              const isCommodity = isCommoditySymbol(sym);
+              
+              let marketPrice = 0;
+              if (isForex) {
+                marketPrice = forexPrices[sym] || 0;
+              } else if (isCommodity) {
+                marketPrice = commodityPrices[sym] || 0;
+              } else {
+                marketPrice = cryptoPrices[sym] || 0;
+              }
+
+              if (marketPrice <= 0) continue;
+
+              // Check if limit price is reached
+              const shouldExecute = 
+                (order.position_type === 'long' && marketPrice <= order.limit_price) ||
+                (order.position_type === 'short' && marketPrice >= order.limit_price);
+
+              if (shouldExecute) {
+                await executeLimitOrder(order, marketPrice);
+              }
+            }
+          }
+        } catch (limitErr) {
+          console.error('Error checking limit orders:', limitErr);
+        }
       } catch (error) {
         console.error("Error updating position prices:", error);
       }

@@ -2005,7 +2005,6 @@ const AdminPanel = () => {
                   )}
                 </div>
 
-                </div>
 
                 {/* API Management Password */}
                 <div className="space-y-4 border-t pt-6">

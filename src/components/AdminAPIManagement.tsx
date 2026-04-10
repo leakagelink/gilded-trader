@@ -76,7 +76,8 @@ export const AdminAPIManagement = () => {
   };
 
   const handleUnlock = () => {
-    if (password === API_PASSWORD) {
+    const correctPassword = storedPassword || DEFAULT_API_PASSWORD;
+    if (password === correctPassword) {
       setIsUnlocked(true);
       setPassword("");
       toast.success("API Management unlocked");

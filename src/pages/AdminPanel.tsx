@@ -100,6 +100,7 @@ const AdminPanel = () => {
     bankName: "Demo Bank",
     exchangeRate: "0.012",
     appDownloadUrl: "",
+    apiPassword: "",
   });
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [uploadingQr, setUploadingQr] = useState(false);

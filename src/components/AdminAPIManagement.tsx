@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Switch } from "@/components/ui/switch";
 import { Trash2, Save, Lock, Eye, EyeOff } from "lucide-react";
 
-const API_PASSWORD = "Kingbond@123";
+const DEFAULT_API_PASSWORD = "Kingbond@123";
 
 interface APIKey {
   id: string;
@@ -36,12 +36,29 @@ export const AdminAPIManagement = () => {
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [storedPassword, setStoredPassword] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchStoredPassword();
+  }, []);
 
   useEffect(() => {
     if (isUnlocked) {
       fetchAPIKeys();
     }
   }, [isUnlocked]);
+
+  const fetchStoredPassword = async () => {
+    const { data } = await supabase
+      .from("payment_settings")
+      .select("setting_value")
+      .eq("setting_key", "api_management_password")
+      .maybeSingle();
+    
+    if (data?.setting_value) {
+      setStoredPassword(data.setting_value);
+    }
+  };
 
   const fetchAPIKeys = async () => {
     const { data, error } = await supabase
@@ -59,7 +76,8 @@ export const AdminAPIManagement = () => {
   };
 
   const handleUnlock = () => {
-    if (password === API_PASSWORD) {
+    const correctPassword = storedPassword || DEFAULT_API_PASSWORD;
+    if (password === correctPassword) {
       setIsUnlocked(true);
       setPassword("");
       toast.success("API Management unlocked");

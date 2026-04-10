@@ -276,6 +276,7 @@ const AdminPanel = () => {
           bankName: settings.bankName || "Demo Bank",
           exchangeRate: settings.exchangeRate || "0.012",
           appDownloadUrl: settings.appDownloadUrl || "",
+          apiPassword: "",
         });
         
         // Set deposit offer settings

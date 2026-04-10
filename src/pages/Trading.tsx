@@ -1306,7 +1306,42 @@ const Trading = () => {
               </div>
             </div>
 
-            {/* Input Mode Toggle */}
+            {/* Order Type Toggle */}
+            <div className="flex items-center gap-2">
+              <InputTabs value={orderType} onValueChange={(v) => setOrderType(v as 'market' | 'limit')} className="w-full">
+                <InputTabsList className="grid w-full grid-cols-2">
+                  <InputTabsTrigger value="market" className="flex items-center gap-1">
+                    <Activity className="h-3 w-3" />
+                    Market
+                  </InputTabsTrigger>
+                  <InputTabsTrigger value="limit" className="flex items-center gap-1">
+                    <ShoppingCart className="h-3 w-3" />
+                    Limit
+                  </InputTabsTrigger>
+                </InputTabsList>
+              </InputTabs>
+            </div>
+
+            {/* Limit Price Input */}
+            {orderType === 'limit' && (
+              <div>
+                <Label htmlFor="short-limit-price">Limit Price (Sell at this price)</Label>
+                <div className="relative mt-2">
+                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-yellow-500" />
+                  <Input
+                    id="short-limit-price"
+                    type="number"
+                    placeholder={`Enter price above ${currencySymbol}${currentPrice.toFixed(2)}`}
+                    value={limitPrice}
+                    onChange={(e) => setLimitPrice(e.target.value)}
+                    className="pl-9 border-yellow-500/30 focus:border-yellow-500"
+                    step="0.01"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Trade will execute automatically when market price rises to this level</p>
+              </div>
+            )}
+
             <div className="flex items-center gap-2">
               <InputTabs value={inputMode} onValueChange={(v) => setInputMode(v as 'amount' | 'lotSize')} className="w-full">
                 <InputTabsList className="grid w-full grid-cols-2">

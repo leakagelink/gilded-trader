@@ -525,6 +525,66 @@ const Positions = () => {
     }
   };
 
+  // Monitor limit orders even when no open positions exist
+  useEffect(() => {
+    if (!user || hasOpenPositions) return;
+
+    const checkLimitOrders = async () => {
+      try {
+        const { data: limitOrders } = await supabase
+          .from('limit_orders')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('status', 'pending' as any);
+
+        if (!limitOrders || limitOrders.length === 0) return;
+
+        const symbols = Array.from(new Set(limitOrders.map(o => o.symbol.toUpperCase())));
+        const cryptoSyms = symbols.filter(s => !isForexSymbol(s) && !isCommoditySymbol(s));
+
+        const [cryptoRes, forexRes, commoditiesRes] = await Promise.all([
+          cryptoSyms.length > 0
+            ? supabase.functions.invoke('fetch-crypto-data', { body: { symbols: cryptoSyms } })
+            : Promise.resolve({ data: null, error: null }),
+          symbols.some(s => isForexSymbol(s))
+            ? supabase.functions.invoke('fetch-forex-data')
+            : Promise.resolve({ data: null, error: null }),
+          symbols.some(s => isCommoditySymbol(s))
+            ? supabase.functions.invoke('fetch-commodities-data')
+            : Promise.resolve({ data: null, error: null }),
+        ]);
+
+        const prices: Record<string, number> = {};
+        if (cryptoRes.data?.cryptoData) {
+          cryptoRes.data.cryptoData.forEach((c: any) => { if (c.symbol && c.price) prices[c.symbol.toUpperCase()] = parseFloat(c.price); });
+        }
+        if (forexRes.data?.forexData) {
+          forexRes.data.forexData.forEach((f: any) => { const p = parseFloat(f.price); if (p > 0) { prices[(f.symbol || '').toUpperCase()] = p; prices[(f.name || '').toUpperCase()] = p; } });
+        }
+        if (commoditiesRes.data?.commoditiesData) {
+          commoditiesRes.data.commoditiesData.forEach((c: any) => { const p = parseFloat(c.price); if (p > 0) prices[(c.symbol || '').toUpperCase()] = p; });
+        }
+
+        for (const order of limitOrders) {
+          const mp = prices[order.symbol.toUpperCase()] || 0;
+          if (mp <= 0) continue;
+          const shouldExecute = 
+            (order.position_type === 'long' && mp <= order.limit_price) ||
+            (order.position_type === 'short' && mp >= order.limit_price);
+          if (shouldExecute) {
+            await executeLimitOrder(order, mp);
+          }
+        }
+      } catch (err) {
+        console.error('Error checking limit orders (no positions):', err);
+      }
+    };
+
+    checkLimitOrders();
+    const intervalId = setInterval(checkLimitOrders, 5000);
+    return () => clearInterval(intervalId);
+  }, [user, hasOpenPositions]);
+
   const fetchPositions = async () => {
     try {
       setLoading(true);

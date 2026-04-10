@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Switch } from "@/components/ui/switch";
 import { Trash2, Save, Lock, Eye, EyeOff } from "lucide-react";
 
-const API_PASSWORD = "Kingbond@123";
+const DEFAULT_API_PASSWORD = "Kingbond@123";
 
 interface APIKey {
   id: string;

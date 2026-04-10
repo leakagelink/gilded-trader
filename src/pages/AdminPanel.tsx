@@ -718,6 +718,29 @@ const AdminPanel = () => {
     }
   };
 
+  const handleChangeLoginPassword = async () => {
+    if (!newLoginPassword || newLoginPassword.length < 6) {
+      toast({ title: "Error", description: "Password must be at least 6 characters", variant: "destructive" });
+      return;
+    }
+    if (newLoginPassword !== confirmLoginPassword) {
+      toast({ title: "Error", description: "Passwords do not match", variant: "destructive" });
+      return;
+    }
+    setChangingLoginPassword(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newLoginPassword });
+      if (error) throw error;
+      toast({ title: "Success", description: "Login password changed successfully" });
+      setNewLoginPassword("");
+      setConfirmLoginPassword("");
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setChangingLoginPassword(false);
+    }
+  };
+
   const getTimeRemaining = (createdAt: string) => {
     const created = new Date(createdAt).getTime();
     const now = Date.now();

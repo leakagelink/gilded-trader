@@ -1237,8 +1237,13 @@ const Trading = () => {
             
             <div className="p-3 bg-muted rounded-lg space-y-2">
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Entry Price:</span>
-                <span className="font-semibold">{currencySymbol}{typeof currentPrice === 'number' ? currentPrice.toFixed(2) : '0.00'}</span>
+                <span className="text-muted-foreground">{orderType === 'limit' ? 'Limit Price:' : 'Entry Price:'}</span>
+                <span className="font-semibold">
+                  {orderType === 'limit' && limitPrice 
+                    ? `${currencySymbol}${parseFloat(limitPrice).toFixed(2)}`
+                    : `${currencySymbol}${typeof currentPrice === 'number' ? currentPrice.toFixed(2) : '0.00'}`
+                  }
+                </span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Asset Quantity:</span>

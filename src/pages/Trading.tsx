@@ -745,6 +745,8 @@ const Trading = () => {
       setLotSize("");
       setStopLoss("");
       setTakeProfit("");
+      setLimitPrice("");
+      setOrderType('market');
       setShowLongDialog(false);
       setShowShortDialog(false);
       fetchWalletBalance();

@@ -1275,16 +1275,17 @@ const Trading = () => {
             </div>
             <Button
               onClick={() => handleOpenPosition('long')}
-              className="w-full bg-green-500 hover:bg-green-600 text-white h-12"
+              className={`w-full text-white h-12 ${orderType === 'limit' ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-green-500 hover:bg-green-600'}`}
               size="lg"
               disabled={
-                inputMode === 'amount'
-                  ? (!tradeAmount || parseFloat(tradeAmount) <= 0 || parseFloat(tradeAmount) / leverage > walletBalance)
-                  : (!lotSize || parseFloat(lotSize) <= 0 || !currentPrice || currentPrice <= 0 || (parseFloat(lotSize) * currentPrice) / leverage > walletBalance)
+                (orderType === 'limit' && (!limitPrice || parseFloat(limitPrice) <= 0)) ||
+                (inputMode === 'amount'
+                  ? (!tradeAmount || parseFloat(tradeAmount) <= 0 || (orderType === 'market' && parseFloat(tradeAmount) / leverage > walletBalance))
+                  : (!lotSize || parseFloat(lotSize) <= 0 || !currentPrice || currentPrice <= 0 || (orderType === 'market' && (parseFloat(lotSize) * currentPrice) / leverage > walletBalance)))
               }
             >
-              <TrendingUp className="mr-2 h-5 w-5" />
-              Open LONG Position
+              {orderType === 'limit' ? <ShoppingCart className="mr-2 h-5 w-5" /> : <TrendingUp className="mr-2 h-5 w-5" />}
+              {orderType === 'limit' ? 'Place Limit LONG Order' : 'Open LONG Position'}
             </Button>
           </div>
         </DialogContent>

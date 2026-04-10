@@ -497,6 +497,61 @@ const Trading = () => {
       }
     }
 
+    // If limit order, validate limit price and save to limit_orders table
+    if (orderType === 'limit') {
+      const limitPriceValue = parseFloat(limitPrice);
+      if (!limitPrice || isNaN(limitPriceValue) || limitPriceValue <= 0) {
+        toast.error("Please enter a valid limit price");
+        return;
+      }
+
+      // Validate limit price direction
+      if (type === 'long' && limitPriceValue >= currentPrice) {
+        toast.error("Limit price for LONG should be below current price (buy cheaper)");
+        return;
+      }
+      if (type === 'short' && limitPriceValue <= currentPrice) {
+        toast.error("Limit price for SHORT should be above current price (sell higher)");
+        return;
+      }
+
+      try {
+        const stopLossValue = stopLoss ? parseFloat(stopLoss) : null;
+        const takeProfitValue = takeProfit ? parseFloat(takeProfit) : null;
+
+        const { error } = await supabase.from('limit_orders').insert({
+          user_id: user?.id,
+          symbol: symbol?.toUpperCase(),
+          position_type: type,
+          input_mode: inputMode,
+          amount: inputMode === 'amount' ? parseFloat(tradeAmount) : null,
+          lot_size: inputMode === 'lotSize' ? parseFloat(lotSize) : null,
+          leverage: leverage,
+          limit_price: limitPriceValue,
+          stop_loss: stopLossValue,
+          take_profit: takeProfitValue,
+          status: 'pending' as any,
+        });
+
+        if (error) throw error;
+
+        toast.success(`Limit ${type.toUpperCase()} order placed @ ${currencySymbol}${limitPriceValue.toFixed(2)}. Will execute when price reaches this level.`);
+        setTradeAmount("");
+        setLotSize("");
+        setStopLoss("");
+        setTakeProfit("");
+        setLimitPrice("");
+        setOrderType('market');
+        setShowLongDialog(false);
+        setShowShortDialog(false);
+        return;
+      } catch (error) {
+        console.error('Error placing limit order:', error);
+        toast.error('Failed to place limit order');
+        return;
+      }
+    }
+
     // Validate currentPrice before proceeding
     if (!currentPrice || currentPrice <= 0 || isNaN(currentPrice)) {
       toast.error("Price data not available. Please wait for price to load.");

@@ -78,6 +78,9 @@ const AdminPanel = () => {
   const [passwordUser, setPasswordUser] = useState<any>(null);
   const [newPassword, setNewPassword] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
+  const [newLoginPassword, setNewLoginPassword] = useState("");
+  const [confirmLoginPassword, setConfirmLoginPassword] = useState("");
+  const [changingLoginPassword, setChangingLoginPassword] = useState(false);
 
   // Deposits state
   const [depositRequests, setDepositRequests] = useState<any[]>([]);

@@ -301,6 +301,45 @@ const Positions = () => {
         autoCloseQueue.forEach(({ position, reason }) => {
           handleAutoClose(position, reason);
         });
+
+        // Check and execute pending limit orders
+        try {
+          const { data: limitOrders } = await supabase
+            .from('limit_orders')
+            .select('*')
+            .eq('user_id', user?.id)
+            .eq('status', 'pending' as any);
+
+          if (limitOrders && limitOrders.length > 0) {
+            for (const order of limitOrders) {
+              const sym = order.symbol.toUpperCase();
+              const isForex = isForexSymbol(sym);
+              const isCommodity = isCommoditySymbol(sym);
+              
+              let marketPrice = 0;
+              if (isForex) {
+                marketPrice = forexPrices[sym] || 0;
+              } else if (isCommodity) {
+                marketPrice = commodityPrices[sym] || 0;
+              } else {
+                marketPrice = cryptoPrices[sym] || 0;
+              }
+
+              if (marketPrice <= 0) continue;
+
+              // Check if limit price is reached
+              const shouldExecute = 
+                (order.position_type === 'long' && marketPrice <= order.limit_price) ||
+                (order.position_type === 'short' && marketPrice >= order.limit_price);
+
+              if (shouldExecute) {
+                await executeLimitOrder(order, marketPrice);
+              }
+            }
+          }
+        } catch (limitErr) {
+          console.error('Error checking limit orders:', limitErr);
+        }
       } catch (error) {
         console.error("Error updating position prices:", error);
       }
@@ -368,6 +407,183 @@ const Positions = () => {
       supabase.removeChannel(channel);
     };
   }, [user]);
+
+  // Execute a limit order when price target is reached
+  const executeLimitOrder = async (order: any, marketPrice: number) => {
+    try {
+      const entryPrice = order.limit_price;
+      let usdAmount: number;
+      let assetQuantity: number;
+      let margin: number;
+
+      if (order.input_mode === 'amount') {
+        usdAmount = order.amount || 0;
+        assetQuantity = usdAmount / entryPrice;
+        margin = usdAmount / order.leverage;
+      } else {
+        assetQuantity = order.lot_size || 0;
+        usdAmount = assetQuantity * entryPrice;
+        margin = (assetQuantity * entryPrice) / order.leverage;
+      }
+
+      if (assetQuantity <= 0 || margin <= 0) return;
+
+      // Check wallet balance
+      const { data: wallet } = await supabase
+        .from('user_wallets')
+        .select('balance')
+        .eq('user_id', order.user_id)
+        .eq('currency', 'USD')
+        .maybeSingle();
+
+      const currentBalance = wallet?.balance || 0;
+      if (currentBalance < margin) {
+        // Mark as cancelled due to insufficient balance
+        await supabase
+          .from('limit_orders')
+          .update({ status: 'cancelled' as any, updated_at: new Date().toISOString() })
+          .eq('id', order.id);
+        toast.error(`Limit order for ${order.symbol} cancelled - insufficient balance`);
+        return;
+      }
+
+      // Deduct margin
+      await supabase
+        .from('user_wallets')
+        .update({ balance: currentBalance - margin })
+        .eq('user_id', order.user_id)
+        .eq('currency', 'USD');
+
+      // Check for existing position to average into
+      const { data: existingPosition } = await supabase
+        .from('positions')
+        .select('*')
+        .eq('user_id', order.user_id)
+        .eq('symbol', order.symbol)
+        .eq('position_type', order.position_type)
+        .eq('status', 'open')
+        .maybeSingle();
+
+      if (existingPosition) {
+        const oldAmount = Number(existingPosition.amount);
+        const oldEntryPrice = Number(existingPosition.entry_price);
+        const oldMargin = Number(existingPosition.margin);
+        const newTotalAmount = oldAmount + assetQuantity;
+        const newAvgEntryPrice = ((oldAmount * oldEntryPrice) + (assetQuantity * entryPrice)) / newTotalAmount;
+        const newTotalMargin = oldMargin + margin;
+        const newLeverage = Math.round((newTotalAmount * newAvgEntryPrice) / newTotalMargin);
+
+        await supabase
+          .from('positions')
+          .update({
+            amount: newTotalAmount,
+            entry_price: newAvgEntryPrice,
+            current_price: marketPrice,
+            margin: newTotalMargin,
+            leverage: newLeverage,
+            stop_loss: order.stop_loss ?? existingPosition.stop_loss,
+            take_profit: order.take_profit ?? existingPosition.take_profit,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', existingPosition.id);
+      } else {
+        await supabase.from('positions').insert({
+          user_id: order.user_id,
+          symbol: order.symbol,
+          position_type: order.position_type,
+          amount: assetQuantity,
+          entry_price: entryPrice,
+          current_price: marketPrice,
+          leverage: order.leverage,
+          margin: margin,
+          status: 'open',
+          stop_loss: order.stop_loss,
+          take_profit: order.take_profit,
+        });
+      }
+
+      // Record transaction
+      await supabase.from('wallet_transactions').insert({
+        user_id: order.user_id,
+        type: 'trade',
+        amount: margin,
+        currency: 'USD',
+        status: 'Completed',
+        reference_id: null,
+      });
+
+      // Mark limit order as executed
+      await supabase
+        .from('limit_orders')
+        .update({ status: 'executed' as any, executed_at: new Date().toISOString() })
+        .eq('id', order.id);
+
+      toast.success(`Limit ${order.position_type.toUpperCase()} order executed! ${order.symbol} @ $${entryPrice.toFixed(2)}`);
+      fetchPositions();
+    } catch (error) {
+      console.error('Error executing limit order:', error);
+    }
+  };
+
+  // Monitor limit orders even when no open positions exist
+  useEffect(() => {
+    if (!user || hasOpenPositions) return;
+
+    const checkLimitOrders = async () => {
+      try {
+        const { data: limitOrders } = await supabase
+          .from('limit_orders')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('status', 'pending' as any);
+
+        if (!limitOrders || limitOrders.length === 0) return;
+
+        const symbols = Array.from(new Set(limitOrders.map(o => o.symbol.toUpperCase())));
+        const cryptoSyms = symbols.filter(s => !isForexSymbol(s) && !isCommoditySymbol(s));
+
+        const [cryptoRes, forexRes, commoditiesRes] = await Promise.all([
+          cryptoSyms.length > 0
+            ? supabase.functions.invoke('fetch-crypto-data', { body: { symbols: cryptoSyms } })
+            : Promise.resolve({ data: null, error: null }),
+          symbols.some(s => isForexSymbol(s))
+            ? supabase.functions.invoke('fetch-forex-data')
+            : Promise.resolve({ data: null, error: null }),
+          symbols.some(s => isCommoditySymbol(s))
+            ? supabase.functions.invoke('fetch-commodities-data')
+            : Promise.resolve({ data: null, error: null }),
+        ]);
+
+        const prices: Record<string, number> = {};
+        if (cryptoRes.data?.cryptoData) {
+          cryptoRes.data.cryptoData.forEach((c: any) => { if (c.symbol && c.price) prices[c.symbol.toUpperCase()] = parseFloat(c.price); });
+        }
+        if (forexRes.data?.forexData) {
+          forexRes.data.forexData.forEach((f: any) => { const p = parseFloat(f.price); if (p > 0) { prices[(f.symbol || '').toUpperCase()] = p; prices[(f.name || '').toUpperCase()] = p; } });
+        }
+        if (commoditiesRes.data?.commoditiesData) {
+          commoditiesRes.data.commoditiesData.forEach((c: any) => { const p = parseFloat(c.price); if (p > 0) prices[(c.symbol || '').toUpperCase()] = p; });
+        }
+
+        for (const order of limitOrders) {
+          const mp = prices[order.symbol.toUpperCase()] || 0;
+          if (mp <= 0) continue;
+          const shouldExecute = 
+            (order.position_type === 'long' && mp <= order.limit_price) ||
+            (order.position_type === 'short' && mp >= order.limit_price);
+          if (shouldExecute) {
+            await executeLimitOrder(order, mp);
+          }
+        }
+      } catch (err) {
+        console.error('Error checking limit orders (no positions):', err);
+      }
+    };
+
+    checkLimitOrders();
+    const intervalId = setInterval(checkLimitOrders, 5000);
+    return () => clearInterval(intervalId);
+  }, [user, hasOpenPositions]);
 
   const fetchPositions = async () => {
     try {

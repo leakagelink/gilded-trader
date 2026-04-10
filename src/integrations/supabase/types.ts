@@ -190,6 +190,60 @@ export type Database = {
           },
         ]
       }
+      limit_orders: {
+        Row: {
+          amount: number | null
+          created_at: string
+          executed_at: string | null
+          id: string
+          input_mode: string
+          leverage: number
+          limit_price: number
+          lot_size: number | null
+          position_type: Database["public"]["Enums"]["position_type"]
+          status: Database["public"]["Enums"]["limit_order_status"]
+          stop_loss: number | null
+          symbol: string
+          take_profit: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount?: number | null
+          created_at?: string
+          executed_at?: string | null
+          id?: string
+          input_mode?: string
+          leverage?: number
+          limit_price: number
+          lot_size?: number | null
+          position_type: Database["public"]["Enums"]["position_type"]
+          status?: Database["public"]["Enums"]["limit_order_status"]
+          stop_loss?: number | null
+          symbol: string
+          take_profit?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number | null
+          created_at?: string
+          executed_at?: string | null
+          id?: string
+          input_mode?: string
+          leverage?: number
+          limit_price?: number
+          lot_size?: number | null
+          position_type?: Database["public"]["Enums"]["position_type"]
+          status?: Database["public"]["Enums"]["limit_order_status"]
+          stop_loss?: number | null
+          symbol?: string
+          take_profit?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       payment_settings: {
         Row: {
           id: string
@@ -610,6 +664,7 @@ export type Database = {
       app_role: "admin" | "moderator" | "user"
       deposit_status: "pending" | "approved" | "rejected" | "locked"
       kyc_status: "pending" | "approved" | "rejected"
+      limit_order_status: "pending" | "executed" | "cancelled"
       payment_method: "upi" | "netbanking"
       position_status: "open" | "closed"
       position_type: "long" | "short"
@@ -745,6 +800,7 @@ export const Constants = {
       app_role: ["admin", "moderator", "user"],
       deposit_status: ["pending", "approved", "rejected", "locked"],
       kyc_status: ["pending", "approved", "rejected"],
+      limit_order_status: ["pending", "executed", "cancelled"],
       payment_method: ["upi", "netbanking"],
       position_status: ["open", "closed"],
       position_type: ["long", "short"],

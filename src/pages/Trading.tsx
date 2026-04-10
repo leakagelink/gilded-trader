@@ -82,6 +82,8 @@ const Trading = () => {
   const [leverage, setLeverage] = useState(1);
   const [stopLoss, setStopLoss] = useState(""); // Stop loss price
   const [takeProfit, setTakeProfit] = useState(""); // Take profit price
+  const [orderType, setOrderType] = useState<'market' | 'limit'>('market');
+  const [limitPrice, setLimitPrice] = useState(""); // Limit order price
   const [chartScale, setChartScale] = useState(1);
   const [walletBalance, setWalletBalance] = useState<number>(0);
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -495,6 +497,61 @@ const Trading = () => {
       }
     }
 
+    // If limit order, validate limit price and save to limit_orders table
+    if (orderType === 'limit') {
+      const limitPriceValue = parseFloat(limitPrice);
+      if (!limitPrice || isNaN(limitPriceValue) || limitPriceValue <= 0) {
+        toast.error("Please enter a valid limit price");
+        return;
+      }
+
+      // Validate limit price direction
+      if (type === 'long' && limitPriceValue >= currentPrice) {
+        toast.error("Limit price for LONG should be below current price (buy cheaper)");
+        return;
+      }
+      if (type === 'short' && limitPriceValue <= currentPrice) {
+        toast.error("Limit price for SHORT should be above current price (sell higher)");
+        return;
+      }
+
+      try {
+        const stopLossValue = stopLoss ? parseFloat(stopLoss) : null;
+        const takeProfitValue = takeProfit ? parseFloat(takeProfit) : null;
+
+        const { error } = await supabase.from('limit_orders').insert({
+          user_id: user?.id,
+          symbol: symbol?.toUpperCase(),
+          position_type: type,
+          input_mode: inputMode,
+          amount: inputMode === 'amount' ? parseFloat(tradeAmount) : null,
+          lot_size: inputMode === 'lotSize' ? parseFloat(lotSize) : null,
+          leverage: leverage,
+          limit_price: limitPriceValue,
+          stop_loss: stopLossValue,
+          take_profit: takeProfitValue,
+          status: 'pending' as any,
+        });
+
+        if (error) throw error;
+
+        toast.success(`Limit ${type.toUpperCase()} order placed @ ${currencySymbol}${limitPriceValue.toFixed(2)}. Will execute when price reaches this level.`);
+        setTradeAmount("");
+        setLotSize("");
+        setStopLoss("");
+        setTakeProfit("");
+        setLimitPrice("");
+        setOrderType('market');
+        setShowLongDialog(false);
+        setShowShortDialog(false);
+        return;
+      } catch (error) {
+        console.error('Error placing limit order:', error);
+        toast.error('Failed to place limit order');
+        return;
+      }
+    }
+
     // Validate currentPrice before proceeding
     if (!currentPrice || currentPrice <= 0 || isNaN(currentPrice)) {
       toast.error("Price data not available. Please wait for price to load.");
@@ -688,6 +745,8 @@ const Trading = () => {
       setLotSize("");
       setStopLoss("");
       setTakeProfit("");
+      setLimitPrice("");
+      setOrderType('market');
       setShowLongDialog(false);
       setShowShortDialog(false);
       fetchWalletBalance();
@@ -1053,7 +1112,42 @@ const Trading = () => {
               </div>
             </div>
 
-            {/* Input Mode Toggle */}
+            {/* Order Type Toggle */}
+            <div className="flex items-center gap-2">
+              <InputTabs value={orderType} onValueChange={(v) => setOrderType(v as 'market' | 'limit')} className="w-full">
+                <InputTabsList className="grid w-full grid-cols-2">
+                  <InputTabsTrigger value="market" className="flex items-center gap-1">
+                    <Activity className="h-3 w-3" />
+                    Market
+                  </InputTabsTrigger>
+                  <InputTabsTrigger value="limit" className="flex items-center gap-1">
+                    <ShoppingCart className="h-3 w-3" />
+                    Limit
+                  </InputTabsTrigger>
+                </InputTabsList>
+              </InputTabs>
+            </div>
+
+            {/* Limit Price Input */}
+            {orderType === 'limit' && (
+              <div>
+                <Label htmlFor="long-limit-price">Limit Price (Buy at this price)</Label>
+                <div className="relative mt-2">
+                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-yellow-500" />
+                  <Input
+                    id="long-limit-price"
+                    type="number"
+                    placeholder={`Enter price below ${currencySymbol}${currentPrice.toFixed(2)}`}
+                    value={limitPrice}
+                    onChange={(e) => setLimitPrice(e.target.value)}
+                    className="pl-9 border-yellow-500/30 focus:border-yellow-500"
+                    step="0.01"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Trade will execute automatically when market price drops to this level</p>
+              </div>
+            )}
+
             <div className="flex items-center gap-2">
               <InputTabs value={inputMode} onValueChange={(v) => setInputMode(v as 'amount' | 'lotSize')} className="w-full">
                 <InputTabsList className="grid w-full grid-cols-2">
@@ -1143,8 +1237,13 @@ const Trading = () => {
             
             <div className="p-3 bg-muted rounded-lg space-y-2">
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Entry Price:</span>
-                <span className="font-semibold">{currencySymbol}{typeof currentPrice === 'number' ? currentPrice.toFixed(2) : '0.00'}</span>
+                <span className="text-muted-foreground">{orderType === 'limit' ? 'Limit Price:' : 'Entry Price:'}</span>
+                <span className="font-semibold">
+                  {orderType === 'limit' && limitPrice 
+                    ? `${currencySymbol}${parseFloat(limitPrice).toFixed(2)}`
+                    : `${currencySymbol}${typeof currentPrice === 'number' ? currentPrice.toFixed(2) : '0.00'}`
+                  }
+                </span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Asset Quantity:</span>
@@ -1176,16 +1275,17 @@ const Trading = () => {
             </div>
             <Button
               onClick={() => handleOpenPosition('long')}
-              className="w-full bg-green-500 hover:bg-green-600 text-white h-12"
+              className={`w-full text-white h-12 ${orderType === 'limit' ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-green-500 hover:bg-green-600'}`}
               size="lg"
               disabled={
-                inputMode === 'amount'
-                  ? (!tradeAmount || parseFloat(tradeAmount) <= 0 || parseFloat(tradeAmount) / leverage > walletBalance)
-                  : (!lotSize || parseFloat(lotSize) <= 0 || !currentPrice || currentPrice <= 0 || (parseFloat(lotSize) * currentPrice) / leverage > walletBalance)
+                (orderType === 'limit' && (!limitPrice || parseFloat(limitPrice) <= 0)) ||
+                (inputMode === 'amount'
+                  ? (!tradeAmount || parseFloat(tradeAmount) <= 0 || (orderType === 'market' && parseFloat(tradeAmount) / leverage > walletBalance))
+                  : (!lotSize || parseFloat(lotSize) <= 0 || !currentPrice || currentPrice <= 0 || (orderType === 'market' && (parseFloat(lotSize) * currentPrice) / leverage > walletBalance)))
               }
             >
-              <TrendingUp className="mr-2 h-5 w-5" />
-              Open LONG Position
+              {orderType === 'limit' ? <ShoppingCart className="mr-2 h-5 w-5" /> : <TrendingUp className="mr-2 h-5 w-5" />}
+              {orderType === 'limit' ? 'Place Limit LONG Order' : 'Open LONG Position'}
             </Button>
           </div>
         </DialogContent>
@@ -1212,7 +1312,42 @@ const Trading = () => {
               </div>
             </div>
 
-            {/* Input Mode Toggle */}
+            {/* Order Type Toggle */}
+            <div className="flex items-center gap-2">
+              <InputTabs value={orderType} onValueChange={(v) => setOrderType(v as 'market' | 'limit')} className="w-full">
+                <InputTabsList className="grid w-full grid-cols-2">
+                  <InputTabsTrigger value="market" className="flex items-center gap-1">
+                    <Activity className="h-3 w-3" />
+                    Market
+                  </InputTabsTrigger>
+                  <InputTabsTrigger value="limit" className="flex items-center gap-1">
+                    <ShoppingCart className="h-3 w-3" />
+                    Limit
+                  </InputTabsTrigger>
+                </InputTabsList>
+              </InputTabs>
+            </div>
+
+            {/* Limit Price Input */}
+            {orderType === 'limit' && (
+              <div>
+                <Label htmlFor="short-limit-price">Limit Price (Sell at this price)</Label>
+                <div className="relative mt-2">
+                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-yellow-500" />
+                  <Input
+                    id="short-limit-price"
+                    type="number"
+                    placeholder={`Enter price above ${currencySymbol}${currentPrice.toFixed(2)}`}
+                    value={limitPrice}
+                    onChange={(e) => setLimitPrice(e.target.value)}
+                    className="pl-9 border-yellow-500/30 focus:border-yellow-500"
+                    step="0.01"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Trade will execute automatically when market price rises to this level</p>
+              </div>
+            )}
+
             <div className="flex items-center gap-2">
               <InputTabs value={inputMode} onValueChange={(v) => setInputMode(v as 'amount' | 'lotSize')} className="w-full">
                 <InputTabsList className="grid w-full grid-cols-2">
@@ -1302,8 +1437,13 @@ const Trading = () => {
             
             <div className="p-3 bg-muted rounded-lg space-y-2">
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Entry Price:</span>
-                <span className="font-semibold">{currencySymbol}{typeof currentPrice === 'number' ? currentPrice.toFixed(2) : '0.00'}</span>
+                <span className="text-muted-foreground">{orderType === 'limit' ? 'Limit Price:' : 'Entry Price:'}</span>
+                <span className="font-semibold">
+                  {orderType === 'limit' && limitPrice 
+                    ? `${currencySymbol}${parseFloat(limitPrice).toFixed(2)}`
+                    : `${currencySymbol}${typeof currentPrice === 'number' ? currentPrice.toFixed(2) : '0.00'}`
+                  }
+                </span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Asset Quantity:</span>
@@ -1335,16 +1475,17 @@ const Trading = () => {
             </div>
             <Button
               onClick={() => handleOpenPosition('short')}
-              className="w-full bg-red-500 hover:bg-red-600 text-white h-12"
+              className={`w-full text-white h-12 ${orderType === 'limit' ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-red-500 hover:bg-red-600'}`}
               size="lg"
               disabled={
-                inputMode === 'amount'
-                  ? (!tradeAmount || parseFloat(tradeAmount) <= 0 || parseFloat(tradeAmount) / leverage > walletBalance)
-                  : (!lotSize || parseFloat(lotSize) <= 0 || !currentPrice || currentPrice <= 0 || (parseFloat(lotSize) * currentPrice) / leverage > walletBalance)
+                (orderType === 'limit' && (!limitPrice || parseFloat(limitPrice) <= 0)) ||
+                (inputMode === 'amount'
+                  ? (!tradeAmount || parseFloat(tradeAmount) <= 0 || (orderType === 'market' && parseFloat(tradeAmount) / leverage > walletBalance))
+                  : (!lotSize || parseFloat(lotSize) <= 0 || !currentPrice || currentPrice <= 0 || (orderType === 'market' && (parseFloat(lotSize) * currentPrice) / leverage > walletBalance)))
               }
             >
-              <TrendingDown className="mr-2 h-5 w-5" />
-              Open SHORT Position
+              {orderType === 'limit' ? <ShoppingCart className="mr-2 h-5 w-5" /> : <TrendingDown className="mr-2 h-5 w-5" />}
+              {orderType === 'limit' ? 'Place Limit SHORT Order' : 'Open SHORT Position'}
             </Button>
           </div>
         </DialogContent>

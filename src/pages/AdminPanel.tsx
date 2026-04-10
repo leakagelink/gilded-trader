@@ -752,6 +752,14 @@ const AdminPanel = () => {
         { setting_key: "commodities_momentum_enabled", setting_value: String(marketSettings.commoditiesMomentumEnabled) },
       ];
 
+      // Only update API password if a new one was entered
+      if (paymentSettings.apiPassword && paymentSettings.apiPassword.trim() !== "") {
+        settingsToUpdate.push({ setting_key: "api_management_password", setting_value: paymentSettings.apiPassword.trim() });
+      }
+
+      const settingsToSave = settingsToUpdate;
+      ];
+
       for (const setting of settingsToUpdate) {
         const { error } = await supabase
           .from("payment_settings")

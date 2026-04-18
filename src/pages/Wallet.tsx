@@ -9,6 +9,7 @@ import BottomNav from "@/components/BottomNav";
 import DepositModal from "@/components/DepositModal";
 import WithdrawalModal from "@/components/WithdrawalModal";
 import logo from "@/assets/logo.png";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface WalletBalance {
   currency: string;
@@ -20,6 +21,7 @@ interface WalletBalance {
 const Wallet = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
   const [depositModalOpen, setDepositModalOpen] = useState(false);
   const [withdrawalModalOpen, setWithdrawalModalOpen] = useState(false);
@@ -72,8 +74,13 @@ const Wallet = () => {
 
   const fetchWalletData = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        setWalletData([]);
+        setTransactions([]);
+        setTradeHistory([]);
+        setDepositHistory([]);
+        return;
+      }
 
       // Fetch wallet balances including locked_balance
       const { data: wallets, error: walletsError } = await supabase
@@ -159,9 +166,25 @@ const Wallet = () => {
   };
 
   useEffect(() => {
+    if (authLoading) return;
+
+    if (!user) {
+      setLoading(false);
+      navigate("/auth");
+      return;
+    }
+
     fetchWalletData();
     fetchOfferSettings();
-  }, []);
+  }, [user, authLoading, navigate]);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <p className="text-muted-foreground">Loading wallet...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">

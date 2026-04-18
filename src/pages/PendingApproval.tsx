@@ -7,12 +7,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 
 const PendingApproval = () => {
-  const { user, signOut } = useAuth();
+  const { user, loading: authLoading, signOut } = useAuth();
   const navigate = useNavigate();
   const [approvalStatus, setApprovalStatus] = useState<'pending' | 'approved' | 'rejected'>('pending');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (authLoading) return;
+
     if (!user) {
       navigate("/auth");
       return;
@@ -23,7 +25,7 @@ const PendingApproval = () => {
     // Check approval status every 10 seconds
     const interval = setInterval(checkApprovalStatus, 10000);
     return () => clearInterval(interval);
-  }, [user, navigate]);
+  }, [user, authLoading, navigate]);
 
   const checkApprovalStatus = async () => {
     try {
@@ -48,7 +50,7 @@ const PendingApproval = () => {
     }
   };
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="animate-pulse">Checking account status...</div>

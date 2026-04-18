@@ -32,9 +32,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    let isMounted = true;
+    const fallbackSession = { data: { session: null } };
+
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        if (!isMounted) return;
+
         // Don't auto-navigate during password recovery
         const isPasswordRecovery = sessionStorage.getItem('password_recovery_mode') === 'true';
         const currentPath = window.location.pathname;
@@ -62,14 +67,38 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     );
 
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    const initializeSession = async () => {
+      try {
+        const sessionResult = await Promise.race([
+          supabase.auth.getSession(),
+          new Promise<typeof fallbackSession>((resolve) => {
+            setTimeout(() => resolve(fallbackSession), 8000);
+          }),
+        ]);
 
-    return () => subscription.unsubscribe();
+        if (!isMounted) return;
+
+        setSession(sessionResult.data.session);
+        setUser(sessionResult.data.session?.user ?? null);
+      } catch (error) {
+        console.error('Error restoring auth session:', error);
+        if (!isMounted) return;
+
+        setSession(null);
+        setUser(null);
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    initializeSession();
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signOut = async () => {

@@ -18,6 +18,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { hasBrokerAccess } from "@/lib/brokerAccess";
 
 interface Position {
   id: string;
@@ -172,14 +173,7 @@ const AdminPositions = () => {
 
   const checkAdminAndFetch = async () => {
     try {
-      const { data } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user?.id)
-        .eq("role", "admin")
-        .maybeSingle();
-
-      if (!data) {
+      if (!(await hasBrokerAccess(user))) {
         navigate("/dashboard");
         return;
       }

@@ -16,6 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { hasBrokerAccess } from "@/lib/brokerAccess";
 
 const DepositRequests = () => {
   const navigate = useNavigate();
@@ -34,14 +35,7 @@ const DepositRequests = () => {
         return;
       }
 
-      const { data: roles, error } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id);
-
-      if (error) throw error;
-
-      const hasAdminRole = roles?.some((r) => r.role === "admin");
+      const hasAdminRole = await hasBrokerAccess(user);
       if (!hasAdminRole) {
         toast({
           title: "Access Denied",

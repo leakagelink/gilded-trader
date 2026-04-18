@@ -44,12 +44,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { AdminTradeManagement } from "@/components/AdminTradeManagement";
 import { AdminAPIManagement } from "@/components/AdminAPIManagement";
 import { AdminKYCManagement } from "@/components/AdminKYCManagement";
+import { useAuth } from "@/contexts/AuthContext";
 
 const AdminPanel = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [accessChecked, setAccessChecked] = useState(false);
   const [activeTab, setActiveTab] = useState("approvals");
 
   // Users state
@@ -128,8 +131,15 @@ const AdminPanel = () => {
   });
 
   useEffect(() => {
+    if (authLoading) return;
+
+    if (!user) {
+      navigate("/auth");
+      return;
+    }
+
     checkAdminStatus();
-  }, []);
+  }, [authLoading, user, navigate]);
 
   useEffect(() => {
     if (isAdmin) {
@@ -152,8 +162,6 @@ const AdminPanel = () => {
   const checkAdminStatus = async () => {
     try {
       console.log("[AdminPanel] Checking admin status...");
-      const { data: sessionData } = await supabase.auth.getSession();
-      const user = sessionData?.session?.user;
       console.log("[AdminPanel] Session user:", user?.id, user?.email);
 
       if (!user) {
@@ -162,19 +170,22 @@ const AdminPanel = () => {
         return;
       }
 
-      const { data: roles, error } = await supabase
+      const { data: roleRow, error } = await supabase
         .from("user_roles")
         .select("role")
-        .eq("user_id", user.id);
+        .eq("user_id", user.id)
+        .eq("role", "admin")
+        .maybeSingle();
 
-      console.log("[AdminPanel] Roles fetched:", roles, "Error:", error);
+      console.log("[AdminPanel] Role fetched:", roleRow, "Error:", error);
 
       if (error) throw error;
 
-      const hasAdminRole = roles?.some((r) => r.role === "admin");
+      const hasAdminRole = !!roleRow;
       console.log("[AdminPanel] Has admin role:", hasAdminRole);
 
       if (!hasAdminRole) {
+        setIsAdmin(false);
         toast({
           title: "Access Denied",
           description: "You need broker privileges to access this page",
@@ -186,6 +197,7 @@ const AdminPanel = () => {
 
       setIsAdmin(true);
     } catch (error: any) {
+      setIsAdmin(false);
       console.error("[AdminPanel] checkAdminStatus error:", error);
       toast({
         title: "Error",
@@ -193,6 +205,8 @@ const AdminPanel = () => {
         variant: "destructive",
       });
       navigate("/dashboard");
+    } finally {
+      setAccessChecked(true);
     }
   };
 
@@ -867,13 +881,15 @@ const AdminPanel = () => {
     };
   }, [isAdmin]);
 
-  if (!isAdmin) {
+  if (authLoading || !accessChecked) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <p className="text-muted-foreground">Verifying broker access...</p>
       </div>
     );
   }
+
+  if (!isAdmin) return null;
 
   return (
     <div className="min-h-screen bg-background">

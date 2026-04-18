@@ -88,6 +88,12 @@ const Dashboard = () => {
     }
   };
 
+  const stopAllMarketLoading = () => {
+    setLoading(false);
+    setForexLoading(false);
+    setCommoditiesLoading(false);
+  };
+
   useEffect(() => {
     if (authLoading) return;
 
@@ -106,7 +112,10 @@ const Dashboard = () => {
 
     const initDashboard = async () => {
       const isApproved = await checkUserApproval();
-      if (!isMounted || !isApproved) return;
+      if (!isMounted || !isApproved) {
+        stopAllMarketLoading();
+        return;
+      }
 
       await fetchMarketSettings();
       await Promise.all([
@@ -149,6 +158,7 @@ const Dashboard = () => {
       return true;
     } catch (error) {
       console.error("Error checking user approval:", error);
+      stopAllMarketLoading();
       return false;
     }
   };

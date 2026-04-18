@@ -89,14 +89,40 @@ const Dashboard = () => {
   };
 
   useEffect(() => {
-    if (!authLoading && !user) {
+    if (authLoading) return;
+
+    if (!user) {
       navigate("/auth");
       return;
     }
 
-    if (user) {
-      checkUserApproval();
-    }
+    let isMounted = true;
+    const refreshInterval = setInterval(() => {
+      if (!isMounted) return;
+      fetchCryptoData(true);
+      fetchForexData(true);
+      fetchCommoditiesData(true);
+    }, 30000);
+
+    const initDashboard = async () => {
+      const isApproved = await checkUserApproval();
+      if (!isMounted || !isApproved) return;
+
+      await fetchMarketSettings();
+      await Promise.all([
+        fetchCryptoData(),
+        fetchForexData(),
+        fetchCommoditiesData(),
+        checkAdminStatus(),
+      ]);
+    };
+
+    initDashboard();
+
+    return () => {
+      isMounted = false;
+      clearInterval(refreshInterval);
+    };
   }, [user, authLoading, navigate]);
 
   const checkUserApproval = async () => {
@@ -105,34 +131,25 @@ const Dashboard = () => {
         .from("profiles")
         .select("is_approved")
         .eq("id", user?.id)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
 
-      if (!data?.is_approved) {
-        navigate("/pending-approval");
-        return;
+      if (!data) {
+        console.error("Profile not found for authenticated user");
+        await signOut();
+        return false;
       }
 
-      // Fetch market settings
-      await fetchMarketSettings();
-      
-      // User is approved, continue with normal dashboard flow
-      fetchCryptoData();
-      fetchForexData();
-      fetchCommoditiesData();
-      checkAdminStatus();
-      
-      // Auto-refresh every 30 seconds
-      const refreshInterval = setInterval(() => {
-        fetchCryptoData(true);
-        fetchForexData(true);
-        fetchCommoditiesData(true);
-      }, 30000);
+      if (!data?.is_approved) {
+        navigate("/pending-approval");
+        return false;
+      }
 
-      return () => clearInterval(refreshInterval);
+      return true;
     } catch (error) {
       console.error("Error checking user approval:", error);
+      return false;
     }
   };
   
@@ -194,6 +211,14 @@ const Dashboard = () => {
   const filteredCryptoData = filterData(cryptoData);
   const filteredForexData = filterData(forexData);
   const filteredCommoditiesData = filterData(commoditiesData);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-muted-foreground">Loading dashboard...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-muted/30">

@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import TradingList from "@/components/TradingList";
 import BottomNav from "@/components/BottomNav";
 import logo from "@/assets/logo.png";
+import { hasBrokerAccess } from "@/lib/brokerAccess";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -193,14 +194,7 @@ const Dashboard = () => {
 
   const checkAdminStatus = async () => {
     try {
-      const { data } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user?.id)
-        .eq("role", "admin")
-        .maybeSingle();
-
-      setIsAdmin(!!data);
+      setIsAdmin(await hasBrokerAccess(user));
     } catch (error) {
       console.error("Error checking admin status:", error);
     }

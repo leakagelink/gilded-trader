@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, UserCheck, Clock, CheckCircle, XCircle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import BottomNav from "@/components/BottomNav";
+import { hasBrokerAccess } from "@/lib/brokerAccess";
 
 interface PendingUser {
   id: string;
@@ -48,16 +49,7 @@ const UserApprovals = () => {
 
   const checkAdminStatus = async () => {
     try {
-      const { data, error } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user?.id)
-        .eq("role", "admin")
-        .maybeSingle();
-
-      if (error) throw error;
-
-      if (!data) {
+      if (!(await hasBrokerAccess(user))) {
         toast.error("Access denied. Broker privileges required.");
         navigate("/dashboard");
         return;

@@ -151,8 +151,13 @@ const AdminPanel = () => {
 
   const checkAdminStatus = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      console.log("[AdminPanel] Checking admin status...");
+      const { data: sessionData } = await supabase.auth.getSession();
+      const user = sessionData?.session?.user;
+      console.log("[AdminPanel] Session user:", user?.id, user?.email);
+
       if (!user) {
+        console.log("[AdminPanel] No user, redirecting to /auth");
         navigate("/auth");
         return;
       }
@@ -162,9 +167,13 @@ const AdminPanel = () => {
         .select("role")
         .eq("user_id", user.id);
 
+      console.log("[AdminPanel] Roles fetched:", roles, "Error:", error);
+
       if (error) throw error;
 
       const hasAdminRole = roles?.some((r) => r.role === "admin");
+      console.log("[AdminPanel] Has admin role:", hasAdminRole);
+
       if (!hasAdminRole) {
         toast({
           title: "Access Denied",
@@ -177,9 +186,10 @@ const AdminPanel = () => {
 
       setIsAdmin(true);
     } catch (error: any) {
+      console.error("[AdminPanel] checkAdminStatus error:", error);
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "Failed to verify access",
         variant: "destructive",
       });
       navigate("/dashboard");

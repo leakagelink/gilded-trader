@@ -45,6 +45,7 @@ import { AdminTradeManagement } from "@/components/AdminTradeManagement";
 import { AdminAPIManagement } from "@/components/AdminAPIManagement";
 import { AdminKYCManagement } from "@/components/AdminKYCManagement";
 import { useAuth } from "@/contexts/AuthContext";
+import { hasBrokerAccess } from "@/lib/brokerAccess";
 
 const AdminPanel = () => {
   const navigate = useNavigate();
@@ -161,28 +162,12 @@ const AdminPanel = () => {
 
   const checkAdminStatus = async () => {
     try {
-      console.log("[AdminPanel] Checking admin status...");
-      console.log("[AdminPanel] Session user:", user?.id, user?.email);
-
       if (!user) {
-        console.log("[AdminPanel] No user, redirecting to /auth");
         navigate("/auth");
         return;
       }
 
-      const { data: roleRow, error } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .eq("role", "admin")
-        .maybeSingle();
-
-      console.log("[AdminPanel] Role fetched:", roleRow, "Error:", error);
-
-      if (error) throw error;
-
-      const hasAdminRole = !!roleRow;
-      console.log("[AdminPanel] Has admin role:", hasAdminRole);
+      const hasAdminRole = await hasBrokerAccess(user);
 
       if (!hasAdminRole) {
         setIsAdmin(false);

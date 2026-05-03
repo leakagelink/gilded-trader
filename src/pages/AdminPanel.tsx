@@ -199,27 +199,32 @@ const AdminPanel = () => {
     setLoading(true);
     try {
       // Fetch users
-      const { data: usersData, error: usersError } = await supabase
-        .from("profiles")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (usersError) throw usersError;
-      setUsers(usersData || []);
-      
-      // Separate pending users
-      const pending = usersData?.filter(u => !u.is_approved) || [];
-      setPendingUsers(pending);
+      try {
+        const { data: usersData, error: usersError } = await supabase
+          .from("profiles")
+          .select("*")
+          .order("created_at", { ascending: false });
+        if (usersError) throw usersError;
+        setUsers(usersData || []);
+        const pending = usersData?.filter(u => !u.is_approved) || [];
+        setPendingUsers(pending);
+      } catch (e: any) {
+        console.error("[AdminPanel] users fetch failed:", e);
+      }
 
       // Fetch wallets
-      const { data: walletsData, error: walletsError } = await supabase
-        .from("user_wallets")
-        .select("*");
-
-      if (walletsError) throw walletsError;
-      setWallets(walletsData || []);
+      try {
+        const { data: walletsData, error: walletsError } = await supabase
+          .from("user_wallets")
+          .select("*");
+        if (walletsError) throw walletsError;
+        setWallets(walletsData || []);
+      } catch (e: any) {
+        console.error("[AdminPanel] wallets fetch failed:", e);
+      }
 
       // Fetch deposit requests
+      try {
       const { data: depositsData, error: depositsError } = await supabase
         .from("deposit_requests")
         .select("*")
@@ -241,8 +246,12 @@ const AdminPanel = () => {
       })) || [];
       
       setDepositRequests(depositsWithProfiles);
+      } catch (e: any) {
+        console.error("[AdminPanel] deposits fetch failed:", e);
+      }
 
       // Fetch withdrawal requests
+      try {
       const { data: withdrawalsData, error: withdrawalsError } = await supabase
         .from("withdrawal_requests")
         .select("*")
@@ -264,8 +273,12 @@ const AdminPanel = () => {
       })) || [];
       
       setWithdrawalRequests(withdrawalsWithProfiles);
+      } catch (e: any) {
+        console.error("[AdminPanel] withdrawals fetch failed:", e);
+      }
 
       // Fetch payment settings
+      try {
       const { data: settingsData, error: settingsError } = await supabase
         .from("payment_settings")
         .select("*");
@@ -308,6 +321,9 @@ const AdminPanel = () => {
           forexMomentumEnabled: settings.forexMomentumEnabled !== 'false',
           commoditiesMomentumEnabled: settings.commoditiesMomentumEnabled !== 'false',
         });
+      }
+      } catch (e: any) {
+        console.error("[AdminPanel] settings fetch failed:", e);
       }
     } catch (error: any) {
       toast({

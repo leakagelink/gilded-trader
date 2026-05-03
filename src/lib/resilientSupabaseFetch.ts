@@ -107,6 +107,47 @@ export const installResilientSupabaseFetch = () => {
 
     const nativeFetch = getNativeFetch();
 
+    if (isReadRequest(input, init)) {
+      const directRequest = createRequest(input, init, directUrl);
+      const workerRequest = createRequest(input, init, workerUrl);
+      let directTimer: ReturnType<typeof window.setTimeout> | undefined;
+
+      try {
+        return await new Promise<Response>((resolve, reject) => {
+          let settled = false;
+          let failures = 0;
+          const fail = (error: unknown) => {
+            failures += 1;
+            if (failures >= 2 && !settled) {
+              settled = true;
+              reject(error);
+            }
+          };
+          const succeed = (response: Response) => {
+            if (!settled) {
+              settled = true;
+              if (directTimer) window.clearTimeout(directTimer);
+              resolve(response);
+            }
+          };
+
+          nativeFetch(workerRequest)
+            .then(async (response) => {
+              if (await shouldRetryDirect(response)) return fail(new Error("Backend proxy timeout"));
+              succeed(response);
+            })
+            .catch(fail);
+
+          directTimer = window.setTimeout(() => {
+            nativeFetch(directRequest).then(succeed).catch(fail);
+          }, DIRECT_RETRY_DELAY_MS);
+        });
+      } catch (error) {
+        console.warn("Backend proxy request failed; retrying direct connection.", error);
+        return nativeFetch(createRequest(input, init, directUrl));
+      }
+    }
+
     try {
       const workerResponse = await nativeFetch(createRequest(input, init, workerUrl));
       if (!(await shouldRetryDirect(workerResponse))) return workerResponse;

@@ -199,20 +199,53 @@ const AdminPanel = () => {
 
   const fetchAllData = async () => {
     setLoading(true);
-    try {
-      // Fetch users
-      try {
-        const { data: usersData, error: usersError } = await supabase
-          .from("profiles")
-          .select("*")
-          .order("created_at", { ascending: false });
-        if (usersError) throw usersError;
-        setUsers(usersData || []);
-        const pending = usersData?.filter(u => !u.is_approved) || [];
-        setPendingUsers(pending);
-      } catch (e: any) {
-        console.error("[AdminPanel] users fetch failed:", e);
+    setUsersLoading(true);
+    setUsersError(null);
+
+    // Helper: race a query against a timeout so a single stalled request
+    // never blocks the whole panel.
+    const withTimeout = async <T,>(label: string, p: PromiseLike<T>, ms = 12000): Promise<T> => {
+      return await Promise.race([
+        Promise.resolve(p),
+        new Promise<T>((_, reject) =>
+          setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
+        ),
+      ]);
+    };
+
+    // Fetch users with retries + timeout, independent of other sections
+    const fetchUsers = async () => {
+      const maxAttempts = 3;
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          const { data, error } = await withTimeout(
+            "profiles",
+            supabase
+              .from("profiles")
+              .select("id, full_name, email, mobile_number, client_id, is_approved, approved_at, created_at")
+              .order("created_at", { ascending: false }),
+            12000
+          );
+          if (error) throw error;
+          setUsers(data || []);
+          setPendingUsers((data || []).filter((u: any) => !u.is_approved));
+          setUsersError(null);
+          return;
+        } catch (e: any) {
+          console.error(`[AdminPanel] users fetch attempt ${attempt} failed:`, e?.message || e);
+          if (attempt === maxAttempts) {
+            setUsersError(e?.message || "Failed to load users");
+          } else {
+            await new Promise((r) => setTimeout(r, 800 * attempt));
+          }
+        }
       }
+    };
+
+    // Kick users fetch off in parallel and clear its loading flag as soon as it settles
+    const usersPromise = fetchUsers().finally(() => setUsersLoading(false));
+
+    try {
 
       // Fetch wallets
       try {

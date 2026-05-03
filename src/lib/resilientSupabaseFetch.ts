@@ -1,5 +1,6 @@
 const SUPABASE_ORIGIN = "https://jslfqoxxmilfolrwvfaa.supabase.co";
 const WORKER_ORIGIN = "https://withered-dew-e3c0.nocodegenius12.workers.dev";
+const DIRECT_RETRY_DELAY_MS = 2500;
 
 type PatchedWindow = Window & {
   __coinGoldFxResilientFetchInstalled?: boolean;
@@ -43,11 +44,32 @@ const getNativeFetch = () => {
 
 const createRequest = (input: RequestInfo | URL, init: RequestInit | undefined, targetUrl: string) => {
   if (input instanceof Request) {
-    const request = new Request(targetUrl, input.clone());
-    return init ? new Request(request, init) : request;
+    const clonedInput = input.clone();
+    const requestInit: RequestInit = {
+      method: clonedInput.method,
+      headers: clonedInput.headers,
+      body: clonedInput.method === "GET" || clonedInput.method === "HEAD" ? undefined : clonedInput.body,
+      mode: clonedInput.mode,
+      credentials: clonedInput.credentials,
+      cache: clonedInput.cache,
+      redirect: clonedInput.redirect,
+      referrer: clonedInput.referrer,
+      referrerPolicy: clonedInput.referrerPolicy,
+      integrity: clonedInput.integrity,
+      keepalive: clonedInput.keepalive,
+      signal: clonedInput.signal,
+      ...init,
+    };
+
+    return new Request(targetUrl, requestInit);
   }
 
   return new Request(targetUrl, init);
+};
+
+const isReadRequest = (input: RequestInfo | URL, init?: RequestInit) => {
+  const method = (init?.method || (input instanceof Request ? input.method : "GET")).toUpperCase();
+  return method === "GET" || method === "HEAD";
 };
 
 const shouldRetryDirect = async (response: Response) => {

@@ -60,6 +60,8 @@ const AdminPanel = () => {
   const [users, setUsers] = useState<any[]>([]);
   const [pendingUsers, setPendingUsers] = useState<any[]>([]);
   const [wallets, setWallets] = useState<any[]>([]);
+  const [usersLoading, setUsersLoading] = useState(true);
+  const [usersError, setUsersError] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [editBalanceOpen, setEditBalanceOpen] = useState(false);
   const [balanceAmount, setBalanceAmount] = useState("");
@@ -197,26 +199,61 @@ const AdminPanel = () => {
 
   const fetchAllData = async () => {
     setLoading(true);
-    try {
-      // Fetch users
-      try {
-        const { data: usersData, error: usersError } = await supabase
-          .from("profiles")
-          .select("*")
-          .order("created_at", { ascending: false });
-        if (usersError) throw usersError;
-        setUsers(usersData || []);
-        const pending = usersData?.filter(u => !u.is_approved) || [];
-        setPendingUsers(pending);
-      } catch (e: any) {
-        console.error("[AdminPanel] users fetch failed:", e);
+    setUsersLoading(true);
+    setUsersError(null);
+
+    // Helper: race a query against a timeout so a single stalled request
+    // never blocks the whole panel.
+    const withTimeout = async <T,>(label: string, p: PromiseLike<T>, ms = 12000): Promise<T> => {
+      return await Promise.race([
+        Promise.resolve(p),
+        new Promise<T>((_, reject) =>
+          setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
+        ),
+      ]);
+    };
+
+    // Fetch users with retries + timeout, independent of other sections
+    const fetchUsers = async () => {
+      const maxAttempts = 3;
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          const { data, error } = await withTimeout(
+            "profiles",
+            supabase
+              .from("profiles")
+              .select("id, full_name, email, mobile_number, client_id, is_approved, approved_at, created_at")
+              .order("created_at", { ascending: false }),
+            12000
+          );
+          if (error) throw error;
+          setUsers(data || []);
+          setPendingUsers((data || []).filter((u: any) => !u.is_approved));
+          setUsersError(null);
+          return;
+        } catch (e: any) {
+          console.error(`[AdminPanel] users fetch attempt ${attempt} failed:`, e?.message || e);
+          if (attempt === maxAttempts) {
+            setUsersError(e?.message || "Failed to load users");
+          } else {
+            await new Promise((r) => setTimeout(r, 800 * attempt));
+          }
+        }
       }
+    };
+
+    // Kick users fetch off in parallel and clear its loading flag as soon as it settles
+    const usersPromise = fetchUsers().finally(() => setUsersLoading(false));
+
+    try {
 
       // Fetch wallets
       try {
-        const { data: walletsData, error: walletsError } = await supabase
-          .from("user_wallets")
-          .select("*");
+        const { data: walletsData, error: walletsError } = await withTimeout(
+          "user_wallets",
+          supabase.from("user_wallets").select("*"),
+          12000
+        );
         if (walletsError) throw walletsError;
         setWallets(walletsData || []);
       } catch (e: any) {
@@ -225,10 +262,11 @@ const AdminPanel = () => {
 
       // Fetch deposit requests
       try {
-      const { data: depositsData, error: depositsError } = await supabase
-        .from("deposit_requests")
-        .select("*")
-        .order("created_at", { ascending: false });
+      const { data: depositsData, error: depositsError } = await withTimeout(
+        "deposit_requests",
+        supabase.from("deposit_requests").select("*").order("created_at", { ascending: false }),
+        12000
+      );
 
       if (depositsError) throw depositsError;
       
@@ -252,10 +290,11 @@ const AdminPanel = () => {
 
       // Fetch withdrawal requests
       try {
-      const { data: withdrawalsData, error: withdrawalsError } = await supabase
-        .from("withdrawal_requests")
-        .select("*")
-        .order("created_at", { ascending: false });
+      const { data: withdrawalsData, error: withdrawalsError } = await withTimeout(
+        "withdrawal_requests",
+        supabase.from("withdrawal_requests").select("*").order("created_at", { ascending: false }),
+        12000
+      );
 
       if (withdrawalsError) throw withdrawalsError;
       
@@ -279,9 +318,11 @@ const AdminPanel = () => {
 
       // Fetch payment settings
       try {
-      const { data: settingsData, error: settingsError } = await supabase
-        .from("payment_settings")
-        .select("*");
+      const { data: settingsData, error: settingsError } = await withTimeout(
+        "payment_settings",
+        supabase.from("payment_settings").select("*"),
+        12000
+      );
 
       if (settingsError) throw settingsError;
 
@@ -332,6 +373,7 @@ const AdminPanel = () => {
         variant: "destructive",
       });
     } finally {
+      await usersPromise.catch(() => {});
       setLoading(false);
     }
   };
@@ -974,8 +1016,17 @@ const AdminPanel = () => {
                 </div>
               </CardHeader>
               <CardContent>
-                {loading ? (
+                {usersLoading ? (
                   <p className="text-center py-8 text-muted-foreground">Loading users...</p>
+                ) : usersError ? (
+                  <div className="text-center py-8 space-y-3">
+                    <p className="text-sm text-destructive">
+                      Could not load users: {usersError}
+                    </p>
+                    <Button onClick={fetchAllData} variant="outline" size="sm">
+                      <RefreshCw className="h-4 w-4 mr-2" /> Retry
+                    </Button>
+                  </div>
                 ) : (
                   <div className="space-y-6">
                     {/* Pending Users */}

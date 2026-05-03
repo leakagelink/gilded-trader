@@ -249,9 +249,11 @@ const AdminPanel = () => {
 
       // Fetch wallets
       try {
-        const { data: walletsData, error: walletsError } = await supabase
-          .from("user_wallets")
-          .select("*");
+        const { data: walletsData, error: walletsError } = await withTimeout(
+          "user_wallets",
+          supabase.from("user_wallets").select("*"),
+          12000
+        );
         if (walletsError) throw walletsError;
         setWallets(walletsData || []);
       } catch (e: any) {
@@ -260,10 +262,11 @@ const AdminPanel = () => {
 
       // Fetch deposit requests
       try {
-      const { data: depositsData, error: depositsError } = await supabase
-        .from("deposit_requests")
-        .select("*")
-        .order("created_at", { ascending: false });
+      const { data: depositsData, error: depositsError } = await withTimeout(
+        "deposit_requests",
+        supabase.from("deposit_requests").select("*").order("created_at", { ascending: false }),
+        12000
+      );
 
       if (depositsError) throw depositsError;
       
@@ -287,10 +290,11 @@ const AdminPanel = () => {
 
       // Fetch withdrawal requests
       try {
-      const { data: withdrawalsData, error: withdrawalsError } = await supabase
-        .from("withdrawal_requests")
-        .select("*")
-        .order("created_at", { ascending: false });
+      const { data: withdrawalsData, error: withdrawalsError } = await withTimeout(
+        "withdrawal_requests",
+        supabase.from("withdrawal_requests").select("*").order("created_at", { ascending: false }),
+        12000
+      );
 
       if (withdrawalsError) throw withdrawalsError;
       
@@ -314,9 +318,11 @@ const AdminPanel = () => {
 
       // Fetch payment settings
       try {
-      const { data: settingsData, error: settingsError } = await supabase
-        .from("payment_settings")
-        .select("*");
+      const { data: settingsData, error: settingsError } = await withTimeout(
+        "payment_settings",
+        supabase.from("payment_settings").select("*"),
+        12000
+      );
 
       if (settingsError) throw settingsError;
 
@@ -367,6 +373,7 @@ const AdminPanel = () => {
         variant: "destructive",
       });
     } finally {
+      await usersPromise.catch(() => {});
       setLoading(false);
     }
   };

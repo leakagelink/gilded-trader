@@ -60,6 +60,8 @@ const AdminPanel = () => {
   const [users, setUsers] = useState<any[]>([]);
   const [pendingUsers, setPendingUsers] = useState<any[]>([]);
   const [wallets, setWallets] = useState<any[]>([]);
+  const [usersLoading, setUsersLoading] = useState(true);
+  const [usersError, setUsersError] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [editBalanceOpen, setEditBalanceOpen] = useState(false);
   const [balanceAmount, setBalanceAmount] = useState("");

@@ -139,6 +139,7 @@ export const installResilientSupabaseFetch = () => {
             .catch(fail);
 
           directTimer = window.setTimeout(() => {
+            console.warn("Backend proxy is slow; trying direct connection.");
             nativeFetch(directRequest).then(succeed).catch(fail);
           }, DIRECT_RETRY_DELAY_MS);
         });

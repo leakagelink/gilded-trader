@@ -1016,8 +1016,17 @@ const AdminPanel = () => {
                 </div>
               </CardHeader>
               <CardContent>
-                {loading ? (
+                {usersLoading ? (
                   <p className="text-center py-8 text-muted-foreground">Loading users...</p>
+                ) : usersError ? (
+                  <div className="text-center py-8 space-y-3">
+                    <p className="text-sm text-destructive">
+                      Could not load users: {usersError}
+                    </p>
+                    <Button onClick={fetchAllData} variant="outline" size="sm">
+                      <RefreshCw className="h-4 w-4 mr-2" /> Retry
+                    </Button>
+                  </div>
                 ) : (
                   <div className="space-y-6">
                     {/* Pending Users */}
